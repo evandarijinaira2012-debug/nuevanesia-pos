@@ -151,6 +151,7 @@ export default function Laporan() {
                 <tr>
                   <th className="p-4">Tanggal Transaksi</th>
                   <th className="p-4">Nama Pelanggan</th>
+                  <th className="p-4">Metode Pembayaran</th> {/* BARU */}
                   <th className="p-4">Total Biaya</th>
                 </tr>
               </thead>
@@ -159,6 +160,7 @@ export default function Laporan() {
                   <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
                     <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
                     <td className="p-4">{t.pelanggan?.nama || 'Nama tidak ditemukan'}</td>
+                    <td className="p-4">{t.jenis_pembayaran}</td> {/* BARU */}
                     <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
                   </tr>
                 ))}
