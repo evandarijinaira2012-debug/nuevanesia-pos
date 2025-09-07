@@ -111,22 +111,22 @@ export default function Home() {
     ? produk
     : produk.filter(item => item.kategori === kategoriTerpilih);
 
-  return (
-    <div className="flex min-h-screen font-sans">
-      <Head>
-        <title>Nuevanesia POS</title>
-      </Head>
-      
-      {/* Tombol Logout */}
-      <div className="absolute top-4 right-4 z-10">
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white p-2 rounded-md hover:bg-red-600"
-        >
-          Logout
-        </button>
-      </div>
+return (
+  <div className="flex min-h-screen font-sans">
+    <Head>
+      <title>Nuevanesia POS</title>
+    </Head>
 
+    {/* Tombol Logout */}
+    <div className="absolute top-4 right-4 z-10">
+      <button
+        onClick={handleLogout}
+        className="bg-red-500 text-white p-2 rounded-md hover:bg-red-600"
+      >
+        Logout
+      </button>
+    </div>
+    ...
       {/* Kolom 1: Kategori Produk */}
       <div className="w-1/4 p-4 border-r border-gray-200 bg-gray-50 overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">Kategori</h2>
