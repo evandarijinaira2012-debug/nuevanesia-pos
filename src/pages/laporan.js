@@ -10,7 +10,7 @@ export default function Laporan() {
   const [transaksiHarian, setTransaksiHarian] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' }); // State awal: urut berdasarkan tanggal, terbaru di atas
+  const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' });
   const router = useRouter();
 
   useEffect(() => {
@@ -87,10 +87,9 @@ export default function Laporan() {
     setLoading(false);
   };
 
-  // Fungsi untuk menangani pengurutan
   const handleSort = (field) => {
     let direction = 'asc';
-    if (sortConfig.field === field && sortConfig.direction === 'desc') { // Logika diperbaiki
+    if (sortConfig.field === field && sortConfig.direction === 'desc') {
       direction = 'asc';
     } else if (sortConfig.field === field && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -98,15 +97,13 @@ export default function Laporan() {
     setSortConfig({ field, direction });
   };
 
-  // Menggunakan useMemo untuk mengurutkan data secara efisien
   const sortedTransaksi = useMemo(() => {
     if (!transaksiHarian) return [];
     
     const sortableItems = [...transaksiHarian];
     sortableItems.sort((a, b) => {
       let aValue, bValue;
-
-      // Handle sorting for different fields
+      
       switch (sortConfig.field) {
         case 'tanggal_mulai':
           aValue = new Date(a.tanggal_mulai);
@@ -255,4 +252,18 @@ export default function Laporan() {
                 {sortedTransaksi.map(t => (
                   <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
                     <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                    <td className="p-4">{t.pelanggan?.nama || 'Nama tidak ditemukan
+                    <td className="p-4">{t.pelanggan?.nama || 'Nama tidak ditemukan'}</td>
+                    <td className="p-4">{t.jenis_pembayaran}</td>
+                    <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-400 text-center">Tidak ada data transaksi harian.</p>
+        )}
+      </div>
+    </div>
+  );
+}
