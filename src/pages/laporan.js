@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -10,6 +10,7 @@ export default function Laporan() {
   const [transaksiHarian, setTransaksiHarian] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' }); // State baru untuk pengurutan
   const router = useRouter();
 
   useEffect(() => {
@@ -82,15 +83,69 @@ export default function Laporan() {
       tahunan: laporanTahunan,
     });
     
-    // Mengurutkan transaksi dari terlama ke terbaru
-    const transaksiTerurut = transaksiHarianDetail.sort((a, b) => moment(a.tanggal_mulai).valueOf() - moment(b.tanggal_mulai).valueOf());
-    setTransaksiHarian(transaksiTerurut);
-    
+    setTransaksiHarian(transaksiHarianDetail);
     setLoading(false);
   };
 
+  // Fungsi untuk menangani pengurutan
+  const handleSort = (field) => {
+    let direction = 'asc';
+    if (sortConfig.field === field && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ field, direction });
+  };
+
+  // Menggunakan useMemo untuk mengurutkan data secara efisien
+  const sortedTransaksi = useMemo(() => {
+    if (!transaksiHarian) return [];
+    
+    const sortableItems = [...transaksiHarian];
+    sortableItems.sort((a, b) => {
+      let aValue, bValue;
+
+      // Handle sorting for different fields
+      switch (sortConfig.field) {
+        case 'tanggal_mulai':
+          aValue = new Date(a.tanggal_mulai);
+          bValue = new Date(b.tanggal_mulai);
+          break;
+        case 'pelanggan.nama':
+          aValue = a.pelanggan?.nama || '';
+          bValue = b.pelanggan?.nama || '';
+          break;
+        case 'total_biaya':
+          aValue = a.total_biaya;
+          bValue = b.total_biaya;
+          break;
+        case 'jenis_pembayaran':
+          aValue = a.jenis_pembayaran;
+          bValue = b.jenis_pembayaran;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+    return sortableItems;
+  }, [transaksiHarian, sortConfig]);
+
   const formatRupiah = (angka) => {
     return `Rp${angka.toLocaleString('id-ID')}`;
+  };
+
+  const getSortIcon = (field) => {
+    if (sortConfig.field === field) {
+      return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
+    }
+    return '';
   };
 
   if (loading) {
@@ -175,33 +230,27 @@ export default function Laporan() {
       {/* Kolom Laporan Harian Detail */}
       <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
         <h2 className="text-2xl font-semibold mb-6 text-gray-200">Detail Transaksi Harian</h2>
-        {transaksiHarian.length > 0 ? (
+        {sortedTransaksi.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left table-auto">
               <thead className="bg-gray-700">
                 <tr>
-                  <th className="p-4">Tanggal Transaksi</th>
-                  <th className="p-4">Nama Pelanggan</th>
-                  <th className="p-4">Metode Pembayaran</th>
-                  <th className="p-4">Total Biaya</th>
+                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('tanggal_mulai')}>
+                    Tanggal Transaksi {getSortIcon('tanggal_mulai')}
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('pelanggan.nama')}>
+                    Nama Pelanggan {getSortIcon('pelanggan.nama')}
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('jenis_pembayaran')}>
+                    Metode Pembayaran {getSortIcon('jenis_pembayaran')}
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('total_biaya')}>
+                    Total Biaya {getSortIcon('total_biaya')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {transaksiHarian.map(t => (
+                {sortedTransaksi.map(t => (
                   <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
                     <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                    <td className="p-4">{t.pelanggan?.nama || 'Nama tidak ditemukan'}</td>
-                    <td className="p-4">{t.jenis_pembayaran}</td>
-                    <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-400 text-center">Tidak ada data transaksi harian.</p>
-        )}
-      </div>
-    </div>
-  );
-}
+                    <td className="p-4">{t.pelang
