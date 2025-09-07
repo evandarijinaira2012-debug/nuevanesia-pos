@@ -10,7 +10,7 @@ export default function Laporan() {
   const [transaksiHarian, setTransaksiHarian] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' }); // State baru untuk pengurutan
+  const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' }); // State awal: urut berdasarkan tanggal, terbaru di atas
   const router = useRouter();
 
   useEffect(() => {
@@ -90,7 +90,9 @@ export default function Laporan() {
   // Fungsi untuk menangani pengurutan
   const handleSort = (field) => {
     let direction = 'asc';
-    if (sortConfig.field === field && sortConfig.direction === 'asc') {
+    if (sortConfig.field === field && sortConfig.direction === 'desc') { // Logika diperbaiki
+      direction = 'asc';
+    } else if (sortConfig.field === field && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
     setSortConfig({ field, direction });
@@ -253,4 +255,4 @@ export default function Laporan() {
                 {sortedTransaksi.map(t => (
                   <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
                     <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                    <td className="p-4">{t.pelang
+                    <td className="p-4">{t.pelanggan?.nama || 'Nama tidak ditemukan
