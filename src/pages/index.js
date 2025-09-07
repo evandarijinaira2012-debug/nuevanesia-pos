@@ -16,6 +16,7 @@ export default function Home() {
   const [jaminan, setJaminan] = useState('');
   const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
   const [semuaKategori, setSemuaKategori] = useState([]);
+  const [searchQuery, setSearchQuery] = useState(''); // State baru untuk pencarian
   const [session, setSession] = useState(null);
   const router = useRouter();
 
@@ -224,9 +225,11 @@ export default function Home() {
     setShowStrukPopup(true);
   };
 
-  const produkTerfilter = kategoriTerpilih === 'Semua'
-    ? produk
-    : produk.filter(item => item.kategori === kategoriTerpilih);
+  const produkTerfilter = produk.filter(item => {
+    const kategoriCocok = kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
+    const pencarianCocok = item.nama.toLowerCase().includes(searchQuery.toLowerCase());
+    return kategoriCocok && pencarianCocok;
+  });
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-900 text-white font-sans">
@@ -235,7 +238,6 @@ export default function Home() {
       </Head>
       
       {/* Kolom Kiri: Navigasi Kategori & Logo */}
-      {/* Untuk mobile: lebar penuh, untuk desktop: w-1/4 */}
       <div className="w-full lg:w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
         <div>
           <div className="flex items-center justify-center mb-10">
@@ -305,34 +307,51 @@ export default function Home() {
       </div>
 
       {/* Kolom Tengah: Item Sewa */}
-      {/* Untuk mobile: lebar penuh, grid 2 kolom. Untuk desktop: w-1/2, grid 4 kolom */}
       <div className="w-full lg:w-1/2 p-4 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-100">Item Sewa</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {produkTerfilter.map(item => (
-            <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-md flex flex-col justify-between">
-              {item.url_gambar && (
-                <img src={item.url_gambar} alt={item.nama} className="w-full h-24 object-cover mb-3 rounded-md" />
-              )}
-              <h3 className="font-bold text-md text-teal-300">{item.nama}</h3>
-              <p className="text-xs text-gray-400">Rp{item.harga} / Hari</p>
-              <p className="text-xs text-gray-400">Stok: {item.stok}</p>
-              <button
-                onClick={() => tambahKeKeranjang(item)}
-                className="bg-blue-600 text-white p-2 mt-2 rounded-md w-full hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center text-sm"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Tambah
-              </button>
-            </div>
-          ))}
+        
+        {/* Input Pencarian */}
+        <div className="mb-6 relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari produk..."
+            className="w-full p-3 pl-10 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
+          />
+          <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {produkTerfilter.length > 0 ? (
+            produkTerfilter.map(item => (
+              <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-md flex flex-col justify-between">
+                {item.url_gambar && (
+                  <img src={item.url_gambar} alt={item.nama} className="w-full h-24 object-cover mb-3 rounded-md" />
+                )}
+                <h3 className="font-bold text-md text-teal-300">{item.nama}</h3>
+                <p className="text-xs text-gray-400">Rp{item.harga} / Hari</p>
+                <p className="text-xs text-gray-400">Stok: {item.stok}</p>
+                <button
+                  onClick={() => tambahKeKeranjang(item)}
+                  className="bg-blue-600 text-white p-2 mt-2 rounded-md w-full hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center text-sm"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Tambah
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-400 col-span-full text-center py-8">Tidak ada produk ditemukan.</p>
+          )}
         </div>
       </div>
 
       {/* Kolom Kanan: Detail Transaksi & Keranjang */}
-      {/* Untuk mobile: lebar penuh. Untuk desktop: w-1/4 */}
       <div className="w-full lg:w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
         <div>
           <h2 className="text-2xl font-bold mb-6 text-gray-100">Detail Transaksi</h2>
