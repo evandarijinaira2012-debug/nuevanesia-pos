@@ -82,8 +82,8 @@ export default function Laporan() {
       tahunan: laporanTahunan,
     });
     
-    // Mengurutkan transaksi dari terbaru ke terlama
-    const transaksiTerurut = transaksiHarianDetail.sort((a, b) => moment(b.tanggal_mulai).valueOf() - moment(a.tanggal_mulai).valueOf());
+    // Mengurutkan transaksi dari terlama ke terbaru
+    const transaksiTerurut = transaksiHarianDetail.sort((a, b) => moment(a.tanggal_mulai).valueOf() - moment(b.tanggal_mulai).valueOf());
     setTransaksiHarian(transaksiTerurut);
     
     setLoading(false);
