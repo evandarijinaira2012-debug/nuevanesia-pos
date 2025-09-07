@@ -7,7 +7,8 @@ export default function Home() {
   const [keranjang, setKeranjang] = useState([]);
   const [tanggalMulai, setTanggalMulai] = useState('');
   const [tanggalSelesai, setTanggalSelesai] = useState('');
-  const [showPopup, setShowPopup] = useState(false);
+  const [showFormPopup, setShowFormPopup] = useState(false); // Untuk form input pelanggan
+  const [showStrukPopup, setShowStrukPopup] = useState(false); // Untuk menampilkan struk
   const [namaPelanggan, setNamaPelanggan] = useState('');
   const [alamatPelanggan, setAlamatPelanggan] = useState('');
   const [noWhatsapp, setNoWhatsapp] = useState('');
@@ -15,13 +16,17 @@ export default function Home() {
   const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
   const [semuaKategori, setSemuaKategori] = useState([]);
 
-  // Fungsi untuk mencetak dan mengosongkan keranjang
   const handleCetak = () => {
     window.print();
-    // Mengosongkan keranjang setelah cetak selesai
+    // Mengosongkan keranjang dan form setelah cetak
     setKeranjang([]);
-    // Menyembunyikan tampilan struk
-    setShowPopup(false); 
+    setShowStrukPopup(false);
+    setNamaPelanggan('');
+    setAlamatPelanggan('');
+    setNoWhatsapp('');
+    setJaminan('');
+    setTanggalMulai('');
+    setTanggalSelesai('');
   };
 
   const hitungDurasiHari = () => {
@@ -91,7 +96,7 @@ export default function Home() {
       alert('Mohon isi tanggal sewa terlebih dahulu!');
       return;
     }
-    setShowPopup(true);
+    setShowFormPopup(true); // Tampilkan form pelanggan
   };
   
   const handleSimpan = async () => {
@@ -142,7 +147,8 @@ export default function Home() {
     );
 
     alert('Data sewa berhasil disimpan! Sekarang Anda bisa cetak struk.');
-    setShowPopup(false);
+    setShowFormPopup(false); // Sembunyikan form pelanggan
+    setShowStrukPopup(true); // Tampilkan struk
   };
 
   useEffect(() => {
@@ -249,69 +255,96 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Popup Data Pelanggan */}
-      {showPopup && (
+      {/* OVERLAY POPUP untuk Form Pelanggan DAN Struk */}
+      {(showFormPopup || showStrukPopup) && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="p-6 bg-white rounded-lg shadow-md max-w-lg w-full">
-            {/* Header Popup */}
-            <h2 className="text-2xl font-bold mb-4">Detail Transaksi</h2>
-            <p className="text-sm text-gray-500 -mt-2 mb-4">Isi data pelanggan untuk melanjutkan</p>
-
-            {/* Form Input Pelanggan */}
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium">Nama Pelanggan</label>
-                <input type="text" value={namaPelanggan} onChange={(e) => setNamaPelanggan(e.target.value)} className="w-full p-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Alamat</label>
-                <input type="text" value={alamatPelanggan} onChange={(e) => setAlamatPelanggan(e.target.value)} className="w-full p-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">No. WhatsApp</label>
-                <input type="text" value={noWhatsapp} onChange={(e) => setNoWhatsapp(e.target.value)} className="w-full p-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Jaminan</label>
-                <input type="text" value={jaminan} onChange={(e) => setJaminan(e.target.value)} className="w-full p-2 border rounded" />
-              </div>
-            </div>
-
-            {/* Detail Ringkasan Transaksi */}
-            <h3 className="text-lg font-semibold mb-2">Ringkasan</h3>
-            <div className="border-t border-b py-4 mb-4">
-              <div className="flex justify-between font-medium">
-                <span>Durasi:</span>
-                <span>{hitungDurasiHari()} malam</span>
-              </div>
-              <div className="flex justify-between font-bold text-xl mt-2">
-                <span>Total:</span>
-                <span>Rp{hitungTotal().toLocaleString('id-ID')}</span>
-              </div>
-            </div>
-
-            {/* Tombol Aksi */}
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSimpan}
-                className="bg-blue-500 text-white p-3 rounded-md w-1/2 hover:bg-blue-600"
-              >
-                Simpan
-              </button>
-              <button
-                onClick={() => setShowPopup(false)}
-                className="bg-gray-300 text-gray-800 p-3 rounded-md w-1/2 hover:bg-gray-400"
-              >
-                Batal
-              </button>
-            </div>
-            {keranjang.length > 0 && (
-              <button
-                onClick={handleCetak}
-                className="bg-green-500 text-white p-3 mt-2 rounded-md w-full hover:bg-green-600"
-              >
-                Cetak Struk
-              </button>
+          <div className="p-6 bg-white rounded-lg shadow-md max-w-lg w-full max-h-screen overflow-y-auto">
+            {showFormPopup && (
+              <>
+                <h2 className="text-2xl font-bold mb-4">Detail Transaksi</h2>
+                <p className="text-sm text-gray-500 -mt-2 mb-4">Isi data pelanggan untuk melanjutkan</p>
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium">Nama Pelanggan</label>
+                    <input type="text" value={namaPelanggan} onChange={(e) => setNamaPelanggan(e.target.value)} className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium">Alamat</label>
+                    <input type="text" value={alamatPelanggan} onChange={(e) => setAlamatPelanggan(e.target.value)} className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium">No. WhatsApp</label>
+                    <input type="text" value={noWhatsapp} onChange={(e) => setNoWhatsapp(e.target.value)} className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium">Jaminan</label>
+                    <input type="text" value={jaminan} onChange={(e) => setJaminan(e.target.value)} className="w-full p-2 border rounded" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Ringkasan</h3>
+                <div className="border-t border-b py-4 mb-4">
+                  <div className="flex justify-between font-medium">
+                    <span>Durasi:</span>
+                    <span>{hitungDurasiHari()} malam</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-xl mt-2">
+                    <span>Total:</span>
+                    <span>Rp{hitungTotal().toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleSimpan}
+                    className="bg-blue-500 text-white p-3 rounded-md w-1/2 hover:bg-blue-600"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    onClick={() => setShowFormPopup(false)}
+                    className="bg-gray-300 text-gray-800 p-3 rounded-md w-1/2 hover:bg-gray-400"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </>
+            )}
+            
+            {showStrukPopup && (
+              <>
+                <h2 className="text-2xl font-bold mb-4">Struk Transaksi</h2>
+                <div className="bg-gray-100 p-6 rounded-lg w-full max-w-lg mb-4">
+                  <h3 className="text-xl font-bold mb-2">Detail Pelanggan</h3>
+                  <p>Nama: {namaPelanggan}</p>
+                  <p>Alamat: {alamatPelanggan}</p>
+                  <p>No. WA: {noWhatsapp}</p>
+                  <p>Jaminan: {jaminan}</p>
+                  <p className="mt-4">Tanggal Sewa: {tanggalMulai} s/d {tanggalSelesai}</p>
+                  <p>Durasi: {hitungDurasiHari()} malam</p>
+                </div>
+                <div className="bg-gray-100 p-6 rounded-lg w-full max-w-lg mb-4">
+                  <h3 className="text-xl font-bold mb-2">Item Disewa</h3>
+                  <ul>
+                    {keranjang.map(item => (
+                      <li key={item.id} className="flex justify-between py-1">
+                        <span>{item.nama} ({item.qty})</span>
+                        <span>Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="bg-gray-100 p-6 rounded-lg w-full max-w-lg">
+                  <div className="flex justify-between font-bold text-2xl">
+                    <span>Total Biaya:</span>
+                    <span>Rp{hitungTotal().toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCetak}
+                  className="bg-green-500 text-white p-3 rounded-md w-full max-w-lg mt-4 font-bold"
+                >
+                  Cetak Struk
+                </button>
+              </>
             )}
           </div>
         </div>
