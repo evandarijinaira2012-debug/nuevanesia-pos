@@ -1,4 +1,3 @@
-// src/pages/index.js
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
@@ -16,24 +15,43 @@ export default function Home() {
   const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
   const [semuaKategori, setSemuaKategori] = useState([]);
 
-  // Ambil data produk dan kategori dari Supabase
-  useEffect(() => {
-    async function fetchProduk() {
-      const { data, error } = await supabase.from('produk').select('*');
-      if (error) {
-        console.error('Error fetching produk:', error);
-      } else {
-        setProduk(data);
-        const uniqueKategori = ['Semua', ...new Set(data.map(p => p.kategori))];
-        setSemuaKategori(uniqueKategori);
-      }
+  // Fungsi untuk mencetak dan mengosongkan keranjang
+  const handleCetak = () => {
+    window.print();
+    // Mengosongkan keranjang setelah cetak selesai
+    setKeranjang([]);
+    // Menyembunyikan tampilan struk
+    setShowPopup(false); 
+  };
+
+  const hitungDurasiHari = () => {
+    if (tanggalMulai && tanggalSelesai) {
+      const tglMulai = new Date(tanggalMulai);
+      const tglSelesai = new Date(tanggalSelesai);
+      const selisihWaktu = tglSelesai.getTime() - tglMulai.getTime();
+      const selisihHari = Math.ceil(selisihWaktu / (1000 * 3600 * 24));
+      return selisihHari > 0 ? selisihHari : 0;
     }
-    fetchProduk();
-  }, []);
+    return 0;
+  };
 
-  const produkTerfilter = kategoriTerpilih === 'Semua' ? produk : produk.filter(p => p.kategori === kategoriTerpilih);
+  const hitungTotal = () => {
+    const durasi = hitungDurasiHari();
+    if (durasi === 0) return 0;
 
-  // Fungsi untuk menambah item ke keranjang
+    const totalHargaPerMalam = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+
+    if (durasi <= 2) {
+      return totalHargaPerMalam * durasi;
+    }
+
+    const biayaDuaMalamPertama = totalHargaPerMalam * 2;
+    const sisaMalam = durasi - 2;
+    const biayaDiskon = (totalHargaPerMalam * 0.5) * sisaMalam;
+
+    return biayaDuaMalamPertama + biayaDiskon;
+  };
+
   const tambahKeKeranjang = (item) => {
     const itemSudahAda = keranjang.find((i) => i.id === item.id);
     if (itemSudahAda) {
@@ -46,7 +64,7 @@ export default function Home() {
       setKeranjang([...keranjang, { ...item, qty: 1 }]);
     }
   };
-
+  
   const kurangDariKeranjang = (itemId) => {
     const item = keranjang.find((i) => i.id === itemId);
     if (item.qty === 1) {
@@ -64,37 +82,6 @@ export default function Home() {
     setKeranjang(keranjang.filter((i) => i.id !== itemId));
   };
 
-  const hitungDurasiHari = () => {
-    if (tanggalMulai && tanggalSelesai) {
-      const tglMulai = new Date(tanggalMulai);
-      const tglSelesai = new Date(tanggalSelesai);
-      const selisihWaktu = tglSelesai.getTime() - tglMulai.getTime();
-      const selisihHari = Math.ceil(selisihWaktu / (1000 * 3600 * 24));
-      return selisihHari > 0 ? selisihHari : 0;
-    }
-    return 0;
-  };
-
-  const hitungTotal = () => {
-  const durasi = hitungDurasiHari();
-  if (durasi === 0) return 0; // Jika durasi 0 malam, total juga 0
-
-  // Hitung total harga item untuk satu malam
-  const totalHargaPerMalam = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
-
-  // Jika durasi 1 atau 2 malam, harga normal
-  if (durasi <= 2) {
-    return totalHargaPerMalam * durasi;
-  } 
-  
-  // Jika durasi 3 malam atau lebih, terapkan diskon
-  const biayaDuaMalamPertama = totalHargaPerMalam * 2;
-  const sisaMalam = durasi - 2;
-  const biayaDiskon = (totalHargaPerMalam * 0.5) * sisaMalam;
-
-  return biayaDuaMalamPertama + biayaDiskon;
-};
-
   const handleProses = () => {
     if (keranjang.length === 0) {
       alert('Keranjang sewa masih kosong!');
@@ -106,7 +93,7 @@ export default function Home() {
     }
     setShowPopup(true);
   };
-
+  
   const handleSimpan = async () => {
     const { data: pelangganData, error: pelangganError } = await supabase
       .from('pelanggan')
@@ -154,14 +141,27 @@ export default function Home() {
       )
     );
 
-    alert('Data sewa berhasil disimpan!');
-    setKeranjang([]);
+    alert('Data sewa berhasil disimpan! Sekarang Anda bisa cetak struk.');
     setShowPopup(false);
-    setNamaPelanggan('');
-    setAlamatPelanggan('');
-    setNoWhatsapp('');
-    setJaminan('');
   };
+
+  useEffect(() => {
+    async function fetchProduk() {
+      const { data, error } = await supabase.from('produk').select('*');
+      if (error) {
+        console.error('Error fetching produk:', error);
+      } else {
+        setProduk(data);
+        const uniqueKategori = ['Semua', ...new Set(data.map(p => p.kategori))];
+        setSemuaKategori(uniqueKategori);
+      }
+    }
+    fetchProduk();
+  }, []);
+  
+  const produkTerfilter = kategoriTerpilih === 'Semua'
+    ? produk
+    : produk.filter(item => item.kategori === kategoriTerpilih);
 
   return (
     <div className="flex min-h-screen font-sans">
@@ -185,27 +185,26 @@ export default function Home() {
 
       {/* Kolom 2: Item Sewa */}
       <div className="w-1/2 p-4 border-r border-gray-100 overflow-y-auto">
-  <h2 className="text-xl font-bold mb-8">Item Sewa</h2>
-  <div className="grid grid-cols-4 gap-4">
-    {produkTerfilter.map(item => (
-      <div key={item.id} className="border p-4 rounded-lg shadow-sm bg-white">
-        {/* Tambahkan bagian ini untuk menampilkan gambar */}
-        {item.url_gambar && (
-          <img src={item.url_gambar} alt={item.nama} className="w-full h-32 object-cover mb-2 rounded" />
-        )}
-        <h3 className="font-bold text-lg">{item.nama}</h3>
-        <p className="text-sm text-gray-600">Harga: Rp{item.harga}</p>
-        <p className="text-sm text-gray-600">Stok: {item.stok}</p>
-        <button
-          onClick={() => tambahKeKeranjang(item)}
-          className="bg-blue-500 text-white p-2 mt-2 rounded w-full hover:bg-blue-600"
-        >
-          Tambah
-        </button>
+        <h2 className="text-xl font-bold mb-4">Item Sewa</h2>
+        <div className="grid grid-cols-4 gap-4">
+          {produkTerfilter.map(item => (
+            <div key={item.id} className="border p-4 rounded-lg shadow-sm bg-white">
+              {item.url_gambar && (
+                <img src={item.url_gambar} alt={item.nama} className="w-full h-32 object-cover mb-2 rounded" />
+              )}
+              <h3 className="font-bold text-lg">{item.nama}</h3>
+              <p className="text-sm text-gray-600">Harga: Rp{item.harga}</p>
+              <p className="text-sm text-gray-600">Stok: {item.stok}</p>
+              <button
+                onClick={() => tambahKeKeranjang(item)}
+                className="bg-blue-500 text-white p-2 mt-2 rounded w-full hover:bg-blue-600"
+              >
+                Tambah
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-    ))}
-  </div>
-</div>
 
       {/* Kolom 3: Detail Transaksi */}
       <div className="w-1/4 p-4 bg-white flex flex-col justify-between">
@@ -252,24 +251,68 @@ export default function Home() {
 
       {/* Popup Data Pelanggan */}
       {showPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">Data Pelanggan & Pembayaran</h2>
-            <div className="space-y-4">
-              <input type="text" placeholder="Nama Pelanggan" value={namaPelanggan} onChange={(e) => setNamaPelanggan(e.target.value)} className="w-full p-3 border rounded-lg" />
-              <input type="text" placeholder="Alamat Pelanggan" value={alamatPelanggan} onChange={(e) => setAlamatPelanggan(e.target.value)} className="w-full p-3 border rounded-lg" />
-              <input type="text" placeholder="No. WhatsApp" value={noWhatsapp} onChange={(e) => setNoWhatsapp(e.target.value)} className="w-full p-3 border rounded-lg" />
-              <input type="text" placeholder="Jaminan (KTP/SIM)" value={jaminan} onChange={(e) => setJaminan(e.target.value)} className="w-full p-3 border rounded-lg" />
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="p-6 bg-white rounded-lg shadow-md max-w-lg w-full">
+            {/* Header Popup */}
+            <h2 className="text-2xl font-bold mb-4">Detail Transaksi</h2>
+            <p className="text-sm text-gray-500 -mt-2 mb-4">Isi data pelanggan untuk melanjutkan</p>
+
+            {/* Form Input Pelanggan */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium">Nama Pelanggan</label>
+                <input type="text" value={namaPelanggan} onChange={(e) => setNamaPelanggan(e.target.value)} className="w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Alamat</label>
+                <input type="text" value={alamatPelanggan} onChange={(e) => setAlamatPelanggan(e.target.value)} className="w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">No. WhatsApp</label>
+                <input type="text" value={noWhatsapp} onChange={(e) => setNoWhatsapp(e.target.value)} className="w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Jaminan</label>
+                <input type="text" value={jaminan} onChange={(e) => setJaminan(e.target.value)} className="w-full p-2 border rounded" />
+              </div>
             </div>
-            <p className="text-3xl font-bold mt-6 mb-4">Total: Rp{hitungTotal().toLocaleString('id-ID')}</p>
+
+            {/* Detail Ringkasan Transaksi */}
+            <h3 className="text-lg font-semibold mb-2">Ringkasan</h3>
+            <div className="border-t border-b py-4 mb-4">
+              <div className="flex justify-between font-medium">
+                <span>Durasi:</span>
+                <span>{hitungDurasiHari()} malam</span>
+              </div>
+              <div className="flex justify-between font-bold text-xl mt-2">
+                <span>Total:</span>
+                <span>Rp{hitungTotal().toLocaleString('id-ID')}</span>
+              </div>
+            </div>
+
+            {/* Tombol Aksi */}
             <div className="flex space-x-2">
-              <button onClick={handleSimpan} className="bg-blue-500 text-white p-3 rounded-lg flex-1 font-bold hover:bg-blue-600">
+              <button
+                onClick={handleSimpan}
+                className="bg-blue-500 text-white p-3 rounded-md w-1/2 hover:bg-blue-600"
+              >
                 Simpan
               </button>
-              <button onClick={() => setShowPopup(false)} className="bg-gray-200 text-gray-800 p-3 rounded-lg flex-1 font-bold hover:bg-gray-300">
+              <button
+                onClick={() => setShowPopup(false)}
+                className="bg-gray-300 text-gray-800 p-3 rounded-md w-1/2 hover:bg-gray-400"
+              >
                 Batal
               </button>
             </div>
+            {keranjang.length > 0 && (
+              <button
+                onClick={handleCetak}
+                className="bg-green-500 text-white p-3 mt-2 rounded-md w-full hover:bg-green-600"
+              >
+                Cetak Struk
+              </button>
+            )}
           </div>
         </div>
       )}
