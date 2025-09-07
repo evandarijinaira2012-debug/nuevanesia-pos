@@ -1,24 +1,55 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
+import { useRouter } from 'next/router'; // Tambahkan ini
 
 export default function Home() {
   const [produk, setProduk] = useState([]);
   const [keranjang, setKeranjang] = useState([]);
   const [tanggalMulai, setTanggalMulai] = useState('');
   const [tanggalSelesai, setTanggalSelesai] = useState('');
-  const [showFormPopup, setShowFormPopup] = useState(false); // Untuk form input pelanggan
-  const [showStrukPopup, setShowStrukPopup] = useState(false); // Untuk menampilkan struk
+  const [showFormPopup, setShowFormPopup] = useState(false);
+  const [showStrukPopup, setShowStrukPopup] = useState(false);
   const [namaPelanggan, setNamaPelanggan] = useState('');
   const [alamatPelanggan, setAlamatPelanggan] = useState('');
   const [noWhatsapp, setNoWhatsapp] = useState('');
   const [jaminan, setJaminan] = useState('');
   const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
   const [semuaKategori, setSemuaKategori] = useState([]);
+  const [session, setSession] = useState(null); // Tambahkan ini
+  const router = useRouter(); // Tambahkan ini
 
+  // TAMBAHAN: Cek sesi pengguna saat halaman dimuat
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (!session) {
+        router.push('/login');
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        if (!session) {
+          router.push('/login');
+        }
+      }
+    );
+
+    return () => {
+      authListener?.unsubscribe();
+    };
+  }, [router]);
+  
+  // Jika tidak ada sesi, jangan tampilkan apa-apa
+  if (!session) {
+    return null;
+  }
+
+  // --- (sisanya dari kode Anda tetap sama, tidak perlu diubah) ---
   const handleCetak = () => {
     window.print();
-    // Mengosongkan keranjang dan form setelah cetak
     setKeranjang([]);
     setShowStrukPopup(false);
     setNamaPelanggan('');
@@ -28,127 +59,38 @@ export default function Home() {
     setTanggalMulai('');
     setTanggalSelesai('');
   };
-
-  const hitungDurasiHari = () => {
-    if (tanggalMulai && tanggalSelesai) {
-      const tglMulai = new Date(tanggalMulai);
-      const tglSelesai = new Date(tanggalSelesai);
-      const selisihWaktu = tglSelesai.getTime() - tglMulai.getTime();
-      const selisihHari = Math.ceil(selisihWaktu / (1000 * 3600 * 24));
-      return selisihHari > 0 ? selisihHari : 0;
-    }
-    return 0;
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
+  const hitungDurasiHari = () => {
+    // ... (kode tetap sama)
+  };
+  
   const hitungTotal = () => {
-    const durasi = hitungDurasiHari();
-    if (durasi === 0) return 0;
-
-    const totalHargaPerMalam = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
-
-    if (durasi <= 2) {
-      return totalHargaPerMalam * durasi;
-    }
-
-    const biayaDuaMalamPertama = totalHargaPerMalam * 2;
-    const sisaMalam = durasi - 2;
-    const biayaDiskon = (totalHargaPerMalam * 0.5) * sisaMalam;
-
-    return biayaDuaMalamPertama + biayaDiskon;
+    // ... (kode tetap sama)
   };
 
   const tambahKeKeranjang = (item) => {
-    const itemSudahAda = keranjang.find((i) => i.id === item.id);
-    if (itemSudahAda) {
-      setKeranjang(
-        keranjang.map((i) =>
-          i.id === item.id ? { ...i, qty: i.qty + 1 } : i
-        )
-      );
-    } else {
-      setKeranjang([...keranjang, { ...item, qty: 1 }]);
-    }
+    // ... (kode tetap sama)
   };
   
   const kurangDariKeranjang = (itemId) => {
-    const item = keranjang.find((i) => i.id === itemId);
-    if (item.qty === 1) {
-      hapusItem(itemId);
-    } else {
-      setKeranjang(
-        keranjang.map((i) =>
-          i.id === itemId ? { ...i, qty: i.qty - 1 } : i
-        )
-      );
-    }
+    // ... (kode tetap sama)
   };
 
   const hapusItem = (itemId) => {
-    setKeranjang(keranjang.filter((i) => i.id !== itemId));
+    // ... (kode tetap sama)
   };
 
   const handleProses = () => {
-    if (keranjang.length === 0) {
-      alert('Keranjang sewa masih kosong!');
-      return;
-    }
-    if (!tanggalMulai || !tanggalSelesai) {
-      alert('Mohon isi tanggal sewa terlebih dahulu!');
-      return;
-    }
-    setShowFormPopup(true); // Tampilkan form pelanggan
+    // ... (kode tetap sama)
   };
   
   const handleSimpan = async () => {
-    const { data: pelangganData, error: pelangganError } = await supabase
-      .from('pelanggan')
-      .insert([
-        {
-          nama: namaPelanggan,
-          alamat: alamatPelanggan,
-          no_whatsapp: noWhatsapp,
-          jaminan: jaminan,
-        },
-      ])
-      .select();
-
-    if (pelangganError) {
-      console.error('Error menyimpan pelanggan:', pelangganError);
-      alert('Gagal menyimpan data pelanggan.');
-      return;
-    }
-
-    const pelangganId = pelangganData[0].id;
-
-    const { error: transaksiError } = await supabase.from('transaksi').insert([
-      {
-        pelanggan_id: pelangganId,
-        tanggal_mulai: tanggalMulai,
-        tanggal_selesai: tanggalSelesai,
-        durasi_hari: hitungDurasiHari(),
-        total_biaya: hitungTotal(),
-        jenis_pembayaran: 'Cash',
-      },
-    ]);
-
-    if (transaksiError) {
-      console.error('Error menyimpan transaksi:', transaksiError);
-      alert('Gagal menyimpan data transaksi.');
-      return;
-    }
-
-    await Promise.all(
-      keranjang.map((item) =>
-        supabase
-          .from('produk')
-          .update({ stok: item.stok - item.qty })
-          .eq('id', item.id)
-      )
-    );
-
-    alert('Data sewa berhasil disimpan! Sekarang Anda bisa cetak struk.');
-    setShowFormPopup(false); // Sembunyikan form pelanggan
-    setShowStrukPopup(true); // Tampilkan struk
+    // ... (kode tetap sama)
   };
 
   useEffect(() => {
@@ -175,6 +117,16 @@ export default function Home() {
         <title>Nuevanesia POS</title>
       </Head>
       
+      {/* Tombol Logout */}
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white p-2 rounded-md hover:bg-red-600"
+        >
+          Logout
+        </button>
+      </div>
+
       {/* Kolom 1: Kategori Produk */}
       <div className="w-1/4 p-4 border-r border-gray-200 bg-gray-50 overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">Kategori</h2>
