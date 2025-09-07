@@ -5,12 +5,80 @@ import { useRouter } from 'next/router';
 import moment from 'moment';
 import 'moment/locale/id';
 
+// Komponen Modal Rincian Transaksi
+const TransactionModal = ({ isOpen, onClose, transaction }) => {
+  if (!isOpen || !transaction) return null;
+
+  const formatRupiah = (angka) => {
+    return `Rp${angka.toLocaleString('id-ID')}`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-teal-400">Rincian Transaksi</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-3xl">&times;</button>
+        </div>
+        <div className="space-y-4">
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">ID Transaksi:</p>
+            <p className="font-semibold">{transaction.id}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Nama Pelanggan:</p>
+            <p className="font-semibold">{transaction.pelanggan?.nama || 'Tidak ditemukan'}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Alamat:</p>
+            <p className="font-semibold">{transaction.pelanggan?.alamat || 'Tidak ditemukan'}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Nomor WhatsApp:</p>
+            <p className="font-semibold">{transaction.pelanggan?.no_whatsapp || 'Tidak ditemukan'}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Tanggal Mulai Sewa:</p>
+            <p className="font-semibold">{moment(transaction.tanggal_mulai).format('DD MMMM YYYY')}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Metode Pembayaran:</p>
+            <p className="font-semibold">{transaction.jenis_pembayaran}</p>
+          </div>
+
+          {/* Bagian Rincian Barang yang Disewa */}
+          {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-lg font-bold text-gray-200 mb-2">Barang yang Disewa:</h4>
+              <ul className="list-disc list-inside space-y-1 text-gray-300">
+                {transaction.transaksi_detail.map((item, index) => (
+                  <li key={index} className="flex justify-between items-center">
+                    <span>{item.nama_barang}</span>
+                    <span className="font-semibold">{item.jumlah} unit</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="border-t border-gray-700 pt-4">
+            <p className="text-sm text-gray-400">Total Biaya:</p>
+            <p className="font-bold text-2xl text-green-400">{formatRupiah(transaction.total_biaya)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Laporan() {
   const [laporan, setLaporan] = useState(null);
   const [transaksiHarian, setTransaksiHarian] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -46,7 +114,7 @@ export default function Laporan() {
   const fetchLaporan = async () => {
     const { data: transaksiData, error: transaksiError } = await supabase
       .from('transaksi')
-      .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan)');
+      .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(nama_barang, jumlah)');
 
     if (transaksiError) {
       console.error('Error fetching laporan:', transaksiError);
@@ -146,6 +214,11 @@ export default function Laporan() {
     }
     return '';
   };
+  
+  const handleRowClick = (transaction) => {
+    setSelectedTransaction(transaction);
+    setModalOpen(true);
+  };
 
   if (loading) {
     return (
@@ -177,7 +250,7 @@ export default function Laporan() {
         {/* Card Pendapatan Harian */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
-          {Object.keys(laporan.harian).length > 0 ? (
+          {laporan && Object.keys(laporan.harian).length > 0 ? (
             <ul className="space-y-3">
               {Object.keys(laporan.harian).map(hari => (
                 <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -194,7 +267,7 @@ export default function Laporan() {
         {/* Card Pendapatan Bulanan */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Bulanan</h2>
-          {Object.keys(laporan.bulanan).length > 0 ? (
+          {laporan && Object.keys(laporan.bulanan).length > 0 ? (
             <ul className="space-y-3">
               {Object.keys(laporan.bulanan).map(bulan => (
                 <li key={bulan} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -211,7 +284,7 @@ export default function Laporan() {
         {/* Card Pendapatan Tahunan */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Tahunan</h2>
-          {Object.keys(laporan.tahunan).length > 0 ? (
+          {laporan && Object.keys(laporan.tahunan).length > 0 ? (
             <ul className="space-y-3">
               {Object.keys(laporan.tahunan).map(tahun => (
                 <li key={tahun} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -252,7 +325,12 @@ export default function Laporan() {
                 {sortedTransaksi.map(t => (
                   <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
                     <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                    <td className="p-4">{t.pelanggan?.nama || 'Nama tidak ditemukan'}</td>
+                    <td 
+                      className="p-4 cursor-pointer hover:underline text-teal-400" 
+                      onClick={() => handleRowClick(t)}
+                    >
+                      {t.pelanggan?.nama || 'Nama tidak ditemukan'}
+                    </td>
                     <td className="p-4">{t.jenis_pembayaran}</td>
                     <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
                   </tr>
@@ -264,6 +342,13 @@ export default function Laporan() {
           <p className="text-gray-400 text-center">Tidak ada data transaksi harian.</p>
         )}
       </div>
+
+      {/* Memanggil Komponen Modal */}
+      <TransactionModal 
+        isOpen={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        transaction={selectedTransaction} 
+      />
     </div>
   );
 }
