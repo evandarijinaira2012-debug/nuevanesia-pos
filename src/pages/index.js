@@ -21,7 +21,6 @@ export default function Home() {
 
   const [metodePembayaran, setMetodePembayaran] = useState('Cash');
 
-  // --- START: Authentication Hooks ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -63,7 +62,6 @@ export default function Home() {
   if (!session) {
     return null;
   }
-  // --- END: Authentication Hooks ---
 
   const handleCetak = () => {
     window.print();
@@ -159,25 +157,41 @@ export default function Home() {
         return;
     }
 
-    const { data: pelangganData, error: pelangganError } = await supabase
-      .from('pelanggan')
-      .insert([
-        {
-          nama: namaPelanggan,
-          alamat: alamatPelanggan,
-          no_whatsapp: noWhatsapp,
-          jaminan: jaminan,
-        },
-      ])
-      .select();
+    let pelangganId;
+    
+    const { data: existingPelanggan, error: fetchError } = await supabase
+        .from('pelanggan')
+        .select('id')
+        .eq('no_whatsapp', noWhatsapp)
+        .single();
 
-    if (pelangganError) {
-      console.error('Error menyimpan pelanggan:', pelangganError);
-      alert('Gagal menyimpan data pelanggan.');
-      return;
+    if (fetchError && fetchError.code === 'PGRST116') {
+      const { data: newPelangganData, error: insertError } = await supabase
+        .from('pelanggan')
+        .insert([
+          {
+            nama: namaPelanggan,
+            alamat: alamatPelanggan,
+            no_whatsapp: noWhatsapp,
+            jaminan: jaminan,
+          },
+        ])
+        .select();
+
+      if (insertError) {
+        console.error('Error menyimpan pelanggan baru:', insertError);
+        alert('Gagal menyimpan data pelanggan baru.');
+        return;
+      }
+      pelangganId = newPelangganData[0].id;
+
+    } else if (existingPelanggan) {
+        pelangganId = existingPelanggan.id;
+    } else {
+        console.error('Error saat mencari pelanggan:', fetchError);
+        alert('Gagal mencari data pelanggan.');
+        return;
     }
-
-    const pelangganId = pelangganData[0].id;
 
     const { error: transaksiError } = await supabase.from('transaksi').insert([
       {
@@ -215,13 +229,14 @@ export default function Home() {
     : produk.filter(item => item.kategori === kategoriTerpilih);
 
   return (
-    <div className="flex min-h-screen bg-gray-900 text-white font-sans">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-900 text-white font-sans">
       <Head>
         <title>Nuevanesia POS</title>
       </Head>
       
       {/* Kolom Kiri: Navigasi Kategori & Logo */}
-      <div className="w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
+      {/* Untuk mobile: lebar penuh, untuk desktop: w-1/4 */}
+      <div className="w-full lg:w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
         <div>
           <div className="flex items-center justify-center mb-10">
             <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-10 mr-3" />
@@ -290,9 +305,10 @@ export default function Home() {
       </div>
 
       {/* Kolom Tengah: Item Sewa */}
-      <div className="w-1/2 p-4 overflow-y-auto">
+      {/* Untuk mobile: lebar penuh, grid 2 kolom. Untuk desktop: w-1/2, grid 4 kolom */}
+      <div className="w-full lg:w-1/2 p-4 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-100">Item Sewa</h2>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {produkTerfilter.map(item => (
             <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-md flex flex-col justify-between">
               {item.url_gambar && (
@@ -316,7 +332,8 @@ export default function Home() {
       </div>
 
       {/* Kolom Kanan: Detail Transaksi & Keranjang */}
-      <div className="w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
+      {/* Untuk mobile: lebar penuh. Untuk desktop: w-1/4 */}
+      <div className="w-full lg:w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
         <div>
           <h2 className="text-2xl font-bold mb-6 text-gray-100">Detail Transaksi</h2>
           
