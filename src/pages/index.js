@@ -8,7 +8,7 @@ export default function Home() {
   const [keranjang, setKeranjang] = useState([]);
   const [tanggalMulai, setTanggalMulai] = useState('');
   const [tanggalSelesai, setTanggalSelesai] = useState('');
-  const [showPaymentPopup, setShowPaymentPopup] = useState(false); // Mengganti showFormPopup
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [showStrukPopup, setShowStrukPopup] = useState(false);
   const [namaPelanggan, setNamaPelanggan] = useState('');
   const [alamatPelanggan, setAlamatPelanggan] = useState('');
@@ -19,7 +19,6 @@ export default function Home() {
   const [session, setSession] = useState(null);
   const router = useRouter();
 
-  // State untuk metode pembayaran
   const [metodePembayaran, setMetodePembayaran] = useState('Cash');
 
   // --- START: Authentication Hooks ---
@@ -59,7 +58,7 @@ export default function Home() {
       }
     }
     fetchProduk();
-  }, []); // Dependensi kosong agar hanya jalan sekali saat komponen dimount
+  }, []);
 
   if (!session) {
     return null;
@@ -68,7 +67,6 @@ export default function Home() {
 
   const handleCetak = () => {
     window.print();
-    // Mengosongkan keranjang dan form setelah cetak
     setKeranjang([]);
     setShowStrukPopup(false);
     setNamaPelanggan('');
@@ -77,7 +75,7 @@ export default function Home() {
     setJaminan('');
     setTanggalMulai('');
     setTanggalSelesai('');
-    setMetodePembayaran('Cash'); // Reset metode pembayaran
+    setMetodePembayaran('Cash');
   };
 
   const handleLogout = async () => {
@@ -91,7 +89,7 @@ export default function Home() {
       const tglSelesai = new Date(tanggalSelesai);
       const selisihWaktu = tglSelesai.getTime() - tglMulai.getTime();
       const selisihHari = Math.ceil(selisihWaktu / (1000 * 3600 * 24));
-      return selisihHari > 0 ? selisihHari : 0; // Pastikan durasi minimal 0
+      return selisihHari > 0 ? selisihHari : 0;
     }
     return 0;
   };
@@ -103,17 +101,13 @@ export default function Home() {
   const hitungTotalAkhir = () => {
     const durasi = hitungDurasiHari();
     if (durasi === 0) return 0;
-
     const subtotalPerMalam = hitungSubtotalPerMalam();
-
     if (durasi <= 2) {
       return subtotalPerMalam * durasi;
     }
-
     const biayaDuaMalamPertama = subtotalPerMalam * 2;
     const sisaMalam = durasi - 2;
     const biayaDiskon = (subtotalPerMalam * 0.5) * sisaMalam;
-
     return biayaDuaMalamPertama + biayaDiskon;
   };
 
@@ -156,11 +150,10 @@ export default function Home() {
       alert('Mohon isi tanggal sewa terlebih dahulu!');
       return;
     }
-    setShowPaymentPopup(true); // Tampilkan pop-up pembayaran
+    setShowPaymentPopup(true);
   };
   
   const handleSimpanPembayaran = async () => {
-    // Validasi input pelanggan
     if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
         alert('Mohon lengkapi semua data pelanggan!');
         return;
@@ -188,7 +181,7 @@ export default function Home() {
 
     const { error: transaksiError } = await supabase.from('transaksi').insert([
       {
-        pelanggal_id: pelangganId, // Perhatikan ini, harusnya `pelanggan_id` (typo?)
+        pelanggan_id: pelangganId,
         tanggal_mulai: tanggalMulai,
         tanggal_selesai: tanggalSelesai,
         durasi_hari: hitungDurasiHari(),
@@ -213,8 +206,8 @@ export default function Home() {
     );
 
     alert('Data sewa berhasil disimpan! Sekarang Anda bisa cetak struk.');
-    setShowPaymentPopup(false); // Sembunyikan pop-up pembayaran
-    setShowStrukPopup(true); // Tampilkan struk
+    setShowPaymentPopup(false);
+    setShowStrukPopup(true);
   };
 
   const produkTerfilter = kategoriTerpilih === 'Semua'
@@ -228,11 +221,10 @@ export default function Home() {
       </Head>
       
       {/* Kolom Kiri: Navigasi Kategori & Logo */}
-      <div className="w-1/5 bg-gray-800 p-6 flex flex-col justify-between shadow-lg">
+      <div className="w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
         <div>
           <div className="flex items-center justify-center mb-10">
-            {/* Ganti dengan path logo Anda */}
-            <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-10 mr-3" /> 
+            <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-10 mr-3" />
             <span className="text-2xl font-bold text-teal-400">Nuevanesia</span>
           </div>
 
@@ -245,7 +237,6 @@ export default function Home() {
                 className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors duration-200 
                   ${kategoriTerpilih === kategori ? 'bg-teal-600 text-white shadow-md' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
               >
-                {/* Anda bisa menambahkan ikon di sini sesuai kategori */}
                 {kategori === 'Tenda & Terpal' && (
                   <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2 2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
@@ -287,7 +278,6 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Tombol Logout di bagian bawah sidebar */}
         <button
           onClick={handleLogout}
           className="flex items-center justify-center bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors duration-200 mt-6"
@@ -300,22 +290,22 @@ export default function Home() {
       </div>
 
       {/* Kolom Tengah: Item Sewa */}
-      <div className="w-2/5 p-6 overflow-y-auto">
+      <div className="w-1/2 p-4 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-100">Item Sewa</h2>
-        <div className="grid grid-cols-2 gap-6"> {/* Mengubah menjadi 2 kolom */}
+        <div className="grid grid-cols-4 gap-4">
           {produkTerfilter.map(item => (
-            <div key={item.id} className="bg-gray-800 border border-gray-700 p-4 rounded-lg shadow-md flex flex-col justify-between">
+            <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-md flex flex-col justify-between">
               {item.url_gambar && (
-                <img src={item.url_gambar} alt={item.nama} className="w-full h-36 object-cover mb-3 rounded-md" />
+                <img src={item.url_gambar} alt={item.nama} className="w-full h-24 object-cover mb-3 rounded-md" />
               )}
-              <h3 className="font-bold text-xl text-teal-300">{item.nama}</h3>
-              <p className="text-sm text-gray-400">Rp{item.harga} / Hari</p>
-              <p className="text-sm text-gray-400">Stok: {item.stok}</p>
+              <h3 className="font-bold text-md text-teal-300">{item.nama}</h3>
+              <p className="text-xs text-gray-400">Rp{item.harga} / Hari</p>
+              <p className="text-xs text-gray-400">Stok: {item.stok}</p>
               <button
                 onClick={() => tambahKeKeranjang(item)}
-                className="bg-blue-600 text-white p-3 mt-4 rounded-md w-full hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
+                className="bg-blue-600 text-white p-2 mt-2 rounded-md w-full hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center text-sm"
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
                 </svg>
                 Tambah
@@ -326,46 +316,44 @@ export default function Home() {
       </div>
 
       {/* Kolom Kanan: Detail Transaksi & Keranjang */}
-      <div className="w-2/5 bg-gray-800 p-6 flex flex-col justify-between shadow-lg">
+      <div className="w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
         <div>
           <h2 className="text-2xl font-bold mb-6 text-gray-100">Detail Transaksi</h2>
           
-          {/* Tanggal Ambil & Kembali */}
           <div className="bg-gray-700 p-4 rounded-lg mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">Tanggal Ambil</label>
             <input 
               type="date" 
               value={tanggalMulai} 
               onChange={(e) => setTanggalMulai(e.target.value)} 
-              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" 
+              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" 
             />
             <label className="block text-sm font-medium text-gray-300 mt-3 mb-2">Tanggal Kembali</label>
             <input 
               type="date" 
               value={tanggalSelesai} 
               onChange={(e) => setTanggalSelesai(e.target.value)} 
-              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" 
+              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" 
             />
             <p className="text-sm mt-3 text-gray-400">Durasi: <span className="font-semibold">{hitungDurasiHari()} Malam</span></p>
           </div>
 
-          {/* Keranjang Item */}
           <div className="max-h-80 overflow-y-auto bg-gray-700 p-4 rounded-lg mb-4">
             {keranjang.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">Keranjang sewa masih kosong</p>
+              <p className="text-gray-400 text-center py-4 text-sm">Keranjang masih kosong</p>
             ) : (
               keranjang.map(item => (
                 <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-600 last:border-b-0">
                   <div>
-                    <p className="font-medium text-teal-300">{item.nama}</p>
-                    <p className="text-sm text-gray-400">Rp{item.harga.toLocaleString('id-ID')} x {item.qty}</p>
+                    <p className="font-medium text-teal-300 text-sm">{item.nama}</p>
+                    <p className="text-xs text-gray-400">Rp{item.harga.toLocaleString('id-ID')} x {item.qty}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button onClick={() => kurangDariKeranjang(item.id)} className="bg-gray-600 text-white px-2.5 py-1 rounded-md hover:bg-gray-500 transition-colors">-</button>
-                    <span className="font-bold text-gray-200">{item.qty}</span>
-                    <button onClick={() => tambahKeKeranjang(item)} className="bg-gray-600 text-white px-2.5 py-1 rounded-md hover:bg-gray-500 transition-colors">+</button>
+                    <button onClick={() => kurangDariKeranjang(item.id)} className="bg-gray-600 text-white px-2 py-1 rounded-md text-sm hover:bg-gray-500 transition-colors">-</button>
+                    <span className="font-bold text-gray-200 text-sm">{item.qty}</span>
+                    <button onClick={() => tambahKeKeranjang(item)} className="bg-gray-600 text-white px-2 py-1 rounded-md text-sm hover:bg-gray-500 transition-colors">+</button>
                     <button onClick={() => hapusItem(item.id)} className="text-red-500 hover:text-red-400 ml-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1H9a1 1 0 00-1 1v3m3 0h6"></path>
                       </svg>
                     </button>
@@ -376,29 +364,27 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Ringkasan Total & Tombol Proses */}
         <div className="bg-gray-700 p-4 rounded-lg mt-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-300">Subtotal per malam:</span>
-            <span className="font-semibold text-gray-200">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</span>
+            <span className="text-gray-300 text-sm">Subtotal per malam:</span>
+            <span className="font-semibold text-gray-200 text-sm">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</span>
           </div>
           {hitungDurasiHari() >= 3 && (
-            <div className="flex justify-between items-center mb-2 text-red-400 font-bold">
-              <span>Diskon (50% dari hari ke-3):</span>
+            <div className="flex justify-between items-center mb-2 text-red-400 font-bold text-sm">
+              <span>Diskon:</span>
               <span>-Rp{(hitungSubtotalPerMalam() * 0.5 * (hitungDurasiHari() - 2)).toLocaleString('id-ID')}</span>
             </div>
           )}
           <div className="flex justify-between items-center border-t border-gray-600 pt-3 mt-3">
-            <p className="text-2xl font-bold text-teal-400">Grand Total:</p>
-            <p className="text-3xl font-bold text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</p>
+            <p className="text-xl font-bold text-teal-400">Total:</p>
+            <p className="text-2xl font-bold text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</p>
           </div>
-          <button onClick={handleProses} className="bg-green-600 text-white p-4 w-full mt-6 rounded-lg font-bold hover:bg-green-700 transition-colors duration-200">
+          <button onClick={handleProses} className="bg-green-600 text-white p-3 w-full mt-6 rounded-lg font-bold text-lg hover:bg-green-700 transition-colors duration-200">
             PROSES
           </button>
         </div>
       </div>
 
-      {/* OVERLAY POPUP untuk Form Pelanggan & Pembayaran DAN Struk */}
       {(showPaymentPopup || showStrukPopup) && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="p-8 bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
@@ -406,7 +392,6 @@ export default function Home() {
               <>
                 <h2 className="text-3xl font-bold text-teal-400 mb-6 text-center">Data Pelanggan & Pembayaran</h2>
                 
-                {/* Detail Pelanggan */}
                 <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner">
                   <h3 className="text-xl font-semibold text-gray-200 mb-4">Detail Pelanggan</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -429,7 +414,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Ringkasan Pembayaran */}
                 <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner">
                   <h3 className="text-xl font-semibold text-gray-200 mb-4">Detail Pembayaran</h3>
                   <div className="grid grid-cols-2 gap-4 mb-4">
@@ -454,7 +438,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Metode Pembayaran */}
                 <div className="flex justify-around space-x-4 mb-6">
                   <button
                     onClick={() => setMetodePembayaran('Cash')}
