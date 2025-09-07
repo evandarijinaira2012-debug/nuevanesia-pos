@@ -21,7 +21,8 @@ export default function Home() {
   const router = useRouter();
 
   const [metodePembayaran, setMetodePembayaran] = useState('Cash');
-
+  const [catatan, setCatatan] = useState(''); // State baru untuk catatan
+  
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -75,6 +76,7 @@ export default function Home() {
     setTanggalMulai('');
     setTanggalSelesai('');
     setMetodePembayaran('Cash');
+    setCatatan(''); // Reset catatan setelah cetak
   };
 
   const handleLogout = async () => {
@@ -202,6 +204,7 @@ export default function Home() {
         durasi_hari: hitungDurasiHari(),
         total_biaya: hitungTotalAkhir(),
         jenis_pembayaran: metodePembayaran,
+        catatan: catatan, // Data catatan sudah disertakan
       },
     ]);
 
@@ -279,12 +282,12 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H7a2 2 0 00-2 2v2m7-9v8"></path>
                   </svg>
                 )}
-                 {kategori === 'Lain-lain' && (
+                  {kategori === 'Lain-lain' && (
                   <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M12 5l7 7-7 7"></path>
                   </svg>
                 )}
-                 {kategori === 'Semua' && (
+                  {kategori === 'Semua' && (
                   <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
                   </svg>
@@ -295,13 +298,13 @@ export default function Home() {
           </div>
         </div>
         <button
-         onClick={() => router.push('/laporan')}
-         className="flex items-center justify-center bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 mt-3"
-      >
-         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-         </svg>
-         Lihat Laporan
+          onClick={() => router.push('/laporan')}
+          className="flex items-center justify-center bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 mt-3"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          Lihat Laporan
         </button>
         
         <button
@@ -457,6 +460,16 @@ export default function Home() {
                       <input type="text" value={jaminan} onChange={(e) => setJaminan(e.target.value)} className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="KTP/SIM/Lainnya" />
                     </div>
                   </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Catatan</label>
+                    <textarea
+                      value={catatan}
+                      onChange={(e) => setCatatan(e.target.value)}
+                      className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      rows="3"
+                      placeholder="Tambahkan catatan khusus dari pelanggan di sini..."
+                    ></textarea>
+                  </div>
                 </div>
 
                 <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner">
@@ -503,7 +516,6 @@ export default function Home() {
                     QRIS
                   </button>
                 </div>
-
                 <div className="flex space-x-4">
                   <button
                     onClick={handleSimpanPembayaran}
@@ -530,6 +542,7 @@ export default function Home() {
                   <p className="text-gray-300 mb-1">Alamat: <span className="font-semibold text-gray-200">{alamatPelanggan}</span></p>
                   <p className="text-gray-300 mb-1">No. WA: <span className="font-semibold text-gray-200">{noWhatsapp}</span></p>
                   <p className="text-gray-300 mb-1">Jaminan: <span className="font-semibold text-gray-200">{jaminan}</span></p>
+                  <p className="text-gray-300 mt-2">Catatan: <span className="font-semibold text-gray-200">{catatan || '-'}</span></p>
                   <p className="mt-4 text-gray-300 mb-1">Tanggal Sewa: <span className="font-semibold text-gray-200">{tanggalMulai} s/d {tanggalSelesai}</span></p>
                   <p className="text-gray-300">Durasi: <span className="font-semibold text-gray-200">{hitungDurasiHari()} malam</span></p>
                   <p className="text-gray-300 mt-2">Metode Pembayaran: <span className="font-semibold text-gray-200">{metodePembayaran}</span></p>
