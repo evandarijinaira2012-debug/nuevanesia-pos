@@ -71,6 +71,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   );
 };
 
+// Main Component
 export default function Laporan() {
   const [laporan, setLaporan] = useState(null);
   const [transaksiData, setTransaksiData] = useState([]);
@@ -84,10 +85,8 @@ export default function Laporan() {
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   
-  // Menggunakan useRef untuk mencegah pemanggilan fetchLaporan berulang
   const isMounted = useRef(false);
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -112,14 +111,6 @@ export default function Laporan() {
     };
   }, [router]);
   
-  // Fetch data only once when session is available
-  useEffect(() => {
-    if (session && !isMounted.current) {
-      isMounted.current = true;
-      fetchLaporan();
-    }
-  }, [session]);
-  
   const fetchLaporan = async () => {
     setLoading(true);
     let query = supabase
@@ -127,7 +118,6 @@ export default function Laporan() {
       .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah)')
       .order('tanggal_mulai', { ascending: false });
 
-    // Filter by date range
     if (startDate) {
       query = query.gte('tanggal_mulai', startDate);
     }
@@ -170,15 +160,13 @@ export default function Laporan() {
     }
     setLoading(false);
   };
-  
-  // Memfilter transaksi yang ditampilkan berdasarkan input pencarian
-  const filteredTransaksi = useMemo(() => {
-    if (!transaksiData) return [];
-    
-    return transaksiData.filter(t => 
-      t.pelanggan?.nama.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [transaksiData, searchQuery]);
+
+  useEffect(() => {
+    if (session && !isMounted.current) {
+      isMounted.current = true;
+      fetchLaporan();
+    }
+  }, [session, fetchLaporan]);
 
   const handleSort = (field) => {
     let direction = 'asc';
@@ -189,6 +177,14 @@ export default function Laporan() {
     }
     setSortConfig({ field, direction });
   };
+
+  const filteredTransaksi = useMemo(() => {
+    if (!transaksiData) return [];
+    
+    return transaksiData.filter(t => 
+      t.pelanggan?.nama.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [transaksiData, searchQuery]);
 
   const sortedTransaksi = useMemo(() => {
     const sortableItems = [...filteredTransaksi];
@@ -245,7 +241,6 @@ export default function Laporan() {
   };
   
   const handleExportCSV = () => {
-    // --- Lakukan konfigurasi pustaka ekspor data di sini ---
     alert("Fitur ekspor ke CSV akan diimplementasikan di sini. Anda bisa menggunakan pustaka seperti 'papaparse' atau 'json-2-csv'.");
   };
   
@@ -282,7 +277,6 @@ export default function Laporan() {
         </button>
       </div>
       
-      {/* Search and Filter Section */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8">
         <h2 className="text-2xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -338,7 +332,7 @@ export default function Laporan() {
         {/* Card Pendapatan Harian */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
-          {laporan && Object.keys(laporan.harian).length > 0 ? (
+          {laporan && laporan.harian && Object.keys(laporan.harian).length > 0 ? (
             <ul className="space-y-3">
               {Object.keys(laporan.harian).map(hari => (
                 <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -355,7 +349,7 @@ export default function Laporan() {
         {/* Card Pendapatan Bulanan */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Bulanan</h2>
-          {laporan && Object.keys(laporan.bulanan).length > 0 ? (
+          {laporan && laporan.bulanan && Object.keys(laporan.bulanan).length > 0 ? (
             <ul className="space-y-3">
               {Object.keys(laporan.bulanan).map(bulan => (
                 <li key={bulan} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -372,7 +366,7 @@ export default function Laporan() {
         {/* Card Pendapatan Tahunan */}
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Tahunan</h2>
-          {laporan && Object.keys(laporan.tahunan).length > 0 ? (
+          {laporan && laporan.tahunan && Object.keys(laporan.tahunan).length > 0 ? (
             <ul className="space-y-3">
               {Object.keys(laporan.tahunan).map(tahun => (
                 <li key={tahun} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -439,7 +433,6 @@ export default function Laporan() {
         )}
       </div>
 
-      {/* Memanggil Komponen Modal */}
       <TransactionModal 
         isOpen={modalOpen} 
         onClose={() => setModalOpen(false)} 
