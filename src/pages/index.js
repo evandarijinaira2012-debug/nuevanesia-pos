@@ -3,6 +3,23 @@ import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
+// --- Komponen Ikon (Tidak ada perubahan) ---
+const IconChartBar = () => (
+  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+);
+const IconLogout = () => (
+  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+);
+const IconSearch = () => (
+    <svg className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+);
+const IconPlus = () => (
+    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+);
+const IconTrash = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1H9a1 1 0 00-1 1v3m3 0h6"></path></svg>
+);
+
 export default function Home() {
   const [produk, setProduk] = useState([]);
   const [keranjang, setKeranjang] = useState([]);
@@ -16,13 +33,15 @@ export default function Home() {
   const [jaminan, setJaminan] = useState('');
   const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
   const [semuaKategori, setSemuaKategori] = useState([]);
-  const [searchQuery, setSearchQuery] = useState(''); // State baru untuk pencarian
+  const [searchQuery, setSearchQuery] = useState('');
   const [session, setSession] = useState(null);
   const router = useRouter();
-
   const [metodePembayaran, setMetodePembayaran] = useState('Cash');
-  const [catatan, setCatatan] = useState(''); // State baru untuk catatan
+  const [catatan, setCatatan] = useState('');
   
+  // --- PENAMBAHAN KODE: State untuk efek visual ---
+  const [justAddedProductId, setJustAddedProductId] = useState(null);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -76,7 +95,7 @@ export default function Home() {
     setTanggalMulai('');
     setTanggalSelesai('');
     setMetodePembayaran('Cash');
-    setCatatan(''); // Reset catatan setelah cetak
+    setCatatan('');
   };
 
   const handleLogout = async () => {
@@ -112,6 +131,7 @@ export default function Home() {
     return biayaDuaMalamPertama + biayaDiskon;
   };
 
+  // --- MODIFIKASI KODE: Fungsi ini diupdate untuk efek visual ---
   const tambahKeKeranjang = (item) => {
     const itemSudahAda = keranjang.find((i) => i.id === item.id);
     if (itemSudahAda) {
@@ -123,8 +143,14 @@ export default function Home() {
     } else {
       setKeranjang([...keranjang, { ...item, qty: 1 }]);
     }
+    // Aktifkan efek visual
+    setJustAddedProductId(item.id);
+    // Nonaktifkan efek setelah 1 detik
+    setTimeout(() => {
+      setJustAddedProductId(null);
+    }, 1000);
   };
-  
+
   const kurangDariKeranjang = (itemId) => {
     const item = keranjang.find((i) => i.id === itemId);
     if (item.qty === 1) {
@@ -153,7 +179,7 @@ export default function Home() {
     }
     setShowPaymentPopup(true);
   };
-  
+
   const handleSimpanPembayaran = async () => {
     if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
       alert('Mohon lengkapi semua data pelanggan!');
@@ -162,7 +188,6 @@ export default function Home() {
 
     let pelangganId;
 
-    // 1. Cari atau buat pelanggan baru
     const { data: existingPelanggan, error: fetchError } = await supabase
       .from('pelanggan')
       .select('id')
@@ -172,14 +197,12 @@ export default function Home() {
     if (fetchError && fetchError.code === 'PGRST116') {
       const { data: newPelangganData, error: insertError } = await supabase
         .from('pelanggan')
-        .insert([
-          {
-            nama: namaPelanggan,
-            alamat: alamatPelanggan,
-            no_whatsapp: noWhatsapp,
-            jaminan: jaminan,
-          },
-        ])
+        .insert([{
+          nama: namaPelanggan,
+          alamat: alamatPelanggan,
+          no_whatsapp: noWhatsapp,
+          jaminan: jaminan,
+        }, ])
         .select();
 
       if (insertError) {
@@ -196,20 +219,17 @@ export default function Home() {
       return;
     }
 
-    // 2. Simpan transaksi utama dan Dapatkan ID Transaksi
     const { data: transaksiData, error: transaksiError } = await supabase
       .from('transaksi')
-      .insert([
-        {
-          pelanggan_id: pelangganId,
-          tanggal_mulai: tanggalMulai,
-          tanggal_selesai: tanggalSelesai,
-          durasi_hari: hitungDurasiHari(),
-          total_biaya: hitungTotalAkhir(),
-          jenis_pembayaran: metodePembayaran,
-          catatan: catatan,
-        },
-      ])
+      .insert([{
+        pelanggan_id: pelangganId,
+        tanggal_mulai: tanggalMulai,
+        tanggal_selesai: tanggalSelesai,
+        durasi_hari: hitungDurasiHari(),
+        total_biaya: hitungTotalAkhir(),
+        jenis_pembayaran: metodePembayaran,
+        catatan: catatan,
+      }, ])
       .select();
 
     if (transaksiError) {
@@ -220,14 +240,13 @@ export default function Home() {
 
     const transaksiId = transaksiData[0].id;
 
-    // 3. Siapkan data detail transaksi
     const itemsToInsert = keranjang.map((item) => ({
       transaksi_id: transaksiId,
+      produk_id: item.id,
       nama_barang: item.nama,
       jumlah: item.qty,
     }));
 
-    // 4. Simpan semua item keranjang ke tabel transaksi_detail
     const { error: detailError } = await supabase
       .from('transaksi_detail')
       .insert(itemsToInsert);
@@ -238,13 +257,12 @@ export default function Home() {
       return;
     }
 
-    // 5. Perbarui stok produk
     await Promise.all(
       keranjang.map((item) =>
         supabase
-          .from('produk')
-          .update({ stok: item.stok - item.qty })
-          .eq('id', item.id)
+        .from('produk')
+        .update({ stok: item.stok - item.qty })
+        .eq('id', item.id)
       )
     );
 
@@ -260,175 +278,154 @@ export default function Home() {
   });
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-900 text-white font-sans">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-900 text-gray-200 font-sans">
       <Head>
         <title>Nuevanesia POS</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </Head>
       
-      {/* Kolom Kiri: Navigasi Kategori & Logo */}
-      <div className="w-full lg:w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
-        <div>
-          <div className="flex items-center justify-center mb-10">
-            <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-10 mr-3" />
-            <span className="hidden">Nuevanesia</span>
-          </div>
+      <div className="w-full lg:w-64 bg-gray-900 border-r border-gray-800 p-6 flex flex-col">
+        <div className="flex items-center mb-12">
+          <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-10 mr-3" />
+          <span className="hidden">NUEVANESIA</span>
+        </div>
 
-          <h2 className="text-lg font-semibold mb-4 text-gray-300">Kategori Produk</h2>
-          <div className="space-y-3">
+        <div className="flex-grow">
+          <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-widest">Kategori</h2>
+          <div className="space-y-2">
             {semuaKategori.map((kategori) => (
               <div
                 key={kategori}
                 onClick={() => setKategoriTerpilih(kategori)}
-                className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors duration-200 
-                  ${kategoriTerpilih === kategori ? 'bg-teal-600 text-white shadow-md' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                className={`flex items-center p-3 rounded-lg cursor-pointer transition-all duration-200 relative group ${
+                  kategoriTerpilih === kategori 
+                  ? 'bg-teal-500/10 text-teal-300' 
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
               >
-                {kategori === 'Tenda & Terpal' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2 2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                  </svg>
+                {kategoriTerpilih === kategori && (
+                  <div className="absolute left-0 top-0 h-full w-1 bg-teal-400 rounded-r-full"></div>
                 )}
-                {kategori === 'Peralatan Masak' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h1M3 12H2M15 9l-2 2m-2 2l-2 2m5 0a6 6 0 11-12 0 6 6 0 0112 0z"></path>
-                  </svg>
-                )}
-                {kategori === 'Alat Penerangan' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13l-3 3m0 0l3 3m-3-3h12m5-6v2m0 0v2a1 1 0 01-1 1h-1a1 1 0 01-1-1v-2m0 0V9a1 1 0 011-1h1a1 1 0 011 1v2z"></path>
-                  </svg>
-                )}
-                {kategori === 'Tas & Ransel' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.564 23.564 0 0112 15c-3.185 0-6.223-.62-9-1.745M16 4v12a2 2 0 002 2h2v-8m-4-2l-2 2h2m-2 2h2M6 20h.01M9 20h.01"></path>
-                  </svg>
-                )}
-                {kategori === 'Kursi & Meja Portabel' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H7a2 2 0 00-2 2v2m7-9v8"></path>
-                  </svg>
-                )}
-                  {kategori === 'Lain-lain' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M12 5l7 7-7 7"></path>
-                  </svg>
-                )}
-                  {kategori === 'Semua' && (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                  </svg>
-                )}
-                <span>{kategori}</span>
+                <span className="ml-3 font-medium">{kategori}</span>
               </div>
             ))}
           </div>
         </div>
-        <button
-          onClick={() => router.push('/laporan')}
-          className="flex items-center justify-center bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 mt-3"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-          </svg>
-          Lihat Laporan
-        </button>
         
-        <button
-          onClick={handleLogout}
-          className="flex items-center justify-center bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors duration-200 mt-6"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-          </svg>
-          Logout
-        </button>
+        <div className="space-y-3 mt-8">
+          <button
+            onClick={() => router.push('/laporan')}
+            className="flex items-center justify-center bg-gray-800 text-gray-300 p-3 rounded-lg hover:bg-gray-700 hover:text-white transition-colors duration-200 w-full font-semibold"
+          >
+            <IconChartBar />
+            Lihat Laporan
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center bg-gray-800 text-gray-300 p-3 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200 w-full font-semibold"
+          >
+            <IconLogout />
+            Logout
+          </button>
+        </div>
       </div>
 
-      {/* Kolom Tengah: Item Sewa */}
-      <div className="w-full lg:w-1/2 p-4 overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-100">Item Sewa</h2>
+      <div className="flex-grow p-8 bg-gray-900 overflow-y-auto">
+        <h1 className="text-3xl font-bold mb-8 text-white">Produk Sewa</h1>
         
-        {/* Input Pencarian */}
-        <div className="mb-6 relative">
+        <div className="mb-8 relative">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari produk..."
-            className="w-full p-3 pl-10 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
+            placeholder="Cari nama produk..."
+            className="w-full p-4 pl-12 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
           />
-          <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
+          <IconSearch />
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
           {produkTerfilter.length > 0 ? (
-            produkTerfilter.map(item => (
-              <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-md flex flex-col justify-between">
-                {item.url_gambar && (
-                  <img src={item.url_gambar} alt={item.nama} className="w-full h-24 object-cover mb-3 rounded-md" />
-                )}
-                <h3 className="font-bold text-md text-teal-300">{item.nama}</h3>
-                <p className="text-xs text-gray-400">Rp{item.harga} / Hari</p>
-                <p className="text-xs text-gray-400">Stok: {item.stok}</p>
-                <button
-                  onClick={() => tambahKeKeranjang(item)}
-                  className="bg-blue-600 text-white p-2 mt-2 rounded-md w-full hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center text-sm"
+            produkTerfilter.map(item => {
+              // --- MODIFIKASI KODE: Cek apakah item ini sudah ada di keranjang ---
+              const isInCart = keranjang.some(cartItem => cartItem.id === item.id);
+
+              return (
+                <div 
+                  key={item.id} 
+                  // --- MODIFIKASI KODE: Menambahkan kelas kondisional untuk efek 'ring' ---
+                  className={`bg-gray-800/50 border border-gray-800 rounded-xl shadow-lg flex flex-col overflow-hidden group transition-all duration-300 hover:border-teal-500/50 hover:shadow-teal-500/10 hover:scale-[1.02] ${
+                    justAddedProductId === item.id ? 'ring-2 ring-offset-2 ring-offset-gray-900 ring-teal-400' : ''
+                  }`}
                 >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-                  </svg>
-                  Tambah
-                </button>
-              </div>
-            ))
+                  <img src={item.url_gambar || '/images/placeholder.png'} alt={item.nama} className="w-full h-32 object-cover" />
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="font-bold text-lg text-white mb-1">{item.nama}</h3>
+                    <p className="text-sm text-gray-400">Rp{item.harga.toLocaleString('id-ID')} / Hari</p>
+                    <p className={`text-xs mt-1 font-semibold ${item.stok > 10 ? 'text-green-400' : item.stok > 0 ? 'text-yellow-400' : 'text-red-500'}`}>
+                      Stok: {item.stok}
+                    </p>
+                    {/* --- MODIFIKASI KODE: Tombol berubah jika item sudah di keranjang --- */}
+                    <button
+                      onClick={() => tambahKeKeranjang(item)}
+                      disabled={item.stok === 0}
+                      className={`font-semibold p-2.5 mt-4 rounded-lg w-full transition-all duration-200 flex items-center justify-center text-sm disabled:cursor-not-allowed ${
+                        isInCart 
+                        ? 'bg-green-600/20 text-green-300' 
+                        : 'bg-teal-600 text-white hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500'
+                      }`}
+                    >
+                      {isInCart ? (
+                        'Ditambahkan ✔'
+                      ) : (
+                        <>
+                          <IconPlus />
+                          <span>Tambah</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
           ) : (
-            <p className="text-gray-400 col-span-full text-center py-8">Tidak ada produk ditemukan.</p>
+            <p className="text-gray-500 col-span-full text-center py-16">Tidak ada produk yang cocok dengan pencarian Anda.</p>
           )}
         </div>
       </div>
 
-      {/* Kolom Kanan: Detail Transaksi & Keranjang */}
-      <div className="w-full lg:w-1/4 bg-gray-800 p-4 flex flex-col justify-between shadow-lg">
-        <div>
-          <h2 className="text-2xl font-bold mb-6 text-gray-100">Detail Transaksi</h2>
-          
-          <div className="bg-gray-700 p-4 rounded-lg mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Tanggal Ambil</label>
-            <input 
-              type="date" 
-              value={tanggalMulai} 
-              onChange={(e) => setTanggalMulai(e.target.value)} 
-              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" 
-            />
-            <label className="block text-sm font-medium text-gray-300 mt-3 mb-2">Tanggal Kembali</label>
-            <input 
-              type="date" 
-              value={tanggalSelesai} 
-              onChange={(e) => setTanggalSelesai(e.target.value)} 
-              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" 
-            />
-            <p className="text-sm mt-3 text-gray-400">Durasi: <span className="font-semibold">{hitungDurasiHari()} Malam</span></p>
-          </div>
+      <div className="w-full lg:w-96 bg-gray-900 border-l border-gray-800 p-6 flex flex-col">
+        <h2 className="text-2xl font-bold mb-6 text-white">Keranjang</h2>
+        
+        <div className="bg-gray-800 p-4 rounded-xl mb-4 border border-gray-700">
+          <label className="block text-sm font-medium text-gray-400 mb-2">Tanggal Ambil</label>
+          <input type="date" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <label className="block text-sm font-medium text-gray-400 mt-4 mb-2">Tanggal Kembali</label>
+          <input type="date" value={tanggalSelesai} onChange={(e) => setTanggalSelesai(e.target.value)} className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <p className="text-sm mt-4 text-gray-400">Durasi: <span className="font-semibold text-white">{hitungDurasiHari()} Malam</span></p>
+        </div>
 
-          <div className="max-h-80 overflow-y-auto bg-gray-700 p-4 rounded-lg mb-4">
+        <div className="flex-grow bg-gray-800 rounded-xl mb-4 border border-gray-700 min-h-[200px] flex flex-col">
+          <div className="p-4 flex-grow overflow-y-auto">
             {keranjang.length === 0 ? (
-              <p className="text-gray-400 text-center py-4 text-sm">Keranjang masih kosong</p>
+              <div className="h-full flex items-center justify-center">
+                <p className="text-gray-500 text-center text-sm">Keranjang Anda kosong.</p>
+              </div>
             ) : (
               keranjang.map(item => (
-                <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-600 last:border-b-0">
+                <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-700 last:border-b-0">
                   <div>
-                    <p className="font-medium text-teal-300 text-sm">{item.nama}</p>
+                    <p className="font-medium text-white text-sm">{item.nama}</p>
                     <p className="text-xs text-gray-400">Rp{item.harga.toLocaleString('id-ID')} x {item.qty}</p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button onClick={() => kurangDariKeranjang(item.id)} className="bg-gray-600 text-white px-2 py-1 rounded-md text-sm hover:bg-gray-500 transition-colors">-</button>
-                    <span className="font-bold text-gray-200 text-sm">{item.qty}</span>
-                    <button onClick={() => tambahKeKeranjang(item)} className="bg-gray-600 text-white px-2 py-1 rounded-md text-sm hover:bg-gray-500 transition-colors">+</button>
-                    <button onClick={() => hapusItem(item.id)} className="text-red-500 hover:text-red-400 ml-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1H9a1 1 0 00-1 1v3m3 0h6"></path>
-                      </svg>
+                  <div className="flex items-center space-x-3">
+                    <button onClick={() => kurangDariKeranjang(item.id)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 transition-colors flex items-center justify-center">-</button>
+                    <span className="font-bold text-gray-200 text-sm w-4 text-center">{item.qty}</span>
+                    <button onClick={() => tambahKeKeranjang(item)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 transition-colors flex items-center justify-center">+</button>
+                    <button onClick={() => hapusItem(item.id)} className="text-gray-500 hover:text-red-500 ml-2 transition-colors">
+                      <IconTrash />
                     </button>
                   </div>
                 </div>
@@ -437,28 +434,30 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="bg-gray-700 p-4 rounded-lg mt-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-300 text-sm">Subtotal per malam:</span>
-            <span className="font-semibold text-gray-200 text-sm">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</span>
-          </div>
-          {hitungDurasiHari() >= 3 && (
-            <div className="flex justify-between items-center mb-2 text-red-400 font-bold text-sm">
-              <span>Diskon:</span>
-              <span>-Rp{(hitungSubtotalPerMalam() * 0.5 * (hitungDurasiHari() - 2)).toLocaleString('id-ID')}</span>
+        <div className="bg-gray-800 p-5 rounded-xl border border-gray-700">
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Subtotal per malam:</span>
+              <span className="font-semibold text-gray-200">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</span>
             </div>
-          )}
-          <div className="flex justify-between items-center border-t border-gray-600 pt-3 mt-3">
-            <p className="text-xl font-bold text-teal-400">Total:</p>
+            {hitungDurasiHari() >= 3 && (
+              <div className="flex justify-between items-center">
+                <span className="text-yellow-400">Diskon (50%):</span>
+                <span className="font-semibold text-yellow-400">-Rp{(hitungSubtotalPerMalam() * 0.5 * (hitungDurasiHari() - 2)).toLocaleString('id-ID')}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-between items-center border-t border-gray-700 pt-4 mt-4">
+            <p className="text-xl font-bold text-white">Total:</p>
             <p className="text-2xl font-bold text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</p>
           </div>
-          <button onClick={handleProses} className="bg-green-600 text-white p-3 w-full mt-6 rounded-lg font-bold text-lg hover:bg-green-700 transition-colors duration-200">
-            PROSES
+          <button onClick={handleProses} className="bg-gradient-to-r from-teal-500 to-green-500 text-white p-4 w-full mt-6 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity duration-200">
+            PROSES TRANSAKSI
           </button>
         </div>
       </div>
 
-      {(showPaymentPopup || showStrukPopup) && (
+        {(showPaymentPopup || showStrukPopup) && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
           <div className="p-8 bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
             {showPaymentPopup && (
