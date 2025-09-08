@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -79,7 +79,13 @@ export default function Laporan() {
   const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' });
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  
+  // Menggunakan useRef untuk mencegah pemanggilan fetchLaporan berulang
+  const isMounted = useRef(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -108,51 +114,71 @@ export default function Laporan() {
   
   // Fetch data only once when session is available
   useEffect(() => {
-    const fetchLaporan = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('transaksi')
-        .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah)')
-        .order('tanggal_mulai', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching laporan:', error);
-      } else {
-        const laporanHarian = {};
-        const laporanBulanan = {};
-        const laporanTahunan = {};
-        
-        data.forEach(transaksi => {
-          const tanggalMulai = moment(transaksi.tanggal_mulai);
-          const hari = tanggalMulai.format('YYYY-MM-DD');
-          const bulan = tanggalMulai.format('YYYY-MM');
-          const tahun = tanggalMulai.format('YYYY');
-
-          if (!laporanHarian[hari]) laporanHarian[hari] = 0;
-          laporanHarian[hari] += transaksi.total_biaya;
-
-          if (!laporanBulanan[bulan]) laporanBulanan[bulan] = 0;
-          laporanBulanan[bulan] += transaksi.total_biaya;
-
-          if (!laporanTahunan[tahun]) laporanTahunan[tahun] = 0;
-          laporanTahunan[tahun] += transaksi.total_biaya;
-        });
-        
-        setLaporan({
-          harian: laporanHarian,
-          bulanan: laporanBulanan,
-          tahunan: laporanTahunan,
-        });
-        
-        setTransaksiData(data);
-      }
-      setLoading(false);
-    };
-
-    if (session) {
+    if (session && !isMounted.current) {
+      isMounted.current = true;
       fetchLaporan();
     }
   }, [session]);
+  
+  const fetchLaporan = async () => {
+    setLoading(true);
+    let query = supabase
+      .from('transaksi')
+      .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah)')
+      .order('tanggal_mulai', { ascending: false });
+
+    // Filter by date range
+    if (startDate) {
+      query = query.gte('tanggal_mulai', startDate);
+    }
+    if (endDate) {
+      query = query.lte('tanggal_mulai', endDate);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching laporan:', error);
+    } else {
+      const laporanHarian = {};
+      const laporanBulanan = {};
+      const laporanTahunan = {};
+      
+      data.forEach(transaksi => {
+        const tanggalMulai = moment(transaksi.tanggal_mulai);
+        const hari = tanggalMulai.format('YYYY-MM-DD');
+        const bulan = tanggalMulai.format('YYYY-MM');
+        const tahun = tanggalMulai.format('YYYY');
+
+        if (!laporanHarian[hari]) laporanHarian[hari] = 0;
+        laporanHarian[hari] += transaksi.total_biaya;
+
+        if (!laporanBulanan[bulan]) laporanBulanan[bulan] = 0;
+        laporanBulanan[bulan] += transaksi.total_biaya;
+
+        if (!laporanTahunan[tahun]) laporanTahunan[tahun] = 0;
+        laporanTahunan[tahun] += transaksi.total_biaya;
+      });
+      
+      setLaporan({
+        harian: laporanHarian,
+        bulanan: laporanBulanan,
+        tahunan: laporanTahunan,
+      });
+      
+      setTransaksiData(data);
+    }
+    setLoading(false);
+  };
+  
+  // Memfilter transaksi yang ditampilkan berdasarkan input pencarian
+  const filteredTransaksi = useMemo(() => {
+    if (!transaksiData) return [];
+    
+    return transaksiData.filter(t => 
+      t.pelanggan?.nama.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [transaksiData, searchQuery]);
 
   const handleSort = (field) => {
     let direction = 'asc';
@@ -165,9 +191,7 @@ export default function Laporan() {
   };
 
   const sortedTransaksi = useMemo(() => {
-    if (!transaksiData) return [];
-    
-    const sortableItems = [...transaksiData];
+    const sortableItems = [...filteredTransaksi];
     sortableItems.sort((a, b) => {
       let aValue, bValue;
       
@@ -202,7 +226,7 @@ export default function Laporan() {
       return 0;
     });
     return sortableItems;
-  }, [transaksiData, sortConfig]);
+  }, [filteredTransaksi, sortConfig]);
 
   const formatRupiah = (angka) => {
     return `Rp${angka.toLocaleString('id-ID')}`;
@@ -218,6 +242,18 @@ export default function Laporan() {
   const handleRowClick = (transaction) => {
     setSelectedTransaction(transaction);
     setModalOpen(true);
+  };
+  
+  const handleExportCSV = () => {
+    // --- Lakukan konfigurasi pustaka ekspor data di sini ---
+    alert("Fitur ekspor ke CSV akan diimplementasikan di sini. Anda bisa menggunakan pustaka seperti 'papaparse' atau 'json-2-csv'.");
+  };
+  
+  const handleResetFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setSearchQuery('');
+    fetchLaporan();
   };
 
   if (loading) {
@@ -244,6 +280,58 @@ export default function Laporan() {
         >
           Kembali ke POS
         </button>
+      </div>
+      
+      {/* Search and Filter Section */}
+      <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1 w-full">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Cari Nama Pelanggan</label>
+            <input
+              type="text"
+              id="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Masukkan nama pelanggan..."
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
+            />
+          </div>
+          <div className="w-full md:w-auto flex-1">
+            <label htmlFor="startDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Mulai</label>
+            <input
+              type="date"
+              id="startDate"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
+            />
+          </div>
+          <div className="w-full md:w-auto flex-1">
+            <label htmlFor="endDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Selesai</label>
+            <input
+              type="date"
+              id="endDate"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
+            />
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button
+              onClick={fetchLaporan}
+              className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors mt-6"
+            >
+              Terapkan
+            </button>
+            <button
+              onClick={handleResetFilters}
+              className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors mt-6"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -301,7 +389,15 @@ export default function Laporan() {
       
       {/* Kolom Laporan Harian Detail */}
       <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-200">Detail Transaksi Harian</h2>
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
+            <button
+                onClick={handleExportCSV}
+                className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+            >
+                Ekspor ke CSV
+            </button>
+        </div>
         {sortedTransaksi.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left table-auto">
@@ -339,7 +435,7 @@ export default function Laporan() {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 text-center">Tidak ada data transaksi harian.</p>
+          <p className="text-gray-400 text-center">Tidak ada data transaksi yang ditemukan.</p>
         )}
       </div>
 
