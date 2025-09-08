@@ -156,17 +156,18 @@ export default function Home() {
   
   const handleSimpanPembayaran = async () => {
     if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
-        alert('Mohon lengkapi semua data pelanggan!');
-        return;
+      alert('Mohon lengkapi semua data pelanggan!');
+      return;
     }
 
     let pelangganId;
-    
+
+    // 1. Cari atau buat pelanggan baru
     const { data: existingPelanggan, error: fetchError } = await supabase
-        .from('pelanggan')
-        .select('id')
-        .eq('no_whatsapp', noWhatsapp)
-        .single();
+      .from('pelanggan')
+      .select('id')
+      .eq('no_whatsapp', noWhatsapp)
+      .single();
 
     if (fetchError && fetchError.code === 'PGRST116') {
       const { data: newPelangganData, error: insertError } = await supabase
@@ -187,26 +188,29 @@ export default function Home() {
         return;
       }
       pelangganId = newPelangganData[0].id;
-
     } else if (existingPelanggan) {
-        pelangganId = existingPelanggan.id;
+      pelangganId = existingPelanggan.id;
     } else {
-        console.error('Error saat mencari pelanggan:', fetchError);
-        alert('Gagal mencari data pelanggan.');
-        return;
+      console.error('Error saat mencari pelanggan:', fetchError);
+      alert('Gagal mencari data pelanggan.');
+      return;
     }
 
-    const { error: transaksiError } = await supabase.from('transaksi').insert([
-      {
-        pelanggan_id: pelangganId,
-        tanggal_mulai: tanggalMulai,
-        tanggal_selesai: tanggalSelesai,
-        durasi_hari: hitungDurasiHari(),
-        total_biaya: hitungTotalAkhir(),
-        jenis_pembayaran: metodePembayaran,
-        catatan: catatan, // Data catatan sudah disertakan
-      },
-    ]);
+    // 2. Simpan transaksi utama dan Dapatkan ID Transaksi
+    const { data: transaksiData, error: transaksiError } = await supabase
+      .from('transaksi')
+      .insert([
+        {
+          pelanggan_id: pelangganId,
+          tanggal_mulai: tanggalMulai,
+          tanggal_selesai: tanggalSelesai,
+          durasi_hari: hitungDurasiHari(),
+          total_biaya: hitungTotalAkhir(),
+          jenis_pembayaran: metodePembayaran,
+          catatan: catatan,
+        },
+      ])
+      .select();
 
     if (transaksiError) {
       console.error('Error menyimpan transaksi:', transaksiError);
@@ -214,6 +218,27 @@ export default function Home() {
       return;
     }
 
+    const transaksiId = transaksiData[0].id;
+
+    // 3. Siapkan data detail transaksi
+    const itemsToInsert = keranjang.map((item) => ({
+      transaksi_id: transaksiId,
+      nama_barang: item.nama,
+      jumlah: item.qty,
+    }));
+
+    // 4. Simpan semua item keranjang ke tabel transaksi_detail
+    const { error: detailError } = await supabase
+      .from('transaksi_detail')
+      .insert(itemsToInsert);
+
+    if (detailError) {
+      console.error('Error menyimpan detail transaksi:', detailError);
+      alert('Gagal menyimpan detail transaksi.');
+      return;
+    }
+
+    // 5. Perbarui stok produk
     await Promise.all(
       keranjang.map((item) =>
         supabase
