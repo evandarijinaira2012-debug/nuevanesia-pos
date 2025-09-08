@@ -53,8 +53,8 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
               <ul className="list-disc list-inside space-y-1 text-gray-300">
                 {transaction.transaksi_detail.map((item, index) => (
                   <li key={item.id || index} className="flex justify-between items-center">
-                    <span>{item.nama_barang}</span>
-                    <span className="font-semibold">{item.jumlah} unit</span>
+                  <span>{item.nama_barang} ({formatRupiah(item.produk?.harga * item.jumlah)})</span>
+                  <span className="font-semibold">{item.jumlah} unit</span>
                   </li>
                 ))}
               </ul>
@@ -115,7 +115,11 @@ export default function Laporan() {
     setLoading(true);
     let query = supabase
       .from('transaksi')
-      .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah)')
+      .select(`
+  *,
+  pelanggan(nama, alamat, no_whatsapp, jaminan),
+  transaksi_detail(id, nama_barang, jumlah, produk(harga, nama))
+`)
       .order('tanggal_mulai', { ascending: false });
 
     if (startDate) {
