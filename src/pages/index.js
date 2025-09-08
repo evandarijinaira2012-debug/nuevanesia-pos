@@ -270,7 +270,7 @@ export default function Home() {
         <div>
           <div className="flex items-center justify-center mb-10">
             <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-10 mr-3" />
-            <span className="text-2xl font-bold text-teal-400">Nuevanesia</span>
+            <span className="hidden">Nuevanesia</span>
           </div>
 
           <h2 className="text-lg font-semibold mb-4 text-gray-300">Kategori Produk</h2>
