@@ -27,7 +27,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
           </div>
           <div className="border-b border-gray-700 pb-2">
             <p className="text-sm text-gray-400">Nama Pelanggan:</p>
-            <p className="font-semibold">{transaction.pelanggan?.nama || 'Tidak ditemukan'}</p>
+            <p className="font-semibold">{transaction.pelanggan?.nama || 'Nama tidak ditemukan'}</p>
           </div>
           <div className="border-b border-gray-700 pb-2">
             <p className="text-sm text-gray-400">Alamat:</p>
@@ -52,7 +52,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
               <h4 className="text-lg font-bold text-gray-200 mb-2">Barang yang Disewa:</h4>
               <ul className="list-disc list-inside space-y-1 text-gray-300">
                 {transaction.transaksi_detail.map((item, index) => (
-                  <li key={index} className="flex justify-between items-center">
+                  <li key={item.id || index} className="flex justify-between items-center">
                     <span>{item.nama_barang}</span>
                     <span className="font-semibold">{item.jumlah} unit</span>
                   </li>
@@ -73,7 +73,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
 
 export default function Laporan() {
   const [laporan, setLaporan] = useState(null);
-  const [transaksiHarian, setTransaksiHarian] = useState([]);
+  const [transaksiData, setTransaksiData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' });
@@ -81,6 +81,7 @@ export default function Laporan() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const router = useRouter();
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -105,55 +106,53 @@ export default function Laporan() {
     };
   }, [router]);
   
+  // Fetch data only once when session is available
   useEffect(() => {
+    const fetchLaporan = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('transaksi')
+        .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah)')
+        .order('tanggal_mulai', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching laporan:', error);
+      } else {
+        const laporanHarian = {};
+        const laporanBulanan = {};
+        const laporanTahunan = {};
+        
+        data.forEach(transaksi => {
+          const tanggalMulai = moment(transaksi.tanggal_mulai);
+          const hari = tanggalMulai.format('YYYY-MM-DD');
+          const bulan = tanggalMulai.format('YYYY-MM');
+          const tahun = tanggalMulai.format('YYYY');
+
+          if (!laporanHarian[hari]) laporanHarian[hari] = 0;
+          laporanHarian[hari] += transaksi.total_biaya;
+
+          if (!laporanBulanan[bulan]) laporanBulanan[bulan] = 0;
+          laporanBulanan[bulan] += transaksi.total_biaya;
+
+          if (!laporanTahunan[tahun]) laporanTahunan[tahun] = 0;
+          laporanTahunan[tahun] += transaksi.total_biaya;
+        });
+        
+        setLaporan({
+          harian: laporanHarian,
+          bulanan: laporanBulanan,
+          tahunan: laporanTahunan,
+        });
+        
+        setTransaksiData(data);
+      }
+      setLoading(false);
+    };
+
     if (session) {
       fetchLaporan();
     }
   }, [session]);
-
-  const fetchLaporan = async () => {
-    const { data: transaksiData, error: transaksiError } = await supabase
-      .from('transaksi')
-      .select('*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(nama_barang, jumlah)');
-
-    if (transaksiError) {
-      console.error('Error fetching laporan:', transaksiError);
-      setLoading(false);
-      return;
-    }
-
-    const laporanHarian = {};
-    const laporanBulanan = {};
-    const laporanTahunan = {};
-    const transaksiHarianDetail = [];
-
-    transaksiData.forEach(transaksi => {
-      const tanggalMulai = moment(transaksi.tanggal_mulai);
-      const hari = tanggalMulai.format('YYYY-MM-DD');
-      const bulan = tanggalMulai.format('YYYY-MM');
-      const tahun = tanggalMulai.format('YYYY');
-
-      if (!laporanHarian[hari]) laporanHarian[hari] = 0;
-      laporanHarian[hari] += transaksi.total_biaya;
-
-      if (!laporanBulanan[bulan]) laporanBulanan[bulan] = 0;
-      laporanBulanan[bulan] += transaksi.total_biaya;
-
-      if (!laporanTahunan[tahun]) laporanTahunan[tahun] = 0;
-      laporanTahunan[tahun] += transaksi.total_biaya;
-      
-      transaksiHarianDetail.push(transaksi);
-    });
-
-    setLaporan({
-      harian: laporanHarian,
-      bulanan: laporanBulanan,
-      tahunan: laporanTahunan,
-    });
-    
-    setTransaksiHarian(transaksiHarianDetail);
-    setLoading(false);
-  };
 
   const handleSort = (field) => {
     let direction = 'asc';
@@ -166,9 +165,9 @@ export default function Laporan() {
   };
 
   const sortedTransaksi = useMemo(() => {
-    if (!transaksiHarian) return [];
+    if (!transaksiData) return [];
     
-    const sortableItems = [...transaksiHarian];
+    const sortableItems = [...transaksiData];
     sortableItems.sort((a, b) => {
       let aValue, bValue;
       
@@ -193,16 +192,17 @@ export default function Laporan() {
           return 0;
       }
       
+      const isAsc = sortConfig.direction === 'asc';
       if (aValue < bValue) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
+        return isAsc ? -1 : 1;
       }
       if (aValue > bValue) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
+        return isAsc ? 1 : -1;
       }
       return 0;
     });
     return sortableItems;
-  }, [transaksiHarian, sortConfig]);
+  }, [transaksiData, sortConfig]);
 
   const formatRupiah = (angka) => {
     return `Rp${angka.toLocaleString('id-ID')}`;
