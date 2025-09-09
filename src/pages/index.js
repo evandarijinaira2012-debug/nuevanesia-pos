@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import toast, { Toaster } from 'react-hot-toast';
+
+// --- Komponen Ikon (Tidak ada perubahan) ---
+// ... sisa kode Anda
 
 // --- Komponen Ikon (Tidak ada perubahan) ---
 const IconChartBar = () => (
@@ -170,106 +174,108 @@ export default function Home() {
 
   const handleProses = () => {
     if (keranjang.length === 0) {
-      alert('Keranjang sewa masih kosong!');
+      toast.error('Keranjang sewa masih kosong!'); // <- Diubah
       return;
     }
     if (!tanggalMulai || !tanggalSelesai) {
-      alert('Mohon isi tanggal sewa terlebih dahulu!');
+      toast.error('Mohon isi tanggal sewa terlebih dahulu!'); // <- Diubah
       return;
     }
     setShowPaymentPopup(true);
   };
 
-  const handleSimpanPembayaran = async () => {
-    if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
-      alert('Mohon lengkapi semua data pelanggan!');
-      return;
-    }
+const handleSimpanPembayaran = async () => {
+  if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
+    toast.error('Mohon lengkapi semua data pelanggan!');
+    return;
+  }
 
-    let pelangganId;
+  const toastId = toast.loading('Menyimpan transaksi...');
 
-    const { data: existingPelanggan, error: fetchError } = await supabase
-      .from('pelanggan')
-      .select('id')
-      .eq('no_whatsapp', noWhatsapp)
-      .single();
+  let pelangganId;
 
-    if (fetchError && fetchError.code === 'PGRST116') {
-      const { data: newPelangganData, error: insertError } = await supabase
-        .from('pelanggan')
-        .insert([{
-          nama: namaPelanggan,
-          alamat: alamatPelanggan,
-          no_whatsapp: noWhatsapp,
-          jaminan: jaminan,
-        }, ])
-        .select();
+  const { data: existingPelanggan, error: fetchError } = await supabase
+    .from('pelanggan')
+    .select('id')
+    .eq('no_whatsapp', noWhatsapp)
+    .single();
 
-      if (insertError) {
-        console.error('Error menyimpan pelanggan baru:', insertError);
-        alert('Gagal menyimpan data pelanggan baru.');
-        return;
-      }
-      pelangganId = newPelangganData[0].id;
-    } else if (existingPelanggan) {
-      pelangganId = existingPelanggan.id;
-    } else {
-      console.error('Error saat mencari pelanggan:', fetchError);
-      alert('Gagal mencari data pelanggan.');
-      return;
-    }
+  if (fetchError && fetchError.code === 'PGRST116') {
+    const { data: newPelangganData, error: insertError } = await supabase
+      .from('pelanggan')
+      .insert([{
+        nama: namaPelanggan,
+        alamat: alamatPelanggan,
+        no_whatsapp: noWhatsapp,
+        jaminan: jaminan,
+      }, ])
+      .select();
 
-    const { data: transaksiData, error: transaksiError } = await supabase
-      .from('transaksi')
-      .insert([{
-        pelanggan_id: pelangganId,
-        tanggal_mulai: tanggalMulai,
-        tanggal_selesai: tanggalSelesai,
-        durasi_hari: hitungDurasiHari(),
-        total_biaya: hitungTotalAkhir(),
-        jenis_pembayaran: metodePembayaran,
-        catatan: catatan,
-      }, ])
-      .select();
+    if (insertError) {
+      console.error('Error menyimpan pelanggan baru:', insertError);
+      toast.error('Gagal menyimpan pelanggan baru.', { id: toastId });
+      return;
+    }
+    pelangganId = newPelangganData[0].id;
+  } else if (existingPelanggan) {
+    pelangganId = existingPelanggan.id;
+  } else {
+    console.error('Error saat mencari pelanggan:', fetchError);
+    toast.error('Gagal mencari data pelanggan.', { id: toastId });
+    return;
+  }
 
-    if (transaksiError) {
-      console.error('Error menyimpan transaksi:', transaksiError);
-      alert('Gagal menyimpan data transaksi.');
-      return;
-    }
+  const { data: transaksiData, error: transaksiError } = await supabase
+    .from('transaksi')
+    .insert([{
+      pelanggan_id: pelangganId,
+      tanggal_mulai: tanggalMulai,
+      tanggal_selesai: tanggalSelesai,
+      durasi_hari: hitungDurasiHari(),
+      total_biaya: hitungTotalAkhir(),
+      jenis_pembayaran: metodePembayaran,
+      catatan: catatan,
+    }, ])
+    .select();
 
-    const transaksiId = transaksiData[0].id;
+  if (transaksiError) {
+    console.error('Error menyimpan transaksi:', transaksiError);
+    toast.error('Gagal menyimpan data transaksi.', { id: toastId });
+    return;
+  }
 
-    const itemsToInsert = keranjang.map((item) => ({
-      transaksi_id: transaksiId,
-      produk_id: item.id,
-      nama_barang: item.nama,
-      jumlah: item.qty,
-    }));
+  const transaksiId = transaksiData[0].id;
 
-    const { error: detailError } = await supabase
-      .from('transaksi_detail')
-      .insert(itemsToInsert);
+  const itemsToInsert = keranjang.map((item) => ({
+    transaksi_id: transaksiId,
+    produk_id: item.id,
+    nama_barang: item.nama,
+    jumlah: item.qty,
+  }));
 
-    if (detailError) {
-      console.error('Error menyimpan detail transaksi:', detailError);
-      alert('Gagal menyimpan detail transaksi.');
-      return;
-    }
+  const { error: detailError } = await supabase
+    .from('transaksi_detail')
+    .insert(itemsToInsert);
 
-    await Promise.all(
-      keranjang.map((item) =>
-        supabase
-        .from('produk')
-        .update({ stok: item.stok - item.qty })
-        .eq('id', item.id)
-      )
-    );
+  if (detailError) {
+    console.error('Error menyimpan detail transaksi:', detailError);
+    toast.error('Gagal menyimpan detail transaksi.', { id: toastId });
+    return;
+  }
 
-    alert('Data sewa berhasil disimpan! Sekarang Anda bisa cetak struk.');
-    setShowPaymentPopup(false);
-    setShowStrukPopup(true);
-  };
+  await Promise.all(
+    keranjang.map((item) =>
+      supabase
+      .from('produk')
+      .update({ stok: item.stok - item.qty })
+      .eq('id', item.id)
+    )
+  );
+
+  toast.success('Data sewa berhasil disimpan!', { id: toastId });
+  setShowPaymentPopup(false);
+  setShowStrukPopup(true);
+};
 
   const produkTerfilter = produk.filter(item => {
     const kategoriCocok = kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
@@ -278,8 +284,21 @@ export default function Home() {
   });
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-900 text-gray-200 font-sans">
-      <Head>
+  <div className="flex flex-col lg:flex-row min-h-screen bg-gray-900 text-gray-200 font-sans">
+    {/* --- TAMBAHKAN BLOK KODE INI --- */}
+    <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+            style: {
+                background: '#24252A',
+                color: '#e2e8f0',
+                border: '1px solid #2C2E33'
+            },
+        }}
+    />
+    {/* --------------------------- */}
+    <Head>
         <title>Nuevanesia POS</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
