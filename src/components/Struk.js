@@ -42,10 +42,12 @@ const Struk = ({ transaksiData }) => {
         <p>Tgl: {formatDateTime()}</p>
         <div className="space-after-date"></div>
         <p>Pelanggan: {pelanggan.nama || '-'}</p>
-        <p>No. WhatsApp: {pelanggan.noWhatsapp || '-'}</p>
+        <p>No.WhatsApp: {pelanggan.noWhatsapp || '-'}</p>
         <p>Jaminan: {pelanggan.jaminan || '-'}</p>
         <p>Tanggal Ambil: {formatDate(tanggalMulai)}</p>
         <p>Tanggal Kembali: {formatDate(tanggalSelesai)}</p>
+        <hr className="divider" />
+        <p>Pastikan pengembalian barang tidak terlambat</p>
         <hr className="divider" />
       </div>
       
@@ -87,8 +89,8 @@ const Struk = ({ transaksiData }) => {
         </div>
         <p className="note">Catatan: <strong>{catatan || '-'}</strong></p>
         <div className="space-before-thanks"></div>
-        <p>Terima kasih telah berbelanja di toko kami!</p>
-        <p>Barang yang sudah dibeli tidak dapat dikembalikan.</p>
+        <p>Mulai petualanganmu dari sini</p>
+        <p>karena Nuevanesia teman camping saat healing.</p>
       </div>
 
       <style jsx>{`
