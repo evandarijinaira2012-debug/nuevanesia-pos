@@ -104,7 +104,7 @@ export default function Home() {
                 console.error('Error fetching produk:', error);
             } else {
                 setProduk(data);
-                const urutanKategori = ['Semua', 'Tenda', 'Shelter', 'Sleeping System', 'sepatu', 'Cookware', 'Tas', 'Hardware', 'Lighting & Electrical', 'Acessoris & Support', 'Lain-lain'];
+                const urutanKategori = ['Semua', 'Tenda', 'Shelter', 'Sleeping System', 'Cookware', 'Tas', 'Sepatu', 'Hardware', 'Lighting & Electrical', 'Accecoris & Support', 'Lain-lain'];
 const uniqueKategori = [...new Set(data.map(p => p.kategori))];
 
 // Urutkan kategori berdasarkan urutan yang diinginkan
