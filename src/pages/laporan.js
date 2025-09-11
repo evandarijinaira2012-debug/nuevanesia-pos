@@ -5,6 +5,14 @@ import { useRouter } from 'next/router';
 import moment from 'moment';
 import 'moment/locale/id';
 
+// Komponen Ikon
+const IconExport = () => (
+    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+);
+const IconSort = () => (
+    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7l4-4m0 0l4 4m-4-4v12"></path></svg>
+);
+
 // TransactionModal Component
 const TransactionModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
@@ -13,96 +21,99 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
     return `Rp${angka.toLocaleString('id-ID')}`;
   };
 
-  const handlePrint = () => {
-    const printContent = `
-      <style>
-        @page {
-          size: 80mm 100%; /* Common thermal paper size */
-          margin: 0;
-        }
-        body {
-          font-family: 'monospace';
-          font-size: 12px;
-          padding: 10px;
-          color: black;
-          line-height: 1.5;
-        }
-        .header, .footer, .divider {
-          text-align: center;
-          margin-bottom: 10px;
-        }
-        .divider {
-          border-bottom: 1px dashed black;
-          margin: 10px 0;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 10px;
-        }
-        th, td {
-          text-align: left;
-          padding: 2px 0;
-        }
-        .text-right {
-          text-align: right;
-        }
-        h3 {
-          font-size: 16px;
-          font-weight: bold;
-          margin: 5px 0;
-        }
-      </style>
-      <body>
-        <div class="header">
-          <h3>Toko Rental Anda</h3>
-          <p>Jl. Contoh No. 123</p>
-          <p>WhatsApp: ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
-        </div>
-        <div class="divider"></div>
-        <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
-        <p><strong>Tanggal:</strong> ${moment(transaction.tanggal_mulai).format('DD MMMM YYYY')}</p>
-        <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
-        <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
-        <div class="divider"></div>
-        <table>
-          <thead>
+const handlePrint = () => {
+  const printContent = `
+    <style>
+      @page {
+        size: 80mm 100%; /* Common thermal paper size */
+        margin: 0;
+      }
+      body {
+        font-family: 'monospace';
+        font-size: 12px;
+        padding: 10px;
+        color: black;
+        line-height: 1.5;
+      }
+      .header, .footer, .divider {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .divider {
+        border-bottom: 1px dashed black;
+        margin: 10px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th, td {
+        text-align: left;
+        padding: 2px 0;
+      }
+      .text-right {
+        text-align: right;
+      }
+      h3 {
+        font-size: 16px;
+        font-weight: bold;
+        margin: 5px 0;
+      }
+    </style>
+    <body>
+      <div class="header">
+        <h3>Toko Rental Anda</h3>
+        <p>Jl. Contoh No. 123</p>
+        <p>WhatsApp: ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
+      </div>
+      <div class="divider"></div>
+      <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
+      <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
+      <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
+      <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
+      <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
+      <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
+      <div class="divider"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Barang</th>
+            <th class="text-right">Harga</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${transaction.transaksi_detail.map(item => `
             <tr>
-              <th>Barang</th>
-              <th class="text-right">Jumlah</th>
+              <td>${item.nama_barang} (${item.jumlah})</td>
+              <td class="text-right">${formatRupiah(item.jumlah * item.produk?.harga)}</td>
             </tr>
-          </thead>
-          <tbody>
-            ${transaction.transaksi_detail.map(item => `
-              <tr>
-                <td>${item.nama_barang}</td>
-                <td class="text-right">${item.jumlah} unit</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="divider"></div>
-        <p style="font-size: 18px; text-align: right;"><strong>Total: ${formatRupiah(transaction.total_biaya)}</strong></p>
-        <div class="divider"></div>
-        <div class="footer">
-          <p>Terima kasih telah menyewa!</p>
-          <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
-        </div>
-      </body>
-    `;
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="divider"></div>
+      <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
+      <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
+      <div class="divider"></div>
+      <div class="footer">
+        <p>Terima kasih telah menyewa!</p>
+        <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
+      </div>
+    </body>
+  `;
 
-    const printWindow = window.open('', '_blank', 'width=300,height=400');
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    } else {
-      alert('Pop-up window blocked. Please allow pop-ups for this site to print.');
-    }
-  };
+  const printWindow = window.open('', '_blank', 'width=300,height=400');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  } else {
+    alert('Pop-up window blocked. Please allow pop-ups for this site to print.');
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 print:bg-white print:text-black">
@@ -132,7 +143,16 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
           </div>
           <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
             <p className="text-sm text-gray-400 print:text-black">Tanggal Mulai Sewa:</p>
-            <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_mulai).format('DD MMMM YYYY')}</p>
+            <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
+          </div>
+          {/* Tambahan: Tanggal Selesai Sewa dan Durasi */}
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Tanggal Selesai Sewa:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Durasi Sewa:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.durasi_hari} malam</p>
           </div>
           <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
             <p className="text-sm text-gray-400 print:text-black">Metode Pembayaran:</p>
@@ -141,19 +161,27 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
           {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
             <div className="mt-4 print:mt-0">
               <h4 className="text-lg font-bold text-gray-200 mb-2 print:text-black">Barang yang Disewa:</h4>
-              <ul className="list-disc list-inside space-y-1 text-gray-300 print:text-black">
+              {/* Perbaikan: Menampilkan harga per item dan subtotal */}
+              <ul className="space-y-1 text-gray-300 print:text-black">
                 {transaction.transaksi_detail.map((item, index) => (
-                  <li key={item.id || index} className="flex justify-between items-center print:text-black">
-                    <span>{item.nama_barang}</span>
-                    <span className="font-semibold">{item.jumlah} unit</span>
-                  </li>
+                    <li key={item.id || index} className="flex justify-between py-1 text-gray-300 print:text-black">
+                        <span>{item.nama_barang} ({item.jumlah})</span>
+                        <span>{formatRupiah(item.jumlah * item.produk?.harga)}</span>
+                    </li>
                 ))}
               </ul>
             </div>
           )}
           <div className="border-t border-gray-700 pt-4 print:border-black print:pt-0">
-            <p className="text-sm text-gray-400 print:text-black">Total Biaya:</p>
-            <p className="font-bold text-2xl text-green-400 print:text-black">{formatRupiah(transaction.total_biaya)}</p>
+             {/* Perbaikan: Tambah subtotal di atas total biaya */}
+            <div className="flex justify-between text-xl font-semibold mb-2">
+                <span className="text-gray-300">Subtotal:</span>
+                <span className="text-gray-200">{formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-3xl">
+                <span className="text-teal-400">Total Biaya:</span>
+                <span className="text-teal-400">{formatRupiah(transaction.total_biaya)}</span>
+            </div>
           </div>
         </div>
         <button
@@ -327,8 +355,56 @@ export default function Laporan() {
     setModalOpen(true);
   };
 
+  // FUNGSI UNTUK EXPORT KE CSV
   const handleExportCSV = () => {
-    alert("Fitur ekspor ke CSV akan diimplementasikan di sini. Anda bisa menggunakan pustaka seperti 'papaparse' atau 'json-2-csv'.");
+    if (sortedTransaksi.length === 0) {
+      alert('Tidak ada data untuk diekspor!');
+      return;
+    }
+
+    const headers = [
+      'ID Transaksi',
+      'Tanggal Mulai',
+      'Tanggal Selesai',
+      'Durasi (malam)',
+      'Nama Pelanggan',
+      'Alamat Pelanggan',
+      'No WhatsApp',
+      'Metode Pembayaran',
+      'Total Biaya'
+    ];
+
+    const csvRows = [headers.join(';')];
+
+    sortedTransaksi.forEach(t => {
+      const row = [
+        `"${t.id}"`,
+        `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
+        `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`,
+        t.durasi_hari,
+        `"${t.pelanggan?.nama || 'N/A'}"`,
+        `"${t.pelanggan?.alamat || 'N/A'}"`,
+        `"${t.pelanggan?.no_whatsapp || 'N/A'}"`,
+        `"${t.jenis_pembayaran}"`,
+        t.total_biaya
+      ].join(';');
+      csvRows.push(row);
+    });
+
+    const csvString = csvRows.join('\n');
+    const bom = '\uFEFF'; 
+    const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'laporan-transaksi.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleResetFilters = () => {
@@ -470,8 +546,9 @@ export default function Laporan() {
           <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
           <button
             onClick={handleExportCSV}
-            className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+            className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center"
           >
+            <IconExport />
             Ekspor ke CSV
           </button>
         </div>
