@@ -345,8 +345,9 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
             </Head>
             
             <div className="w-full lg:w-120 bg-gray-900 border-r border-gray-800 p-6 flex flex-col">
-                <div className="flex items-center justify-center mb-12">
+                <div className="flex items-center justify-center mb-12 flex-col">
                     <img src="/images/logo-nuevanesia.png" alt="Nuevanesia Logo" className="h-20 mr-3" />
+                    <p className="text-sm font-light text-blue-400 mt-2">Produce by GodByte</p>
                     <span className="hidden">NUEVANESIA</span>
                 </div>
 
@@ -391,7 +392,7 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
             </div>
 
             <div className="w-[110rem] p-8 bg-gray-900 overflow-y-auto">
-                <h1 className="text-3xl font-bold mb-8 text-white text-center">PLODUK SEWAA</h1>
+                <h1 className="text-3xl font-bold mb-8 text-white text-center">PLODUK PLODUK SEWAA</h1>
                 
                 <div className="mb-8 relative">
                     <input
@@ -455,9 +456,9 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                 <h2 className="text-2xl font-bold mb-6 text-white">Keranjang</h2>
                 
                 <div className="bg-gray-800 p-4 rounded-xl mb-4 border border-gray-700">
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Tanggal Ambil</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Tanggal Ambil Barang</label>
                     <input type="date" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                    <label className="block text-sm font-medium text-gray-400 mt-4 mb-2">Tanggal Kembali</label>
+                    <label className="block text-sm font-medium text-gray-400 mt-4 mb-2">Tanggal Kembali Barang</label>
                     <input type="date" value={tanggalSelesai} onChange={(e) => setTanggalSelesai(e.target.value)} className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     <p className="text-sm mt-4 text-gray-400">Durasi: <span className="font-semibold text-white">{hitungDurasiHari()} Malam</span></p>
                 </div>
