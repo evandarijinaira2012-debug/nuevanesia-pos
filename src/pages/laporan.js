@@ -63,13 +63,14 @@ const handlePrint = () => {
     </style>
     <body>
       <div class="header">
-        <h3>Toko Rental Anda</h3>
-        <p>Jl. Contoh No. 123</p>
-        <p>WhatsApp: ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
+        <h3>Nuevanesia</h3>
+        <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
+        <p>WhatsApp: 08180.208.9909</p>
       </div>
       <div class="divider"></div>
       <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
       <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
+      <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
       <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
       <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
       <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
