@@ -1,0 +1,105 @@
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.popup-container {
+  background-color: #24252A;
+  color: #e2e8f0;
+  padding: 30px;
+  border-radius: 12px;
+  max-width: 900px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  border: 1px solid #333;
+  /* Perubahan animasi di sini */
+  animation: pop-in-and-fade 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.close-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  color: #71717A;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: #ffffff;
+}
+
+.popup-content-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.popup-image-container {
+    padding-top: 5px;
+}
+
+.popup-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.popup-details-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.popup-details-container h2 {
+    font-size: 1.75rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #4AD39D;
+}
+
+.scrollable-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 15px;
+    line-height: 1.6;
+}
+
+.scrollable-content p {
+    font-size: 1rem;
+    margin-bottom: 15px;
+}
+
+.details-label {
+    color: #4AD39D;
+    font-weight: 600;
+}
+
+.handling-notes-content {
+    color: #FFD700;
+}
+
+/* --- Definisi Animasi Baru --- */
+@keyframes pop-in-and-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.7) rotate(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
