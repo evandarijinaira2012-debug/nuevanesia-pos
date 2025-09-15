@@ -52,14 +52,20 @@ const Struk = ({ transaksiData }) => {
       </div>
       
       <div className="items">
-        {keranjang.map(item => (
-          <div key={item.id} className="item">
-            <span>{item.nama}</span>
-            <span>{item.qty} x Rp{item.harga.toLocaleString('id-ID')}</span>
-            <span>Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
-          </div>
-        ))}
+  {keranjang.map(item => (
+    <div key={item.id} className="item">
+      <div className="item-left">
+        <span className="item-name">{item.nama}</span>
+        
+        <div className="summary-row">
+          <span>{item.harga} x{item.qty}</span>
+        </div>
       </div>
+      
+      <span className="item-total">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
+    </div>
+  ))}
+</div>
 
       <div className="summary-section">
         <hr className="divider" />
@@ -90,7 +96,7 @@ const Struk = ({ transaksiData }) => {
         <p className="note">Catatan: <strong>{catatan || '-'}</strong></p>
         <div className="space-before-thanks"></div>
         <p>Mulai petualanganmu dari sini</p>
-        <p>karena Nuevanesia teman camping saat healing.</p>
+        <p>Nuevanesia teman camping saat healing.</p>
       </div>
 
       <style jsx>{`
