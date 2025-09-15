@@ -491,11 +491,11 @@ export default function Laporan() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 print:hidden">
+      <div className="grid grid-cols-1:grid-cols-2 lg:grid-cols-3 gap-8 print:hidden">
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
           <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
           {laporan?.harian && Object.keys(laporan.harian).length > 0 ? (
-            <ul className="space-y-3">
+            <ul className="space-y-3 lg:h-[30vh] overflow-y-auto scrollbar-hide">
               {Object.keys(laporan.harian).map(hari => (
                 <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
                   <span className="text-lg text-gray-300">{moment(hari, 'YYYY-MM-DD').format('DD MMMM YYYY')}</span>
