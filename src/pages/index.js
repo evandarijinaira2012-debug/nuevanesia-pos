@@ -20,6 +20,12 @@ const IconPlus = () => (
 const IconTrash = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1H9a1 1 0 00-1 1v3m3 0h6"></path></svg>
 );
+const IconTool = () => (
+  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+);
+
+// --- IMPORT KOMPONEN POPUP BARU ---
+import ProductPopup from '../components/ProductPopup';
 
 export default function Home() {
     const [produk, setProduk] = useState([]);
@@ -40,9 +46,10 @@ export default function Home() {
     const [metodePembayaran, setMetodePembayaran] = useState('Cash');
     const [catatan, setCatatan] = useState('');
     const [diskon, setDiskon] = useState(0); 
-    
-    // --- PENAMBAHAN KODE: State untuk efek visual ---
     const [justAddedProductId, setJustAddedProductId] = useState(null);
+    
+    // --- PENAMBAHAN KODE: State untuk produk yang dipilih ---
+    const [selectedProduct, setSelectedProduct] = useState(null);
 
     // --- PERBAIKAN: Pindahkan deklarasi fungsi ke atas ---
     const hitungDurasiHari = () => {
@@ -105,21 +112,17 @@ export default function Home() {
             } else {
                 setProduk(data);
                 const urutanKategori = ['Semua', 'Tenda', 'Shelter', 'Sleeping System', 'Cookware', 'Tas', 'Sepatu', 'Hardware', 'Lighting & Electrical', 'Accecoris & Support', 'Lain-lain'];
-const uniqueKategori = [...new Set(data.map(p => p.kategori))];
+                const uniqueKategori = [...new Set(data.map(p => p.kategori))];
 
-// Urutkan kategori berdasarkan urutan yang diinginkan
-const kategoriTerurut = urutanKategori.filter(kategori => uniqueKategori.includes(kategori));
+                const kategoriTerurut = urutanKategori.filter(kategori => uniqueKategori.includes(kategori));
+                const kategoriLainnya = uniqueKategori.filter(kategori => !urutanKategori.includes(kategori));
 
-// Pastikan semua kategori unik yang tidak ada di urutan manual ditambahkan di akhir
-const kategoriLainnya = uniqueKategori.filter(kategori => !urutanKategori.includes(kategori));
-
-setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
+                setSemuaKategori(['Semua', ...kategoriTerurut.concat(kategoriLainnya)]);
             }
         }
         fetchProduk();
     }, []);
 
-    // Tambahan: useEffect untuk menghitung diskon
     useEffect(() => {
         const durasi = hitungDurasiHari();
         if (durasi >= 3) {
@@ -174,7 +177,6 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
         router.push('/login');
     };
 
-    // --- MODIFIKASI KODE: Fungsi ini diupdate untuk efek visual ---
     const tambahKeKeranjang = (item) => {
         const itemSudahAda = keranjang.find((i) => i.id === item.id);
         if (itemSudahAda) {
@@ -186,9 +188,7 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
         } else {
             setKeranjang([...keranjang, { ...item, qty: 1 }]);
         }
-        // Aktifkan efek visual
         setJustAddedProductId(item.id);
-        // Nonaktifkan efek setelah 1 detik
         setTimeout(() => {
             setJustAddedProductId(null);
         }, 1000);
@@ -315,16 +315,23 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
         setShowPaymentPopup(false);
         setShowStrukPopup(true);
     };
-
+    
     const produkTerfilter = produk.filter(item => {
         const kategoriCocok = kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
         const pencarianCocok = item.nama.toLowerCase().includes(searchQuery.toLowerCase());
         return kategoriCocok && pencarianCocok;
     });
+    
+    // --- FUNGSI BARU: Untuk membuka dan menutup popup produk ---
+    const openProductPopup = (product) => {
+        setSelectedProduct(product);
+    };
 
+    const closeProductPopup = () => {
+        setSelectedProduct(null);
+    };
+    
     return (
-        // 👇 --- PERBAIKAN UTAMA ADA DI SINI --- 👇
-        // Mengganti `min-h-screen` dengan `h-screen overflow-hidden`
         <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-900 text-gray-200 font-sans">
             <Toaster
                 position="top-center"
@@ -351,7 +358,7 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                     <span className="hidden">NUEVANESIA</span>
                 </div>
 
-                <div className="flex-grow">
+                <div className="flex-grow lg:h-[85vh] overflow-y-auto scrollbar-hide">
                     <h2 className="text-sm font-semibold mb-4 text-gray-500 uppercase tracking-widest">Kategori</h2>
                     <div className="space-y-2">
                         {semuaKategori.map((kategori) => (
@@ -373,17 +380,25 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                     </div>
                 </div>
                 
+                {/* --- PENAMBAHAN KODE: Tombol Manajemen Produk --- */}
                 <div className="space-y-3 mt-8">
                     <button
+                        onClick={() => router.push('/manajemen-produk')}
+                        className="flex items-center justify-center bg-gray-700 text-gray-300 p-3 rounded-lg hover:bg-yellow-500/30 hover:text-white transition-colors duration-200 w-full font-semibold"
+                    >
+                        <IconTool />
+                        Manajemen Produk
+                    </button>
+                    <button
                         onClick={() => router.push('/laporan')}
-                        className="flex items-center justify-center bg-gray-800 text-gray-300 p-3 rounded-lg hover:bg-gray-700 hover:text-white transition-colors duration-200 w-full font-semibold"
+                        className="flex items-center justify-center bg-gray-700 text-gray-300 p-3 rounded-lg hover:bg-blue-500/20 hover:text-white transition-colors duration-200 w-full font-semibold"
                     >
                         <IconChartBar />
                         Lihat Laporan
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="flex items-center justify-center bg-gray-800 text-gray-300 p-3 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200 w-full font-semibold"
+                        className="flex items-center justify-center bg-gray-700 text-gray-300 p-3 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200 w-full font-semibold"
                     >
                         <IconLogout />
                         Logout
@@ -391,7 +406,7 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                 </div>
             </div>
 
-            <div className="w-[110rem] p-8 bg-gray-900 overflow-y-auto">
+            <div className="w-[110rem] p-8 bg-gray-900 overflow-y-auto scrollbar-hide">
                 <h1 className="text-3xl font-bold mb-8 text-white text-center">PLODUK PLODUK SEWAA</h1>
                 
                 <div className="mb-8 relative">
@@ -413,7 +428,9 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                             return (
                                 <div 
                                     key={item.id} 
-                                    className={`bg-gray-800/50 border border-gray-800 rounded-xl shadow-lg flex flex-col overflow-hidden group transition-all duration-300 hover:border-teal-500/50 hover:shadow-teal-500/10 hover:scale-[1.02] ${
+                                    // --- MODIFIKASI: Tambahkan event onClick untuk popup ---
+                                    onClick={() => openProductPopup(item)}
+                                    className={`bg-gray-800/50 border border-gray-800 rounded-xl shadow-lg flex flex-col overflow-hidden group transition-all duration-300 hover:border-teal-500/50 hover:shadow-teal-500/10 hover:scale-[1.02] cursor-pointer ${
                                         justAddedProductId === item.id ? 'ring-2 ring-offset-2 ring-offset-gray-900 ring-teal-400' : ''
                                     }`}
                                 >
@@ -425,7 +442,10 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                                             Stok: {item.stok}
                                         </p>
                                         <button
-                                            onClick={() => tambahKeKeranjang(item)}
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Mencegah klik menyebar ke div parent
+                                                tambahKeKeranjang(item);
+                                            }}
                                             disabled={item.stok === 0}
                                             className={`font-semibold p-2.5 mt-4 rounded-lg w-full transition-all duration-200 flex items-center justify-center text-sm disabled:cursor-not-allowed ${
                                                 isInCart 
@@ -655,6 +675,10 @@ setSemuaKategori(kategoriTerurut.concat(kategoriLainnya));
                     </div>
                 </div>
             )}
+            
+            {/* --- PENAMBAHAN KODE: Komponen popup produk --- */}
+            <ProductPopup product={selectedProduct} onClose={closeProductPopup} />
+
         </div>
     );
 }
