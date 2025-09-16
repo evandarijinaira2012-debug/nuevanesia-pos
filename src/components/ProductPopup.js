@@ -1,5 +1,7 @@
 import React from 'react';
 import styles from '../styles/ProductPopup.module.css';
+import Image from 'next/image';
+import { renderTextWithBreaks } from '../utils/textUtils';
 
 const ProductPopup = ({ product, onClose }) => {
   if (!product) return null;
@@ -23,15 +25,17 @@ const ProductPopup = ({ product, onClose }) => {
             <div className={styles['scrollable-content']}>
               <p>
                 <strong className={styles['details-label']}>Deskripsi: </strong>
-                <span>{product.description}</span>
+                {/* PENGGUNAAN FUNGSI BARU DI SINI */}
+                <span>{renderTextWithBreaks(product.description)}</span>
               </p>
               <p>
                 <strong className={styles['details-label']}>Stok Tersedia: </strong>
-                <span>{product.stok}</span> {/* Perbaikan di sini */}
+                <span>{product.stok}</span>
               </p>
               <p>
                 <strong className={styles['details-label']}>Catatan Penanganan: </strong>
-                <span className={styles['handling-notes-content']}>{product.handling_notes}</span>
+                {/* PENGGUNAAN FUNGSI BARU DI SINI */}
+                <span className={styles['handling-notes-content']}>{renderTextWithBreaks(product.handling_notes)}</span>
               </p>
             </div>
           </div>
