@@ -383,14 +383,14 @@ export default function Home() {
                 {/* --- PENAMBAHAN KODE: Tombol Manajemen Produk --- */}
                 <div className="space-y-3 mt-8">
                     <button
-                        onClick={() => router.push('/manajemen-produk')}
+                        onClick={() => window.open('/manajemen-produk', '_blank')}
                         className="flex items-center justify-center bg-gray-700 text-gray-300 p-3 rounded-lg hover:bg-yellow-500/30 hover:text-white transition-colors duration-200 w-full font-semibold"
                     >
                         <IconTool />
                         Manajemen Produk
                     </button>
                     <button
-                        onClick={() => router.push('/laporan')}
+                        onClick={() => window.open('/laporan', '_blank')}
                         className="flex items-center justify-center bg-gray-700 text-gray-300 p-3 rounded-lg hover:bg-blue-500/20 hover:text-white transition-colors duration-200 w-full font-semibold"
                     >
                         <IconChartBar />
