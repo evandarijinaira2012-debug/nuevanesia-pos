@@ -624,7 +624,7 @@ export default function Home() {
                                             onChange={(e) => setCatatan(e.target.value)}
                                             className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                                             rows="3"
-                                            placeholder="Tambahkan catatan khusus dari pelanggan di sini..."
+                                            placeholder="Tambahkan NAMA PELANGGAN disini..."
                                         ></textarea>
                                     </div>
                                 </div>
