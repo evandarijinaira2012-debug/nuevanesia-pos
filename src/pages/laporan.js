@@ -209,34 +209,14 @@ export default function Laporan() {
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
-  const isMounted = useRef(false);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) {
-        router.push('/login');
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        if (!session) {
-          router.push('/login');
-        }
-      }
-    );
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, [router]);
+  
+  // TAMBAH state baru untuk mengontrol loading awal
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const fetchLaporan = async () => {
+    // Hanya tampilkan loading jika ini bukan pembaruan filter
     setLoading(true);
+    
     let query = supabase
       .from('transaksi')
       .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama))`)
@@ -282,14 +262,43 @@ export default function Laporan() {
       setTransaksiData(data);
     }
     setLoading(false);
+    // Setelah data pertama berhasil diambil, set initialLoading ke false
+    setInitialLoading(false);
   };
 
   useEffect(() => {
-    if (session && !isMounted.current) {
-      isMounted.current = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        fetchLaporan();
+      } else {
+        router.push('/login');
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        if (!session) {
+          router.push('/login');
+        }
+      }
+    );
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [router]);
+  
+  // Fungsi baru untuk menangani enter pada input pencarian
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
       fetchLaporan();
     }
-  }, [session]);
+  };
+
 
   const handleSort = (field) => {
     let direction = 'asc';
@@ -415,7 +424,8 @@ export default function Laporan() {
     fetchLaporan();
   };
 
-  if (loading) {
+  // Gunakan initialLoading untuk mengontrol tampilan loading screen awal
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
         <svg className="animate-spin h-10 w-10 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -451,6 +461,8 @@ export default function Laporan() {
               id="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              // TAMBAH onKeyDown untuk mendeteksi Enter
+              onKeyDown={handleSearchKeyDown}
               placeholder="Masukkan nama pelanggan..."
               className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
             />
@@ -491,108 +503,120 @@ export default function Laporan() {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1:grid-cols-2 lg:grid-cols-3 gap-8 print:hidden">
-        <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
-          {laporan?.harian && Object.keys(laporan.harian).length > 0 ? (
-            <ul className="space-y-3 lg:h-[30vh] overflow-y-auto scrollbar-hide">
-              {Object.keys(laporan.harian).map(hari => (
-                <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                  <span className="text-lg text-gray-300">{moment(hari, 'YYYY-MM-DD').format('DD MMMM YYYY')}</span>
-                  <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.harian[hari])}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-          )}
+      
+      {/* Tampilkan Loading di sini jika sedang melakukan filtering */}
+      {loading && !initialLoading ? (
+        <div className="flex items-center justify-center py-8">
+            <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
         </div>
+      ) : (
+        <>
+            <div className="grid grid-cols-1:grid-cols-2 lg:grid-cols-3 gap-8 print:hidden">
+              <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
+                {laporan?.harian && Object.keys(laporan.harian).length > 0 ? (
+                  <ul className="space-y-3 lg:h-[30vh] overflow-y-auto scrollbar-hide">
+                    {Object.keys(laporan.harian).map(hari => (
+                      <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                        <span className="text-lg text-gray-300">{moment(hari, 'YYYY-MM-DD').format('DD MMMM YYYY')}</span>
+                        <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.harian[hari])}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
+                )}
+              </div>
 
-        <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Bulanan</h2>
-          {laporan?.bulanan && Object.keys(laporan.bulanan).length > 0 ? (
-            <ul className="space-y-3">
-              {Object.keys(laporan.bulanan).map(bulan => (
-                <li key={bulan} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                  <span className="text-lg text-gray-300">{moment(bulan, 'YYYY-MM').format('MMMM YYYY')}</span>
-                  <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.bulanan[bulan])}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-          )}
-        </div>
+              <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Bulanan</h2>
+                {laporan?.bulanan && Object.keys(laporan.bulanan).length > 0 ? (
+                  <ul className="space-y-3">
+                    {Object.keys(laporan.bulanan).map(bulan => (
+                      <li key={bulan} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                        <span className="text-lg text-gray-300">{moment(bulan, 'YYYY-MM').format('MMMM YYYY')}</span>
+                        <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.bulanan[bulan])}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
+                )}
+              </div>
 
-        <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Tahunan</h2>
-          {laporan?.tahunan && Object.keys(laporan.tahunan).length > 0 ? (
-            <ul className="space-y-3">
-              {Object.keys(laporan.tahunan).map(tahun => (
-                <li key={tahun} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                  <span className="text-lg text-gray-300">{tahun}</span>
-                  <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.tahunan[tahun])}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-          )}
-        </div>
-      </div>
+              <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Tahunan</h2>
+                {laporan?.tahunan && Object.keys(laporan.tahunan).length > 0 ? (
+                  <ul className="space-y-3">
+                    {Object.keys(laporan.tahunan).map(tahun => (
+                      <li key={tahun} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                        <span className="text-lg text-gray-300">{tahun}</span>
+                        <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.tahunan[tahun])}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
+                )}
+              </div>
+            </div>
 
-      <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 print:hidden">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
-          <button
-            onClick={handleExportCSV}
-            className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-          >
-            <IconExport />
-            Ekspor ke CSV
-          </button>
-        </div>
-        {sortedTransaksi.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left table-auto">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('tanggal_mulai')}>
-                    Tanggal Transaksi {getSortIcon('tanggal_mulai')}
-                  </th>
-                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('pelanggan.nama')}>
-                    Nama Pelanggan {getSortIcon('pelanggan.nama')}
-                  </th>
-                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('jenis_pembayaran')}>
-                    Metode Pembayaran {getSortIcon('jenis_pembayaran')}
-                  </th>
-                  <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('total_biaya')}>
-                    Total Biaya {getSortIcon('total_biaya')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTransaksi.map(t => (
-                  <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-                    <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                    <td
-                      className="p-4 cursor-pointer hover:underline text-teal-400"
-                      onClick={() => handleRowClick(t)}
-                    >
-                      {t.pelanggan?.nama || 'Nama tidak ditemukan'}
-                    </td>
-                    <td className="p-4">{t.jenis_pembayaran}</td>
-                    <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-400 text-center">Tidak ada data transaksi yang ditemukan.</p>
-        )}
-      </div>
+            <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 print:hidden">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
+                <button
+                  onClick={handleExportCSV}
+                  className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                >
+                  <IconExport />
+                  Ekspor ke CSV
+                </button>
+              </div>
+              {sortedTransaksi.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left table-auto">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('tanggal_mulai')}>
+                          Tanggal Transaksi {getSortIcon('tanggal_mulai')}
+                        </th>
+                        <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('pelanggan.nama')}>
+                          Nama Pelanggan {getSortIcon('pelanggan.nama')}
+                        </th>
+                        <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('jenis_pembayaran')}>
+                          Metode Pembayaran {getSortIcon('jenis_pembayaran')}
+                        </th>
+                        <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('total_biaya')}>
+                          Total Biaya {getSortIcon('total_biaya')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedTransaksi.map(t => (
+                        <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
+                          <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
+                          <td
+                            className="p-4 cursor-pointer hover:underline text-teal-400"
+                            onClick={() => handleRowClick(t)}
+                          >
+                            {t.pelanggan?.nama || 'Nama tidak ditemukan'}
+                          </td>
+                          <td className="p-4">{t.jenis_pembayaran}</td>
+                          <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-center">Tidak ada data transaksi yang ditemukan.</p>
+              )}
+            </div>
+        </>
+      )}
 
       <TransactionModal
         isOpen={modalOpen}
