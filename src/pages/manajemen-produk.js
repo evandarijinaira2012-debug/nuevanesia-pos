@@ -179,12 +179,12 @@ const produkTerfilter = produk.filter((item) => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-gray-400 mb-2">Harga Sewa (Rp)</label>
+                                <label className="block text-gray-400 mb-2">Harga Sewa</label>
                                 <input
                                   type="number"
                                   value={harga}
                                   onChange={(e) => setHarga(e.target.value)}
-                                  placeholder="Harga"
+                                  placeholder="Harga aja jgn pake titik dan Rp"
                                   required
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                 />
@@ -217,7 +217,7 @@ const produkTerfilter = produk.filter((item) => {
                                   type="text"
                                   value={url_gambar}
                                   onChange={(e) => setUrlGambar(e.target.value)}
-                                  placeholder="Opsional: URL gambar produk"
+                                  placeholder="URL gambar produk ambil dari web storelink"
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                 />
                             </div>
@@ -226,7 +226,7 @@ const produkTerfilter = produk.filter((item) => {
                                 <textarea
                                   value={description}
                                   onChange={(e) => setDescription(e.target.value)}
-                                  placeholder="Deskripsi singkat tentang produk"
+                                  placeholder="Shift+Enter dulu sekali baru tulis deskripsi produk"
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                   rows="3"
                                 ></textarea>
@@ -236,7 +236,7 @@ const produkTerfilter = produk.filter((item) => {
                                 <textarea
                                   value={handling_notes}
                                   onChange={(e) => setHandlingNotes(e.target.value)}
-                                  placeholder="Catatan khusus untuk penanganan produk (opsional)"
+                                  placeholder="Shift+Enter dulu sekali baru tulis catatan (Opsional)"
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                   rows="3"
                                 ></textarea>
