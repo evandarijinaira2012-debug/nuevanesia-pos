@@ -21,100 +21,100 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
     return `Rp${angka.toLocaleString('id-ID')}`;
   };
 
-const handlePrint = () => {
-  const printContent = `
-    <style>
-      @page {
-        size: 80mm 100%; /* Common thermal paper size */
-        margin: 0;
-      }
-      body {
-        font-family: 'monospace';
-        font-size: 12px;
-        padding: 10px;
-        color: black;
-        line-height: 1.5;
-      }
-      .header, .footer, .divider {
-        text-align: center;
-        margin-bottom: 10px;
-      }
-      .divider {
-        border-bottom: 1px dashed black;
-        margin: 10px 0;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-      }
-      th, td {
-        text-align: left;
-        padding: 2px 0;
-      }
-      .text-right {
-        text-align: right;
-      }
-      h3 {
-        font-size: 16px;
-        font-weight: bold;
-        margin: 5px 0;
-      }
-    </style>
-    <body>
-      <div class="header">
-        <h3>Nuevanesia</h3>
-        <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
-        <p>WhatsApp: 08180.208.9909</p>
-      </div>
-      <div class="divider"></div>
-      <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
-      <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
-      <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
-      <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
-      <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
-      <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
-      <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
-      <div class="divider"></div>
-      <table>
-        <thead>
-          <tr>
-            <th>Barang</th>
-            <th class="text-right">Harga</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${transaction.transaksi_detail.map(item => `
+  const handlePrint = () => {
+    const printContent = `
+      <style>
+        @page {
+          size: 80mm 100%; /* Common thermal paper size */
+          margin: 0;
+        }
+        body {
+          font-family: 'monospace';
+          font-size: 12px;
+          padding: 10px;
+          color: black;
+          line-height: 1.5;
+        }
+        .header, .footer, .divider {
+          text-align: center;
+          margin-bottom: 10px;
+        }
+        .divider {
+          border-bottom: 1px dashed black;
+          margin: 10px 0;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+        th, td {
+          text-align: left;
+          padding: 2px 0;
+        }
+        .text-right {
+          text-align: right;
+        }
+        h3 {
+          font-size: 16px;
+          font-weight: bold;
+          margin: 5px 0;
+        }
+      </style>
+      <body>
+        <div class="header">
+          <h3>Nuevanesia</h3>
+          <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
+          <p>WhatsApp: 08180.208.9909</p>
+        </div>
+        <div class="divider"></div>
+        <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
+        <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
+        <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
+        <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
+        <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
+        <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
+        <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
+        <div class="divider"></div>
+        <table>
+          <thead>
             <tr>
-              <td>${item.nama_barang} (${item.jumlah})</td>
-              <td class="text-right">${formatRupiah(item.jumlah * item.produk?.harga)}</td>
+              <th>Barang</th>
+              <th class="text-right">Harga</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div class="divider"></div>
-      <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
-      <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
-      <div class="divider"></div>
-      <div class="footer">
-        <p>Terima kasih telah menyewa!</p>
-        <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
-      </div>
-    </body>
-  `;
+          </thead>
+          <tbody>
+            ${transaction.transaksi_detail.map(item => `
+              <tr>
+                <td>${item.nama_barang} (${item.jumlah})</td>
+                <td class="text-right">${formatRupiah(item.jumlah * item.produk?.harga)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="divider"></div>
+        <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
+        <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
+        <div class="divider"></div>
+        <div class="footer">
+          <p>Terima kasih telah menyewa!</p>
+          <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
+        </div>
+      </body>
+    `;
 
-  const printWindow = window.open('', '_blank', 'width=300,height=400');
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  } else {
-    alert('Pop-up window blocked. Please allow pop-ups for this site to print.');
-  }
-};
+    const printWindow = window.open('', '_blank', 'width=300,height=400');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    } else {
+      alert('Pop-up window blocked. Please allow pop-ups for this site to print.');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 print:bg-white print:text-black">
@@ -146,7 +146,6 @@ const handlePrint = () => {
             <p className="text-sm text-gray-400 print:text-black">Tanggal Mulai Sewa:</p>
             <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
           </div>
-          {/* Tambahan: Tanggal Selesai Sewa dan Durasi */}
           <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
             <p className="text-sm text-gray-400 print:text-black">Tanggal Selesai Sewa:</p>
             <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
@@ -162,7 +161,6 @@ const handlePrint = () => {
           {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
             <div className="mt-4 print:mt-0">
               <h4 className="text-lg font-bold text-gray-200 mb-2 print:text-black">Barang yang Disewa:</h4>
-              {/* Perbaikan: Menampilkan harga per item dan subtotal */}
               <ul className="space-y-1 text-gray-300 print:text-black">
                 {transaction.transaksi_detail.map((item, index) => (
                     <li key={item.id || index} className="flex justify-between py-1 text-gray-300 print:text-black">
@@ -174,7 +172,6 @@ const handlePrint = () => {
             </div>
           )}
           <div className="border-t border-gray-700 pt-4 print:border-black print:pt-0">
-             {/* Perbaikan: Tambah subtotal di atas total biaya */}
             <div className="flex justify-between text-xl font-semibold mb-2">
                 <span className="text-gray-300">Subtotal:</span>
                 <span className="text-gray-200">{formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</span>
@@ -196,9 +193,7 @@ const handlePrint = () => {
   );
 };
 
-// Main Laporan Component (remains unchanged)
 export default function Laporan() {
-  const [laporan, setLaporan] = useState(null);
   const [transaksiData, setTransaksiData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
@@ -210,16 +205,16 @@ export default function Laporan() {
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   
-  // TAMBAH state baru untuk mengontrol loading awal
   const [initialLoading, setInitialLoading] = useState(true);
+  
+  const [statusFilter, setStatusFilter] = useState('Semua');
 
   const fetchLaporan = async () => {
-    // Hanya tampilkan loading jika ini bukan pembaruan filter
     setLoading(true);
     
     let query = supabase
       .from('transaksi')
-      .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama))`)
+      .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian`)
       .order('tanggal_mulai', { ascending: false });
 
     if (startDate) {
@@ -228,41 +223,23 @@ export default function Laporan() {
     if (endDate) {
       query = query.lte('tanggal_mulai', endDate);
     }
+    
+    if (statusFilter !== 'Semua') {
+      if (statusFilter === 'Terlambat') {
+        query = query.lte('tanggal_selesai', moment().format('YYYY-MM-DD')).eq('status_pengembalian', 'Belum Kembali');
+      } else {
+        query = query.eq('status_pengembalian', statusFilter);
+      }
+    }
 
     const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching laporan:', error);
     } else {
-      const laporanHarian = {};
-      const laporanBulanan = {};
-      const laporanTahunan = {};
-
-      data.forEach(transaksi => {
-        const tanggalMulai = moment(transaksi.tanggal_mulai);
-        const hari = tanggalMulai.format('YYYY-MM-DD');
-        const bulan = tanggalMulai.format('YYYY-MM');
-        const tahun = tanggalMulai.format('YYYY');
-
-        if (!laporanHarian[hari]) laporanHarian[hari] = 0;
-        laporanHarian[hari] += transaksi.total_biaya;
-
-        if (!laporanBulanan[bulan]) laporanBulanan[bulan] = 0;
-        laporanBulanan[bulan] += transaksi.total_biaya;
-
-        if (!laporanTahunan[tahun]) laporanTahunan[tahun] = 0;
-        laporanTahunan[tahun] += transaksi.total_biaya;
-      });
-
-      setLaporan({
-        harian: laporanHarian,
-        bulanan: laporanBulanan,
-        tahunan: laporanTahunan,
-      });
       setTransaksiData(data);
     }
     setLoading(false);
-    // Setelah data pertama berhasil diambil, set initialLoading ke false
     setInitialLoading(false);
   };
 
@@ -292,7 +269,6 @@ export default function Laporan() {
     };
   }, [router]);
   
-  // Fungsi baru untuk menangani enter pada input pencarian
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') {
       fetchLaporan();
@@ -364,8 +340,25 @@ export default function Laporan() {
     setSelectedTransaction(transaction);
     setModalOpen(true);
   };
+  
+  const updateStatusPengembalian = async (transactionId, status) => {
+    setLoading(true);
+    
+    const { error } = await supabase
+      .from('transaksi')
+      .update({ status_pengembalian: status })
+      .eq('id', transactionId);
 
-  // FUNGSI UNTUK EXPORT KE CSV
+    if (error) {
+      console.error('Error updating status:', error);
+      alert('Gagal memperbarui status!');
+      setLoading(false);
+    } else {
+      await fetchLaporan();
+    }
+  };
+
+
   const handleExportCSV = () => {
     if (sortedTransaksi.length === 0) {
       alert('Tidak ada data untuk diekspor!');
@@ -381,12 +374,16 @@ export default function Laporan() {
       'Alamat Pelanggan',
       'No WhatsApp',
       'Metode Pembayaran',
+      'Status Pengembalian',
       'Total Biaya'
     ];
 
     const csvRows = [headers.join(';')];
 
     sortedTransaksi.forEach(t => {
+      const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
+      const statusText = isLate ? 'Terlambat' : t.status_pengembalian;
+      
       const row = [
         `"${t.id}"`,
         `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
@@ -396,6 +393,7 @@ export default function Laporan() {
         `"${t.pelanggan?.alamat || 'N/A'}"`,
         `"${t.pelanggan?.no_whatsapp || 'N/A'}"`,
         `"${t.jenis_pembayaran}"`,
+        `"${statusText}"`,
         t.total_biaya
       ].join(';');
       csvRows.push(row);
@@ -421,10 +419,10 @@ export default function Laporan() {
     setStartDate('');
     setEndDate('');
     setSearchQuery('');
+    setStatusFilter('Semua');
     fetchLaporan();
   };
 
-  // Gunakan initialLoading untuk mengontrol tampilan loading screen awal
   if (initialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -450,61 +448,7 @@ export default function Laporan() {
           Kembali ke POS
         </button>
       </div>
-
-      <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8 print:hidden">
-        <h2 className="text-2xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
-        <div className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="flex-1 w-full">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Cari Nama Pelanggan</label>
-            <input
-              type="text"
-              id="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              // TAMBAH onKeyDown untuk mendeteksi Enter
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Masukkan nama pelanggan..."
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
-            />
-          </div>
-          <div className="w-full md:w-auto flex-1">
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Mulai</label>
-            <input
-              type="date"
-              id="startDate"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
-            />
-          </div>
-          <div className="w-full md:w-auto flex-1">
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Selesai</label>
-            <input
-              type="date"
-              id="endDate"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
-            />
-          </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <button
-              onClick={fetchLaporan}
-              className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors mt-6"
-            >
-              Terapkan
-            </button>
-            <button
-              onClick={handleResetFilters}
-              className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors mt-6"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-      </div>
       
-      {/* Tampilkan Loading di sini jika sedang melakukan filtering */}
       {loading && !initialLoading ? (
         <div className="flex items-center justify-center py-8">
             <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -514,57 +458,73 @@ export default function Laporan() {
         </div>
       ) : (
         <>
-            <div className="grid grid-cols-1:grid-cols-2 lg:grid-cols-3 gap-8 print:hidden">
-              <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
-                {laporan?.harian && Object.keys(laporan.harian).length > 0 ? (
-                  <ul className="space-y-3 lg:h-[30vh] overflow-y-auto scrollbar-hide">
-                    {Object.keys(laporan.harian).map(hari => (
-                      <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                        <span className="text-lg text-gray-300">{moment(hari, 'YYYY-MM-DD').format('DD MMMM YYYY')}</span>
-                        <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.harian[hari])}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-                )}
-              </div>
-
-              <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Bulanan</h2>
-                {laporan?.bulanan && Object.keys(laporan.bulanan).length > 0 ? (
-                  <ul className="space-y-3">
-                    {Object.keys(laporan.bulanan).map(bulan => (
-                      <li key={bulan} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                        <span className="text-lg text-gray-300">{moment(bulan, 'YYYY-MM').format('MMMM YYYY')}</span>
-                        <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.bulanan[bulan])}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-                )}
-              </div>
-
-              <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Tahunan</h2>
-                {laporan?.tahunan && Object.keys(laporan.tahunan).length > 0 ? (
-                  <ul className="space-y-3">
-                    {Object.keys(laporan.tahunan).map(tahun => (
-                      <li key={tahun} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                        <span className="text-lg text-gray-300">{tahun}</span>
-                        <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.tahunan[tahun])}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-                )}
+            <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8 print:hidden">
+              <h2 className="text-2xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <div className="flex-1 w-full">
+                  <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Cari Nama Pelanggan</label>
+                  <input
+                    type="text"
+                    id="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Masukkan nama pelanggan..."
+                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
+                  />
+                </div>
+                <div className="w-full md:w-auto flex-1">
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Mulai</label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
+                  />
+                </div>
+                <div className="w-full md:w-auto flex-1">
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Selesai</label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
+                  />
+                </div>
+                <div className="w-full md:w-auto flex-1">
+                  <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-400 mb-1">Status Pengembalian</label>
+                  <select
+                    id="statusFilter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
+                  >
+                    <option value="Semua">Semua</option>
+                    <option value="Belum Kembali">Belum Kembali</option>
+                    <option value="Sudah Kembali">Sudah Kembali</option>
+                    <option value="Terlambat">Terlambat</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0">
+                  <button
+                    onClick={fetchLaporan}
+                    className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors"
+                  >
+                    Terapkan
+                  </button>
+                  <button
+                    onClick={handleResetFilters}
+                    className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 print:hidden">
+            <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 print:hidden">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
                 <button
@@ -589,25 +549,51 @@ export default function Laporan() {
                         <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('jenis_pembayaran')}>
                           Metode Pembayaran {getSortIcon('jenis_pembayaran')}
                         </th>
+                        <th className="p-4">Status Pengembalian</th>
                         <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('total_biaya')}>
                           Total Biaya {getSortIcon('total_biaya')}
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedTransaksi.map(t => (
-                        <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-                          <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                          <td
-                            className="p-4 cursor-pointer hover:underline text-teal-400"
-                            onClick={() => handleRowClick(t)}
-                          >
-                            {t.pelanggan?.nama || 'Nama tidak ditemukan'}
-                          </td>
-                          <td className="p-4">{t.jenis_pembayaran}</td>
-                          <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
-                        </tr>
-                      ))}
+                      {sortedTransaksi.map(t => {
+                        const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
+                        const isReturned = t.status_pengembalian === 'Sudah Kembali';
+
+                        return (
+                          <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
+                            <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
+                            <td
+                              className="p-4 cursor-pointer hover:underline text-teal-400"
+                              onClick={() => handleRowClick(t)}
+                            >
+                              {t.pelanggan?.nama || 'Nama tidak ditemukan'}
+                            </td>
+                            <td className="p-4">{t.jenis_pembayaran}</td>
+                            <td className="p-4">
+                              {isReturned ? (
+                                <span className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">Sudah Kembali</span>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${isLate ? 'bg-red-600' : 'bg-yellow-600'}`}>
+                                    {isLate ? 'Terlambat' : 'Belum Kembali'}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateStatusPengembalian(t.id, 'Sudah Kembali');
+                                    }}
+                                    className="bg-teal-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-teal-700 transition-colors"
+                                  >
+                                    Tandai Kembali
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
