@@ -6,7 +6,7 @@ const Struk = ({ transaksiData }) => {
   }
 
   // Mengambil data dari prop transaksiData
-  const { pelanggan, keranjang, tanggalMulai, tanggalSelesai, total, metodePembayaran, catatan, durasi, diskon } = transaksiData;
+  const { pelanggan, keranjang, tanggalMulai, tanggalSelesai, total, metodePembayaran, catatan, durasi, diskonOtomatis, diskonManual } = transaksiData;
 
   // Fungsi untuk mengubah format tanggal menjadi lebih rapi dan menyertakan hari
   const formatDate = (dateString) => {
@@ -52,20 +52,20 @@ const Struk = ({ transaksiData }) => {
       </div>
       
       <div className="items">
-  {keranjang.map(item => (
-    <div key={item.id} className="item">
-      <div className="item-left">
-        <span className="item-name">{item.nama}</span>
-        
-        <div className="summary-row">
-          <span>{item.harga} x{item.qty}</span>
-        </div>
+        {keranjang.map(item => (
+          <div key={item.id} className="item">
+            <div className="item-left">
+              <span className="item-name">{item.nama}</span>
+              
+              <div className="summary-row">
+                <span>{item.harga} x{item.qty}</span>
+              </div>
+            </div>
+            
+            <span className="item-total">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
+          </div>
+        ))}
       </div>
-      
-      <span className="item-total">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
-    </div>
-  ))}
-</div>
 
       <div className="summary-section">
         <hr className="divider" />
@@ -77,10 +77,18 @@ const Struk = ({ transaksiData }) => {
           <span>Sub Total:</span>
           <span>Rp{hitungSubTotal().toLocaleString('id-ID')}</span>
         </div>
-        <div className="summary-row">
-          <span>Diskon:</span>
-          <span>Rp{diskon.toLocaleString('id-ID')}</span>
-        </div>
+        {diskonOtomatis > 0 && (
+          <div className="summary-row">
+            <span>Diskon:</span>
+            <span>Rp{diskonOtomatis.toLocaleString('id-ID')}</span>
+          </div>
+        )}
+        {diskonManual > 0 && (
+          <div className="summary-row">
+            <span>Diskon/Promo Khusus:</span>
+            <span>-Rp{diskonManual.toLocaleString('id-ID')}</span>
+          </div>
+        )}
         <div className="summary-row total-row">
           <span>TOTAL:</span>
           <span>Rp{total.toLocaleString('id-ID')}</span>
@@ -96,7 +104,7 @@ const Struk = ({ transaksiData }) => {
         <p className="note">Catatan: <strong>{catatan || '-'}</strong></p>
         <div className="space-before-thanks"></div>
         <p>Mulai petualanganmu dari sini</p>
-        <p>Nuevanesia teman camping saat healing.</p>
+        <p>Nuevanesia teman camping saat healing</p>
       </div>
 
       <style jsx>{`
