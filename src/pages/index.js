@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import moment from 'moment';
+import 'moment/locale/id';
 import toast, { Toaster } from 'react-hot-toast';
 
 // --- Komponen Ikon (Tidak ada perubahan) ---
@@ -47,9 +49,16 @@ export default function Home() {
     const [catatan, setCatatan] = useState('');
     const [diskon, setDiskon] = useState(0); 
     const [justAddedProductId, setJustAddedProductId] = useState(null);
+    const [diskonOtomatisAktif, setDiskonOtomatisAktif] = useState(true);
     
     // --- PENAMBAHAN KODE: State untuk produk yang dipilih ---
     const [selectedProduct, setSelectedProduct] = useState(null);
+
+    // >>> KODE BARU DIMULAI <<<
+    // State untuk diskon manual
+    const [diskonManual, setDiskonManual] = useState(0);
+    const [jenisDiskonManual, setJenisDiskonManual] = useState('nominal'); // 'nominal' atau 'persentase'
+    // <<< KODE BARU SELESAI >>>
 
     // --- PERBAIKAN: Pindahkan deklarasi fungsi ke atas ---
     const hitungDurasiHari = () => {
@@ -70,14 +79,29 @@ export default function Home() {
     const hitungTotalAkhir = () => {
         const durasi = hitungDurasiHari();
         if (durasi === 0) return 0;
-        const subtotalPerMalam = hitungSubtotalPerMalam();
-        if (durasi <= 2) {
-            return subtotalPerMalam * durasi;
+        
+        let subtotal = hitungSubtotalPerMalam() * durasi;
+
+        // Terapkan diskon otomatis (jika ada)
+        if (diskonOtomatisAktif && durasi >= 3) {
+           const biayaDuaMalamPertama = hitungSubtotalPerMalam() * 2;
+           const sisaMalam = durasi - 2;
+           const biayaDiskon = (hitungSubtotalPerMalam() * 0.5) * sisaMalam;
+           subtotal = biayaDuaMalamPertama + biayaDiskon;
         }
-        const biayaDuaMalamPertama = subtotalPerMalam * 2;
-        const sisaMalam = durasi - 2;
-        const biayaDiskon = (subtotalPerMalam * 0.5) * sisaMalam;
-        return biayaDuaMalamPertama + biayaDiskon;
+
+
+        // >>> KODE BARU DIMULAI <<<
+        // Terapkan diskon manual
+        let totalAkhir = subtotal;
+        if (jenisDiskonManual === 'nominal') {
+            totalAkhir = Math.max(0, subtotal - diskonManual);
+        } else if (jenisDiskonManual === 'persentase') {
+            const nilaiDiskon = (diskonManual / 100) * subtotal;
+            totalAkhir = Math.max(0, subtotal - nilaiDiskon);
+        }
+        return totalAkhir;
+        // <<< KODE BARU SELESAI >>>
     };
 
     useEffect(() => {
@@ -125,7 +149,7 @@ export default function Home() {
 
     useEffect(() => {
         const durasi = hitungDurasiHari();
-        if (durasi >= 3) {
+        if (diskonOtomatisAktif && durasi >= 3) {
             const subtotalPerMalam = hitungSubtotalPerMalam();
             const sisaMalam = durasi - 2;
             const nilaiDiskon = (subtotalPerMalam * 0.5) * sisaMalam;
@@ -133,8 +157,7 @@ export default function Home() {
         } else {
             setDiskon(0);
         }
-    }, [keranjang, tanggalMulai, tanggalSelesai]);
-
+    }, [keranjang, tanggalMulai, tanggalSelesai, diskonOtomatisAktif]);
     if (!session) {
         return null;
     }
@@ -151,10 +174,14 @@ export default function Home() {
             tanggalMulai: tanggalMulai,
             tanggalSelesai: tanggalSelesai,
             durasi: hitungDurasiHari(),
+            subtotal: hitungSubtotalPerMalam() * hitungDurasiHari(),
+            diskonOtomatis: diskon,
+            // >>> KODE BARU DIMULAI <<<
+            diskonManual: jenisDiskonManual === 'persentase' ? (diskonManual/100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon) : diskonManual,
+            // <<< KODE BARU SELESAI >>>
             total: hitungTotalAkhir(),
             metodePembayaran: metodePembayaran,
             catatan: catatan,
-            diskon: diskon,
         };
 
         localStorage.setItem('transaksiDataUntukCetak', JSON.stringify(transaksiDataUntukStruk));
@@ -170,6 +197,10 @@ export default function Home() {
         setTanggalSelesai('');
         setMetodePembayaran('Cash');
         setCatatan('');
+        // >>> KODE BARU DIMULAI <<<
+        setDiskonManual(0);
+        setJenisDiskonManual('nominal');
+        // <<< KODE BARU SELESAI >>>
     };
 
     const handleLogout = async () => {
@@ -264,6 +295,16 @@ export default function Home() {
             return;
         }
 
+        // >>> KODE BARU DIMULAI <<<
+        // Hitung nilai diskon manual yang sebenarnya untuk disimpan di database
+        let nilaiDiskonManual = 0;
+        if (jenisDiskonManual === 'nominal') {
+            nilaiDiskonManual = diskonManual;
+        } else if (jenisDiskonManual === 'persentase') {
+            const subtotalSetelahDiskonOtomatis = (hitungSubtotalPerMalam() * hitungDurasiHari()) - diskon;
+            nilaiDiskonManual = (diskonManual / 100) * subtotalSetelahDiskonOtomatis;
+        }
+        
         const { data: transaksiData, error: transaksiError } = await supabase
             .from('transaksi')
             .insert([{
@@ -274,8 +315,10 @@ export default function Home() {
                 total_biaya: hitungTotalAkhir(),
                 jenis_pembayaran: metodePembayaran,
                 catatan: catatan,
+                diskon_manual: nilaiDiskonManual, // Kolom baru
             }, ])
             .select();
+        // <<< KODE BARU SELESAI >>>
 
         if (transaksiError) {
             console.error('Error menyimpan transaksi:', transaksiError);
@@ -522,6 +565,20 @@ export default function Home() {
                                 <span className="font-semibold text-yellow-400">-Rp{diskon.toLocaleString('id-ID')}</span>
                             </div>
                         )}
+                        {/* >>> KODE BARU DIMULAI <<< */}
+                        {diskonManual > 0 && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-red-400">Diskon Manual:</span>
+                                <span className="font-semibold text-red-400">
+                                    -Rp{
+                                        jenisDiskonManual === 'persentase' 
+                                        ? ((diskonManual / 100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon)).toLocaleString('id-ID')
+                                        : diskonManual.toLocaleString('id-ID')
+                                    }
+                                </span>
+                            </div>
+                        )}
+                        {/* <<< KODE BARU SELESAI >>> */}
                     </div>
                     <div className="flex justify-between items-center border-t border-gray-700 pt-4 mt-4">
                         <p className="text-xl font-bold text-white">Total:</p>
@@ -571,7 +628,59 @@ export default function Home() {
                                         ></textarea>
                                     </div>
                                 </div>
-
+                                
+                                {/* >>> KODE BARU DIMULAI <<< */}
+                                <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner mt-10">
+                                <button
+                                    onClick={() => setDiskonOtomatisAktif(!diskonOtomatisAktif)}
+                                    className={`w-full p-3 rounded-lg font-semibold transition-all duration-200 
+                                        ${diskonOtomatisAktif 
+                                            ? "flex items-center justify-center bg-red-600 text-white-300 p-3 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200 w-full font-semiboldbg-red-600 text-white hover:bg-red-700" 
+                                            : "bg-green-600 text-white hover:bg-green-700"}`}
+                                >
+                                    {diskonOtomatisAktif ? " Nonaktifkan Diskon 50% hari ke 3" : " Aktifkan Kembali Diskon 50% hari ke 3"}
+                                </button>
+                                
+                                    <h3 className="text-xl font-semibold text-gray-200 mb-4 mt-5">Diskon Manual</h3>
+                                    <div className="flex items-center space-x-4 mb-4">
+                                        <div className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                id="nominal" 
+                                                name="discount-type"
+                                                value="nominal" 
+                                                checked={jenisDiskonManual === 'nominal'}
+                                                onChange={() => setJenisDiskonManual('nominal')}
+                                                className="form-radio text-teal-500 h-4 w-4"
+                                            />
+                                            <label htmlFor="nominal" className="ml-2 text-gray-300">Nominal</label>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                id="persentase" 
+                                                name="discount-type"
+                                                value="persentase" 
+                                                checked={jenisDiskonManual === 'persentase'}
+                                                onChange={() => setJenisDiskonManual('persentase')}
+                                                className="form-radio text-teal-500 h-4 w-4"
+                                            />
+                                            <label htmlFor="persentase" className="ml-2 text-gray-300">Persentase</label>
+                                        </div>
+                                    </div>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">{jenisDiskonManual === 'nominal' ? 'Rp' : '%'}</span>
+                                        <input
+                                            type="number"
+                                            value={diskonManual === 0 ? '' : diskonManual}
+                                            onChange={(e) => setDiskonManual(Number(e.target.value))}
+                                            placeholder="Masukkan nilai diskon..."
+                                            className="w-full p-2 pl-9 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
+                                </div>
+                                {/* <<< KODE BARU SELESAI >>> */}
+                                
                                 <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner">
                                     <h3 className="text-xl font-semibold text-gray-200 mb-4">Detail Pembayaran</h3>
                                     <div className="grid grid-cols-2 gap-4 mb-4">
@@ -585,10 +694,24 @@ export default function Home() {
                                         <div className="font-semibold text-gray-200">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</div>
                                         {hitungDurasiHari() >= 3 && (
                                             <>
-                                                <div className="text-red-400 font-bold">Diskon:</div>
-                                                <div className="text-red-400 font-bold">-Rp{diskon.toLocaleString('id-ID')}</div>
+                                                <div className="text-yellow-400 font-bold">Diskon (50%):</div>
+                                                <div className="text-yellow-400 font-bold">-Rp{diskon.toLocaleString('id-ID')}</div>
                                             </>
                                         )}
+                                        {/* >>> KODE BARU DIMULAI <<< */}
+                                        {diskonManual > 0 && (
+                                            <>
+                                                <div className="text-red-400 font-bold">Diskon Manual:</div>
+                                                <div className="text-red-400 font-bold">
+                                                    -Rp{
+                                                        jenisDiskonManual === 'persentase' 
+                                                        ? ((diskonManual / 100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon)).toLocaleString('id-ID')
+                                                        : diskonManual.toLocaleString('id-ID')
+                                                    }
+                                                </div>
+                                            </>
+                                        )}
+                                        {/* <<< KODE BARU SELESAI >>> */}
                                     </div>
                                     <div className="border-t border-gray-600 pt-4 flex justify-between items-center mt-4">
                                         <span className="text-2xl font-bold text-teal-400">Grand Total:</span>
