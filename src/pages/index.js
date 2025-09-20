@@ -184,7 +184,7 @@ export default function Home() {
             catatan: catatan,
         };
 
-        localStorage.setItem('transaksiDataUntukCetak', JSON.stringify(transaksiDataUntukStruk));
+        localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(transaksiDataUntukStruk));
         window.open('/cetak-struk', '_blank');
         
         setKeranjang([]);
