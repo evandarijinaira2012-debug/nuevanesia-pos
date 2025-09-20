@@ -109,7 +109,7 @@ const Superadmin = () => {
   };
 
   const handleDeleteTransaction = async (transaksiId) => {
-    const konfirmasi = window.confirm('Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan dan stok akan dikembalikan.');
+    const konfirmasi = window.confirm('yakin deuk di hapus bos?data stok bakal dibalikeun.');
     if (!konfirmasi) {
       return;
     }
@@ -117,43 +117,63 @@ const Superadmin = () => {
     const toastId = toast.loading('Menghapus transaksi...');
 
     try {
-        // Ambil detail transaksi yang akan dihapus
+        // Step 1: Ambil detail transaksi yang akan dihapus dari database
         const { data: detailData, error: detailError } = await supabase
             .from('transaksi_detail')
             .select('*')
             .eq('transaksi_id', transaksiId);
 
-        if (detailError) throw detailError;
+        if (detailError) {
+            throw new Error('Gagal mengambil detail transaksi: ' + detailError.message);
+        }
 
-        const stokUpdates = detailData.map(item => {
-            const produkSaatIni = produkLengkap[item.produk_id];
-            if (!produkSaatIni) return null;
-            const newStok = produkSaatIni.stok + item.jumlah;
+        // Step 2: Ambil data stok produk saat ini untuk setiap item yang akan dikembalikan
+        const productIds = detailData.map(item => item.produk_id);
+        const { data: produkData, error: produkError } = await supabase
+            .from('produk')
+            .select('id, stok')
+            .in('id', productIds);
+
+        if (produkError) {
+            throw new Error('Gagal mengambil data produk: ' + produkError.message);
+        }
+
+        const produkStokMap = produkData.reduce((map, p) => {
+            map[p.id] = p.stok;
+            return map;
+        }, {});
+
+        // Step 3: Siapkan array promises untuk memperbarui stok
+        const stokUpdatesPromises = detailData.map(item => {
+            const stokSaatIni = produkStokMap[item.produk_id];
+            // Hitung stok baru dengan menambahkan jumlah barang yang dikembalikan
+            const newStok = stokSaatIni + item.jumlah;
+            
+            // Siapkan promise untuk update stok
             return supabase.from('produk').update({ stok: newStok }).eq('id', item.produk_id);
-        }).filter(Boolean);
+        });
 
-        // Hapus detail transaksi
-        const deleteDetailsPromise = supabase.from('transaksi_detail').delete().eq('transaksi_id', transaksiId);
+        // Step 4: Jalankan semua update stok secara paralel dan tunggu hingga selesai
+        await Promise.all(stokUpdatesPromises);
         
-        // Hapus transaksi utama
-        const deleteTransactionPromise = supabase.from('transaksi').delete().eq('id', transaksiId);
+        // Step 5: Jika semua stok sudah berhasil diperbarui, barulah hapus detail transaksi dan transaksi utama
+        const { error: deleteDetailsError } = await supabase.from('transaksi_detail').delete().eq('transaksi_id', transaksiId);
+        if (deleteDetailsError) throw deleteDetailsError;
 
-        // Jalankan semua operasi secara paralel
-        await Promise.all([
-            deleteDetailsPromise,
-            deleteTransactionPromise,
-            ...stokUpdates
-        ]);
-        
+        const { error: deleteTransactionError } = await supabase.from('transaksi').delete().eq('id', transaksiId);
+        if (deleteTransactionError) throw deleteTransactionError;
+
+        // Step 6: Beri notifikasi sukses
         toast.success('Transaksi berhasil dihapus dan stok telah dikembalikan!', { id: toastId });
+        // Refresh daftar transaksi di UI
         fetchTransaksi();
         resetForm();
+
     } catch (error) {
         console.error('Gagal menghapus transaksi:', error);
-        toast.error('Gagal menghapus transaksi.', { id: toastId });
+        toast.error('Gagal menghapus transaksi: ' + error.message, { id: toastId });
     }
   };
-
 
   const handleTambahProduk = () => {
     if (!produkBaru.id) {
