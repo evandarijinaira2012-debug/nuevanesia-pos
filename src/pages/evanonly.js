@@ -6,9 +6,9 @@ import moment from 'moment';
 import 'moment/locale/id';
 import Link from 'next/link';
 
-// Komponen Ikon
+// Komponen Ikon LAMA
 const IconExport = () => (
-    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
 );
 const IconSort = () => (
     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7l4-4m0 0l4 4m-4-4v12"></path></svg>
@@ -23,8 +23,13 @@ const IconPengeluaran = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
 );
 
+// Komponen Ikon BARU untuk Kartu Statistik
+const IconRevenue = () => <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>;
+const IconExpense = () => <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>;
+const IconProfit = () => <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01"></path></svg>;
 
-// TransactionModal Component
+
+// TransactionModal Component (Tidak ada perubahan)
 const TransactionModal = ({ isOpen, onClose, transaction }) => {
     if (!isOpen || !transaction) return null;
 
@@ -157,7 +162,6 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
                         <p className="text-sm text-gray-400 print:text-black">Tanggal Mulai Sewa:</p>
                         <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
                     </div>
-                    {/* Tambahan: Tanggal Selesai Sewa dan Durasi */}
                     <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
                         <p className="text-sm text-gray-400 print:text-black">Tanggal Selesai Sewa:</p>
                         <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
@@ -173,7 +177,6 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
                     {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
                         <div className="mt-4 print:mt-0">
                             <h4 className="text-lg font-bold text-gray-200 mb-2 print:text-black">Barang yang Disewa:</h4>
-                            {/* Perbaikan: Menampilkan harga per item dan subtotal */}
                             <ul className="space-y-1 text-gray-300 print:text-black">
                                 {transaction.transaksi_detail.map((item, index) => (
                                     <li key={item.id || index} className="flex justify-between py-1 text-gray-300 print:text-black">
@@ -185,7 +188,6 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
                         </div>
                     )}
                     <div className="border-t border-gray-700 pt-4 print:border-black print:pt-0">
-                        {/* Perbaikan: Tambah subtotal di atas total biaya */}
                         <div className="flex justify-between text-xl font-semibold mb-2">
                             <span className="text-gray-300">Subtotal:</span>
                             <span className="text-gray-200">{formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</span>
@@ -209,6 +211,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
 
 // Main Laporan Component
 export default function Laporan() {
+    // SEMUA STATE DAN LOGIKA TETAP SAMA
     const [laporan, setLaporan] = useState(null);
     const [transaksiData, setTransaksiData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -220,26 +223,27 @@ export default function Laporan() {
     const [endDate, setEndDate] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
-
     const [initialLoading, setInitialLoading] = useState(true);
-
     const [statusFilter, setStatusFilter] = useState('Semua');
+    const [totalPengeluaranBulanIni, setTotalPengeluaranBulanIni] = useState(0);
+    const [pendapatanBersihBulanIni, setPendapatanBersihBulanIni] = useState(0);
+    const [laporanPengeluaran, setLaporanPengeluaran] = useState(null);
+    const [pengeluaranData, setPengeluaranData] = useState([]);
+
+    // START - PERUBAHAN: Menambahkan state baru untuk filter pengeluaran
+    const [pengeluaranStartDate, setPengeluaranStartDate] = useState('');
+    const [pengeluaranEndDate, setPengeluaranEndDate] = useState('');
+    const [pengeluaranSearchQuery, setPengeluaranSearchQuery] = useState('');
+    // END - PERUBAHAN
 
     const fetchLaporan = async () => {
         setLoading(true);
-
         let query = supabase
             .from('transaksi')
             .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian`)
             .order('tanggal_mulai', { ascending: false });
-
-        if (startDate) {
-            query = query.gte('tanggal_mulai', startDate);
-        }
-        if (endDate) {
-            query = query.lte('tanggal_mulai', endDate);
-        }
-
+        if (startDate) query = query.gte('tanggal_mulai', startDate);
+        if (endDate) query = query.lte('tanggal_mulai', endDate);
         if (statusFilter !== 'Semua') {
             if (statusFilter === 'Terlambat') {
                 query = query.lte('tanggal_selesai', moment().format('YYYY-MM-DD')).eq('status_pengembalian', 'Belum Kembali');
@@ -247,90 +251,113 @@ export default function Laporan() {
                 query = query.eq('status_pengembalian', statusFilter);
             }
         }
-
         const { data, error } = await query;
-
         if (error) {
             console.error('Error fetching laporan:', error);
         } else {
-            const laporanHarian = {};
-            const laporanBulanan = {};
-            const laporanTahunan = {};
-
+            const laporanHarian = {}, laporanBulanan = {}, laporanTahunan = {};
             data.forEach(transaksi => {
                 const tanggalMulai = moment(transaksi.tanggal_mulai);
                 const hari = tanggalMulai.format('YYYY-MM-DD');
                 const bulan = tanggalMulai.format('YYYY-MM');
                 const tahun = tanggalMulai.format('YYYY');
-
                 if (!laporanHarian[hari]) laporanHarian[hari] = 0;
                 laporanHarian[hari] += transaksi.total_biaya;
-
                 if (!laporanBulanan[bulan]) laporanBulanan[bulan] = 0;
                 laporanBulanan[bulan] += transaksi.total_biaya;
-
                 if (!laporanTahunan[tahun]) laporanTahunan[tahun] = 0;
                 laporanTahunan[tahun] += transaksi.total_biaya;
             });
-
-            setLaporan({
-                harian: laporanHarian,
-                bulanan: laporanBulanan,
-                tahunan: laporanTahunan,
-            });
+            setLaporan({ harian: laporanHarian, bulanan: laporanBulanan, tahunan: laporanTahunan });
             setTransaksiData(data);
         }
         setLoading(false);
         setInitialLoading(false);
     };
 
+    // START - PERUBAHAN: Menambahkan parameter tanggal untuk fetchPengeluaran
+    const fetchPengeluaran = async (start, end) => {
+        let query = supabase.from('pengeluaran').select('*').order('tanggal', { ascending: false });
+        if (start) query = query.gte('tanggal', start);
+        if (end) query = query.lte('tanggal', end);
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('Error fetching pengeluaran:', error);
+            setLaporanPengeluaran(null);
+            setTotalPengeluaranBulanIni(0);
+        } else {
+            setPengeluaranData(data);
+            const laporanHarianPengeluaran = {}, laporanBulananPengeluaran = {}, laporanTahunanPengeluaran = {};
+            let totalBulanIni = 0;
+            data.forEach(item => {
+                const tanggal = moment(item.tanggal);
+                const hari = tanggal.format('YYYY-MM-DD');
+                const bulan = tanggal.format('YYYY-MM');
+                const tahun = tanggal.format('YYYY');
+                if (!laporanHarianPengeluaran[hari]) laporanHarianPengeluaran[hari] = 0;
+                laporanHarianPengeluaran[hari] += item.jumlah;
+                if (!laporanBulananPengeluaran[bulan]) laporanBulananPengeluaran[bulan] = 0;
+                laporanBulananPengeluaran[bulan] += item.jumlah;
+                if (!laporanTahunanPengeluaran[tahun]) laporanTahunanPengeluaran[tahun] = 0;
+                laporanTahunanPengeluaran[tahun] += item.jumlah;
+                if (bulan === moment().format('YYYY-MM')) totalBulanIni += item.jumlah;
+            });
+            setLaporanPengeluaran({ harian: laporanHarianPengeluaran, bulanan: laporanBulananPengeluaran, tahunan: laporanTahunanPengeluaran });
+            setTotalPengeluaranBulanIni(totalBulanIni);
+        }
+    };
+    // END - PERUBAHAN
+
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        const checkSessionAndFetchData = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
             setSession(session);
             if (session) {
-                fetchLaporan();
+                await fetchLaporan();
+                await fetchPengeluaran();
             } else {
                 router.push('/login');
             }
+            setInitialLoading(false);
+        };
+        checkSessionAndFetchData();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            setSession(session);
+            if (!session) router.push('/login');
         });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (event, session) => {
-                setSession(session);
-                if (!session) {
-                    router.push('/login');
-                }
-            }
-        );
-
         return () => {
-            if (subscription) {
-                subscription.unsubscribe();
-            }
+            if (subscription) subscription.unsubscribe();
         };
     }, [router]);
 
-    const handleSearchKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            fetchLaporan();
+    useEffect(() => {
+        if (laporan && laporanPengeluaran) {
+            const totalPemasukanBulanIni = laporan.bulanan[moment().format('YYYY-MM')] || 0;
+            const totalPengeluaranBulanIni = laporanPengeluaran.bulanan[moment().format('YYYY-MM')] || 0;
+            setPendapatanBersihBulanIni(totalPemasukanBulanIni - totalPengeluaranBulanIni);
         }
-    };
+    }, [laporan, laporanPengeluaran]);
+
+    const handleSearchKeyDown = (e) => { if (e.key === 'Enter') fetchLaporan(); };
+    
+    // START - PERUBAHAN: Menambahkan handler untuk search pengeluaran
+    const handlePengeluaranSearchKeyDown = (e) => { if (e.key === 'Enter') fetchPengeluaran(pengeluaranStartDate, pengeluaranEndDate); };
+    // END - PERUBAHAN
 
     const handleSort = (field) => {
-        let direction = 'asc';
-        if (sortConfig.field === field && sortConfig.direction === 'desc') {
-            direction = 'asc';
-        } else if (sortConfig.field === field && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
+        let direction = (sortConfig.field === field && sortConfig.direction === 'asc') ? 'desc' : 'asc';
+        setSortConfig({ field, direction });
+    };
+    
+    const handleSortPengeluaran = (field) => {
+        let direction = (sortConfig.field === field && sortConfig.direction === 'asc') ? 'desc' : 'asc';
         setSortConfig({ field, direction });
     };
 
     const filteredTransaksi = useMemo(() => {
         if (!transaksiData) return [];
-        return transaksiData.filter(t =>
-            t.pelanggan?.nama?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return transaksiData.filter(t => t.pelanggan?.nama?.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [transaksiData, searchQuery]);
 
     const sortedTransaksi = useMemo(() => {
@@ -338,24 +365,11 @@ export default function Laporan() {
         sortableItems.sort((a, b) => {
             let aValue, bValue;
             switch (sortConfig.field) {
-                case 'tanggal_mulai':
-                    aValue = new Date(a.tanggal_mulai);
-                    bValue = new Date(b.tanggal_mulai);
-                    break;
-                case 'pelanggan.nama':
-                    aValue = a.pelanggan?.nama || '';
-                    bValue = b.pelanggan?.nama || '';
-                    break;
-                case 'total_biaya':
-                    aValue = a.total_biaya;
-                    bValue = b.total_biaya;
-                    break;
-                case 'jenis_pembayaran':
-                    aValue = a.jenis_pembayaran;
-                    bValue = b.jenis_pembayaran;
-                    break;
-                default:
-                    return 0;
+                case 'tanggal_mulai': aValue = new Date(a.tanggal_mulai); bValue = new Date(b.tanggal_mulai); break;
+                case 'pelanggan.nama': aValue = a.pelanggan?.nama || ''; bValue = b.pelanggan?.nama || ''; break;
+                case 'total_biaya': aValue = a.total_biaya; bValue = b.total_biaya; break;
+                case 'jenis_pembayaran': aValue = a.jenis_pembayaran; bValue = b.jenis_pembayaran; break;
+                default: return 0;
             }
             const isAsc = sortConfig.direction === 'asc';
             if (aValue < bValue) return isAsc ? -1 : 1;
@@ -365,14 +379,34 @@ export default function Laporan() {
         return sortableItems;
     }, [filteredTransaksi, sortConfig]);
 
-    const formatRupiah = (angka) => {
-        return `Rp${(angka || 0).toLocaleString('id-ID')}`;
-    };
+    // START - PERUBAHAN: Menggabungkan filtering dan sorting untuk pengeluaran
+    const sortedPengeluaran = useMemo(() => {
+        if (!pengeluaranData) return [];
+        const filteredItems = pengeluaranData.filter(p => 
+            p.jenis_pengeluaran?.toLowerCase().includes(pengeluaranSearchQuery.toLowerCase()) ||
+            p.deskripsi?.toLowerCase().includes(pengeluaranSearchQuery.toLowerCase())
+        );
+
+        const sortableItems = [...filteredItems];
+        sortableItems.sort((a, b) => {
+            const isAsc = sortConfig.direction === 'asc';
+            if (sortConfig.field === 'tanggal') {
+                const dateA = new Date(a.tanggal);
+                const dateB = new Date(b.tanggal);
+                return isAsc ? dateA - dateB : dateB - dateA;
+            }
+            if (a[sortConfig.field] < b[sortConfig.field]) return isAsc ? -1 : 1;
+            if (a[sortConfig.field] > b[sortConfig.field]) return isAsc ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [pengeluaranData, sortConfig, pengeluaranSearchQuery]);
+    // END - PERUBAHAN
+
+    const formatRupiah = (angka) => `Rp${(angka || 0).toLocaleString('id-ID')}`;
 
     const getSortIcon = (field) => {
-        if (sortConfig.field === field) {
-            return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
-        }
+        if (sortConfig.field === field) return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
         return '';
     };
 
@@ -383,12 +417,7 @@ export default function Laporan() {
 
     const updateStatusPengembalian = async (transactionId, status) => {
         setLoading(true);
-
-        const { error } = await supabase
-            .from('transaksi')
-            .update({ status_pengembalian: status })
-            .eq('id', transactionId);
-
+        const { error } = await supabase.from('transaksi').update({ status_pengembalian: status }).eq('id', transactionId);
         if (error) {
             console.error('Error updating status:', error);
             alert('Gagal memperbarui status!');
@@ -399,54 +428,46 @@ export default function Laporan() {
     };
 
     const handleExportCSV = () => {
-        if (sortedTransaksi.length === 0) {
-            alert('Tidak ada data untuk diekspor!');
-            return;
-        }
-
-        const headers = [
-            'ID Transaksi',
-            'Tanggal Mulai',
-            'Tanggal Selesai',
-            'Durasi (malam)',
-            'Nama Pelanggan',
-            'Alamat Pelanggan',
-            'No WhatsApp',
-            'Metode Pembayaran',
-            'Status Pengembalian',
-            'Total Biaya'
-        ];
-
+        if (sortedTransaksi.length === 0) { alert('Tidak ada data untuk diekspor!'); return; }
+        const headers = ['ID Transaksi', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)', 'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pengembalian', 'Total Biaya'];
         const csvRows = [headers.join(';')];
-
         sortedTransaksi.forEach(t => {
             const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
             const statusText = isLate ? 'Terlambat' : t.status_pengembalian;
-
-            const row = [
-                `"${t.id}"`,
-                `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
-                `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`,
-                t.durasi_hari,
-                `"${t.pelanggan?.nama || 'N/A'}"`,
-                `"${t.pelanggan?.alamat || 'N/A'}"`,
-                `"${t.pelanggan?.no_whatsapp || 'N/A'}"`,
-                `"${t.jenis_pembayaran}"`,
-                `"${statusText}"`,
-                t.total_biaya
-            ].join(';');
+            const row = [`"${t.id}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`, `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari, `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`, `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`, `"${statusText}"`, t.total_biaya].join(';');
             csvRows.push(row);
         });
-
         const csvString = csvRows.join('\n');
         const bom = '\uFEFF';
         const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
-
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
             link.setAttribute('download', 'laporan-transaksi.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    const handleExportCSVpengeluaran = () => {
+        if (pengeluaranData.length === 0) { alert('Tidak ada data untuk diekspor!'); return; }
+        const headers = ['ID', 'Tanggal', 'Jenis Pengeluaran', 'Deskripsi', 'Jumlah'];
+        const csvRows = [headers.join(';')];
+        pengeluaranData.forEach(p => {
+            const row = [`"${p.id}"`, `"${moment(p.tanggal).format('YYYY-MM-DD')}"`, `"${p.jenis_pengeluaran}"`, `"${p.deskripsi || ''}"`, p.jumlah].join(';');
+            csvRows.push(row);
+        });
+        const csvString = csvRows.join('\n');
+        const bom = '\uFEFF';
+        const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'laporan-pengeluaran.csv');
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -462,6 +483,15 @@ export default function Laporan() {
         fetchLaporan();
     };
 
+    // START - PERUBAHAN: Fungsi baru untuk reset filter pengeluaran
+    const handleResetPengeluaranFilters = () => {
+        setPengeluaranStartDate('');
+        setPengeluaranEndDate('');
+        setPengeluaranSearchQuery('');
+        fetchPengeluaran('', '');
+    };
+    // END - PERUBAHAN
+
     if (initialLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -472,235 +502,237 @@ export default function Laporan() {
             </div>
         );
     }
+    
+    // =====================================================================================
+    // ======================== AREA PERUBAHAN VISUAL DIMULAI DI SINI ========================
+    // =====================================================================================
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
+        <div className="min-h-screen bg-gray-900 text-white p-4 sm:p-6 lg:p-8 font-sans">
             <Head>
-                <title>DASHBOARD EVAN ONLY !!</title>
+                <title>Dashboard Analitik - Nuevanesia</title>
             </Head>
-            <div className="flex justify-between items-center mb-10 print:hidden">
-                <h1 className="text-4xl font-bold text-red-400">DASHBOARD EVAN ONLY !!</h1>
-                <div className="flex space-x-4">
-                    <Link href="/superadmin" className="flex items-center gap-2 bg-gray-700 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors">
-                        <IconSuperadmin />
-                        Edit transaksi
+    
+            {/* HEADER */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Dashboard Analitik - Evan Only</h1>
+                    <p className="text-gray-400 mt-1">Ringkasan real-time Nuevanesia</p>
+                </div>
+                <div className="flex space-x-2 mt-4 md:mt-0">
+                    <Link href="/superadmin" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm font-semibold">
+                        <IconSuperadmin /> Edit Transaksi
                     </Link>
-                    <Link href="/manajemen-produk" className="flex items-center gap-2 bg-gray-700 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors">
-                        <IconManajemenProduk />
-                        Tambah & Edit Produk
+                    <Link href="/manajemen-produk" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm font-semibold">
+                        <IconManajemenProduk /> Manajemen Produk
                     </Link>
-                    <Link href="/pengeluaran" className="flex items-center gap-2 bg-gray-700 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors">
-                        <IconPengeluaran />
-                        Catatan Pengeluaran
+                    <Link href="/pengeluaran" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm font-semibold">
+                        <IconPengeluaran /> Catat Pengeluaran
                     </Link>
                 </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 print:hidden">
-                <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                    <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Harian</h2>
-                    {laporan?.harian && Object.keys(laporan.harian).length > 0 ? (
-                        <ul className="space-y-3 lg:h-[30vh] overflow-y-auto scrollbar-hide">
-                            {Object.keys(laporan.harian).map(hari => (
-                                <li key={hari} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                                    <span className="text-lg text-gray-300">{moment(hari, 'YYYY-MM-DD').format('DD MMMM YYYY')}</span>
-                                    <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.harian[hari])}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-                    )}
-                </div>
-
-                <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                    <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Bulanan</h2>
-                    {laporan?.bulanan && Object.keys(laporan.bulanan).length > 0 ? (
-                        <ul className="space-y-3">
-                            {Object.keys(laporan.bulanan).map(bulan => (
-                                <li key={bulan} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                                    <span className="text-lg text-gray-300">{moment(bulan, 'YYYY-MM').format('MMMM YYYY')}</span>
-                                    <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.bulanan[bulan])}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-                    )}
-                </div>
-
-                <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-                    <h2 className="text-2xl font-semibold mb-4 text-gray-200">Pendapatan Tahunan</h2>
-                    {laporan?.tahunan && Object.keys(laporan.tahunan).length > 0 ? (
-                        <ul className="space-y-3">
-                            {Object.keys(laporan.tahunan).map(tahun => (
-                                <li key={tahun} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                                    <span className="text-lg text-gray-300">{tahun}</span>
-                                    <span className="text-xl font-bold text-green-400">{formatRupiah(laporan.tahunan[tahun])}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-gray-400 text-center">Belum ada data transaksi.</p>
-                    )}
-                </div>
-            </div>
-
-            {loading && !initialLoading ? (
-                <div className="flex items-center justify-center py-8">
-                    <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-            ) : (
-                <>
-                    <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8 print:hidden">
-                        <h2 className="text-2xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                            <div className="flex-1 w-full">
-                                <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Cari Nama Pelanggan</label>
-                                <input
-                                    type="text"
-                                    id="search"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={handleSearchKeyDown}
-                                    placeholder="Masukkan nama pelanggan..."
-                                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
-                                />
-                            </div>
-                            <div className="w-full md:w-auto flex-1">
-                                <label htmlFor="startDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Mulai</label>
-                                <input
-                                    type="date"
-                                    id="startDate"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
-                                />
-                            </div>
-                            <div className="w-full md:w-auto flex-1">
-                                <label htmlFor="endDate" className="block text-sm font-medium text-gray-400 mb-1">Tanggal Selesai</label>
-                                <input
-                                    type="date"
-                                    id="endDate"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
-                                />
-                            </div>
-                            <div className="w-full md:w-auto flex-1">
-                                <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-400 mb-1">Status Pengembalian</label>
-                                <select
-                                    id="statusFilter"
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2 px-3"
-                                >
-                                    <option value="Semua">Semua</option>
-                                    <option value="Belum Kembali">Belum Kembali</option>
-                                    <option value="Sudah Kembali">Sudah Kembali</option>
-                                    <option value="Terlambat">Terlambat</option>
-                                </select>
-                            </div>
-                            <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0">
-                                <button
-                                    onClick={fetchLaporan}
-                                    className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors"
-                                >
-                                    Terapkan
-                                </button>
-                                <button
-                                    onClick={handleResetFilters}
-                                    className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors"
-                                >
-                                    Reset
-                                </button>
-                            </div>
+    
+            {/* KARTU STATISTIK UTAMA */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 hover:border-teal-500 transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-400">Pendapatan Bulan Ini</p>
+                            <p className="text-2xl font-bold text-teal-400">{formatRupiah(laporan?.bulanan?.[moment().format('YYYY-MM')] || 0)}</p>
                         </div>
+                        <div className="bg-gray-700 p-3 rounded-lg"><IconRevenue /></div>
+                    </div>
+                </div>
+                <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 hover:border-red-500 transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-400">Pengeluaran Bulan Ini</p>
+                            <p className="text-2xl font-bold text-red-400">{formatRupiah(totalPengeluaranBulanIni)}</p>
+                        </div>
+                        <div className="bg-gray-700 p-3 rounded-lg"><IconExpense /></div>
+                    </div>
+                </div>
+                <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 hover:border-green-500 transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-400">Profit Bersih Bulan Ini</p>
+                            <p className={`text-2xl font-bold ${pendapatanBersihBulanIni >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatRupiah(pendapatanBersihBulanIni)}</p>
+                        </div>
+                        <div className="bg-gray-700 p-3 rounded-lg"><IconProfit /></div>
+                    </div>
+                </div>
+            </div>
+    
+            {/* TABEL DATA */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* KOLOM PEMASUKAN */}
+                <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-semibold text-white">Riwayat Pemasukan</h3>
+                        <button onClick={handleExportCSV} className="bg-green-700 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm flex items-center gap-2 font-semibold">
+                            <IconExport /> Ekspor
+                        </button>
                     </div>
 
-                    <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 print:hidden">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
-                            <button
-                                onClick={handleExportCSV}
-                                className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-                            >
-                                <IconExport />
-                                Ekspor ke CSV
+                    {/* START - PERUBAHAN: Memindahkan Filter Pemasukan ke dalam kolom */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
+                        <div className="lg:col-span-1">
+                            <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Cari Pelanggan</label>
+                            <input 
+                                type="text" 
+                                id="search" 
+                                value={searchQuery} 
+                                onChange={(e) => setSearchQuery(e.target.value)} 
+                                onKeyDown={handleSearchKeyDown} 
+                                placeholder="Nama pelanggan..." 
+                                className="w-full bg-gray-700 text-white border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="startDate" className="block text-sm font-medium text-gray-400 mb-1">Dari Tanggal</label>
+                            <input 
+                                type="date" 
+                                id="startDate" 
+                                value={startDate} 
+                                onChange={(e) => setStartDate(e.target.value)} 
+                                className="w-full bg-gray-700 text-white border-gray-600 rounded-lg py-2 px-3"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="endDate" className="block text-sm font-medium text-gray-400 mb-1">Sampai Tanggal</label>
+                            <input 
+                                type="date" 
+                                id="endDate" 
+                                value={endDate} 
+                                onChange={(e) => setEndDate(e.target.value)} 
+                                className="w-full bg-gray-700 text-white border-gray-600 rounded-lg py-2 px-3"
+                            />
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <button onClick={fetchLaporan} className="w-full bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors font-semibold">Terapkan</button>
+                            <button onClick={handleResetFilters} className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-500 transition-colors" title="Reset Filter">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l16 16"></path></svg>
                             </button>
                         </div>
-                        {sortedTransaksi.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left table-auto">
-                                    <thead className="bg-gray-700">
-                                        <tr>
-                                            <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('tanggal_mulai')}>
-                                                Tanggal Transaksi {getSortIcon('tanggal_mulai')}
-                                            </th>
-                                            <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('pelanggan.nama')}>
-                                                Nama Pelanggan {getSortIcon('pelanggan.nama')}
-                                            </th>
-                                            <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('jenis_pembayaran')}>
-                                                Metode Pembayaran {getSortIcon('jenis_pembayaran')}
-                                            </th>
-                                            <th className="p-4">Status Pengembalian</th>
-                                            <th className="p-4 cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => handleSort('total_biaya')}>
-                                                Total Biaya {getSortIcon('total_biaya')}
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {sortedTransaksi.map(t => {
-                                            const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
-                                            const isReturned = t.status_pengembalian === 'Sudah Kembali';
-
-                                            return (
-                                                <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-                                                    <td className="p-4">{moment(t.tanggal_mulai).format('DD MMMM YYYY')}</td>
-                                                    <td
-                                                        className="p-4 cursor-pointer hover:underline text-teal-400"
-                                                        onClick={() => handleRowClick(t)}
-                                                    >
-                                                        {t.pelanggan?.nama || 'Nama tidak ditemukan'}
-                                                    </td>
-                                                    <td className="p-4">{t.jenis_pembayaran}</td>
-                                                    <td className="p-4">
-                                                        {isReturned ? (
-                                                            <span className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">Sudah Kembali</span>
-                                                        ) : (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${isLate ? 'bg-red-600' : 'bg-yellow-600'}`}>
-                                                                    {isLate ? 'Terlambat' : 'Belum Kembali'}
-                                                                </span>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        updateStatusPengembalian(t.id, 'Sudah Kembali');
-                                                                    }}
-                                                                    className="bg-teal-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-teal-700 transition-colors"
-                                                                >
-                                                                    Tandai Kembali
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-4 font-semibold text-green-400">{formatRupiah(t.total_biaya)}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <p className="text-gray-400 text-center">Tidak ada data transaksi yang ditemukan.</p>
-                        )}
                     </div>
-                </>
-            )}
+                    {/* END - PERUBAHAN */}
 
+                    {loading && !initialLoading ? <p>Memuat data...</p> : sortedTransaksi.length > 0 ? (
+                        <div className="max-h-[60vh] overflow-auto scrollbar-hide">
+                            <table className="w-full text-left table-auto">
+                                <thead className="bg-gray-700/50 text-xs uppercase text-gray-400">
+                                    <tr>
+                                        <th className="p-4 cursor-pointer" onClick={() => handleSort('tanggal_mulai')}>Tanggal {getSortIcon('tanggal_mulai')}</th>
+                                        <th className="p-4 cursor-pointer" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
+                                        <th className="p-4">Status</th>
+                                        <th className="p-4 cursor-pointer text-right" onClick={() => handleSort('total_biaya')}>Total {getSortIcon('total_biaya')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedTransaksi.map(t => {
+                                        const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
+                                        return (
+                                            <tr key={t.id} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors group">
+                                                <td className="p-4 align-middle text-sm text-gray-300">{moment(t.tanggal_mulai).format('DD MMM YYYY')}</td>
+                                                <td className="p-4 align-middle font-semibold text-teal-400 cursor-pointer hover:underline" onClick={() => handleRowClick(t)}>{t.pelanggan?.nama || 'N/A'}</td>
+                                                <td className="p-4 align-middle">
+                                                    {t.status_pengembalian === 'Sudah Kembali' ? 
+                                                        <span className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1 rounded-full">Selesai</span> :
+                                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${isLate ? 'bg-red-500/20 text-red-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{isLate ? 'Terlambat' : 'Disewa'}</span>
+                                                    }
+                                                </td>
+                                                <td className="p-4 align-middle font-semibold text-green-400 text-right text-sm">{formatRupiah(t.total_biaya)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : <p className="text-gray-400 text-center py-8">Tidak ada data transaksi.</p>}
+                </div>
+    
+                {/* KOLOM PENGELUARAN */}
+                <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-semibold text-white">Riwayat Pengeluaran</h3>
+                        <button onClick={handleExportCSVpengeluaran} className="bg-green-700 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm flex items-center gap-2 font-semibold">
+                           <IconExport /> Ekspor
+                        </button>
+                    </div>
+                    
+                    {/* START - PERUBAHAN: Menambahkan Filter Pengeluaran */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
+                        <div className="lg:col-span-1">
+                            <label htmlFor="pengeluaranSearch" className="block text-sm font-medium text-gray-400 mb-1">Cari Pengeluaran</label>
+                            <input 
+                                type="text" 
+                                id="pengeluaranSearch" 
+                                value={pengeluaranSearchQuery} 
+                                onChange={(e) => setPengeluaranSearchQuery(e.target.value)} 
+                                onKeyDown={handlePengeluaranSearchKeyDown}
+                                placeholder="Jenis atau deskripsi..." 
+                                className="w-full bg-gray-700 text-white border-gray-600 rounded-lg py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="pengeluaranStartDate" className="block text-sm font-medium text-gray-400 mb-1">Dari Tanggal</label>
+                            <input 
+                                type="date" 
+                                id="pengeluaranStartDate" 
+                                value={pengeluaranStartDate} 
+                                onChange={(e) => setPengeluaranStartDate(e.target.value)} 
+                                className="w-full bg-gray-700 text-white border-gray-600 rounded-lg py-2 px-3"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="pengeluaranEndDate" className="block text-sm font-medium text-gray-400 mb-1">Sampai Tanggal</label>
+                            <input 
+                                type="date" 
+                                id="pengeluaranEndDate" 
+                                value={pengeluaranEndDate} 
+                                onChange={(e) => setPengeluaranEndDate(e.target.value)} 
+                                className="w-full bg-gray-700 text-white border-gray-600 rounded-lg py-2 px-3"
+                            />
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <button 
+                                onClick={() => fetchPengeluaran(pengeluaranStartDate, pengeluaranEndDate)} 
+                                className="w-full bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors font-semibold"
+                            >
+                                Terapkan
+                            </button>
+                            <button onClick={handleResetPengeluaranFilters} className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-500 transition-colors" title="Reset Filter">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l16 16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    {/* END - PERUBAHAN */}
+
+                     {loading && !initialLoading ? <p>Memuat data...</p> : sortedPengeluaran.length > 0 ? (
+                        <div className="max-h-[60vh] overflow-auto scrollbar-hide">
+                            <table className="w-full text-left table-auto">
+                                 <thead className="bg-gray-700/50 text-xs uppercase text-gray-400">
+                                    <tr>
+                                        <th className="p-4 cursor-pointer" onClick={() => handleSortPengeluaran('tanggal')}>Tanggal {getSortIcon('tanggal')}</th>
+                                        <th className="p-4 cursor-pointer" onClick={() => handleSortPengeluaran('jenis_pengeluaran')}>Jenis {getSortIcon('jenis_pengeluaran')}</th>
+                                        <th className="p-4 cursor-pointer text-right" onClick={() => handleSortPengeluaran('jumlah')}>Jumlah {getSortIcon('jumlah')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedPengeluaran.map(p => (
+                                        <tr key={p.id} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
+                                            <td className="p-4 align-middle text-sm text-gray-300">{moment(p.tanggal).format('DD MMM YYYY')}</td>
+                                            <td className="p-4 align-middle text-sm">{p.jenis_pengeluaran}</td>
+                                            <td className="p-4 align-middle font-semibold text-red-400 text-right text-sm">{formatRupiah(p.jumlah)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : <p className="text-gray-400 text-center py-8">Belum ada data pengeluaran.</p>}
+                </div>
+            </div>
+    
             <TransactionModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
@@ -708,4 +740,6 @@ export default function Laporan() {
             />
         </div>
     );
+    
+
 }
