@@ -28,7 +28,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
           <title>Cetak Struk #${transaction.id}</title>
           <style>
             @page {
-              size: 80mm 100%; /* Ukuran kertas kasir thermal tetap aman dikunci di sini */
+              size: 80mm 100%; 
               margin: 0;
             }
             body {
@@ -63,6 +63,27 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
               font-size: 16px;
               font-weight: bold;
               margin: 5px 0;
+            }
+            /* Tombol khusus cetak manual agar bersahabat dengan tablet */
+            .btn-print-manual {
+              display: block;
+              width: 100%;
+              background-color: #0d9488;
+              color: white;
+              text-align: center;
+              padding: 12px;
+              font-weight: bold;
+              border: none;
+              border-radius: 6px;
+              margin-top: 15px;
+              cursor: pointer;
+              font-size: 14px;
+            }
+            /* Tombol hilang saat struk benar-benar diprint */
+            @media print {
+              .btn-print-manual {
+                display: none;
+              }
             }
           </style>
         </head>
@@ -106,17 +127,11 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
             <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
           </div>
           
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 500); 
-            };
-          </script>
+          <button class="btn-print-manual" onclick="window.print()">KLIK DI SINI UNTUK PRINT</button>
         </body>
       </html>
     `;
 
-    // Diubah menjadi tanpa parameter width & height agar membuka New Tab utuh di tablet
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.open();
