@@ -22,14 +22,13 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   };
 
   const handlePrint = () => {
-    // Membuat konten HTML khusus untuk mesin cetak thermal 80mm
     const printContent = `
       <html>
         <head>
           <title>Cetak Struk #${transaction.id}</title>
           <style>
             @page {
-              size: 80mm auto; 
+              size: 80mm 100%; 
               margin: 0;
             }
             body {
@@ -65,6 +64,27 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
               font-weight: bold;
               margin: 5px 0;
             }
+            /* Tombol khusus cetak manual agar bersahabat dengan tablet */
+            .btn-print-manual {
+              display: block;
+              width: 100%;
+              background-color: #0d9488;
+              color: white;
+              text-align: center;
+              padding: 12px;
+              font-weight: bold;
+              border: none;
+              border-radius: 6px;
+              margin-top: 15px;
+              cursor: pointer;
+              font-size: 14px;
+            }
+            /* Tombol hilang saat struk benar-benar diprint */
+            @media print {
+              .btn-print-manual {
+                display: none;
+              }
+            }
           </style>
         </head>
         <body>
@@ -77,7 +97,6 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
           <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
           <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
           <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
-          <p><strong>Jaminan:</strong> ${transaction.pelanggan?.jaminan || 'Tidak Ada'}</p>
           <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
           <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
           <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
@@ -107,87 +126,70 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
             <p>Terima kasih telah menyewa!</p>
             <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
           </div>
-          <script>
-            // Memicu cetak otomatis begitu dokumen selesai ditulis ke iframe
-            window.onload = function() { window.print(); }
-          </script>
+          
+          <button class="btn-print-manual" onclick="window.print()">KLIK DI SINI UNTUK PRINT</button>
         </body>
       </html>
     `;
 
-    // Ambil atau buat element iframe tersembunyi agar ramah tablet & tidak memicu popup blocker
-    let printFrame = document.getElementById('receipt-print-frame');
-    if (!printFrame) {
-      printFrame = document.createElement('iframe');
-      printFrame.id = 'receipt-print-frame';
-      printFrame.style.position = 'fixed';
-      printFrame.style.bottom = '0';
-      printFrame.style.right = '0';
-      printFrame.style.width = '0';
-      printFrame.style.height = '0';
-      printFrame.style.border = 'none';
-      document.body.appendChild(printFrame);
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    } else {
+      alert('Gagal membuka tab cetak. Pastikan izin pop-up browser Anda aktif.');
     }
-
-    const doc = printFrame.contentWindow.document;
-    doc.open();
-    doc.write(printContent);
-    doc.close();
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 print:bg-white print:text-black">
+      <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700 max-h-[90vh] overflow-y-auto print:shadow-none print:border-0">
+        <div className="flex justify-between items-center mb-4 print:hidden">
           <h3 className="text-xl font-bold text-teal-400">Rincian Transaksi</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-3xl">
             &times;
           </button>
         </div>
         <div className="space-y-4">
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">ID Transaksi:</p>
-            <p className="font-semibold text-gray-200">{transaction.id}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">ID Transaksi:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.id}</p>
           </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Nama Pelanggan:</p>
-            <p className="font-semibold text-gray-200">{transaction.pelanggan?.nama || 'Nama tidak ditemukan'}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Nama Pelanggan:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.pelanggan?.nama || 'Nama tidak ditemukan'}</p>
           </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Alamat:</p>
-            <p className="font-semibold text-gray-200">{transaction.pelanggan?.alamat || 'Tidak ditemukan'}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Alamat:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.pelanggan?.alamat || 'Tidak ditemukan'}</p>
           </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Nomor WhatsApp:</p>
-            <p className="font-semibold text-gray-200">{transaction.pelanggan?.no_whatsapp || 'Tidak ditemukan'}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Nomor WhatsApp:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.pelanggan?.no_whatsapp || 'Tidak ditemukan'}</p>
           </div>
-          {/* BARIS DATA YANG SEMPAT HILANG / TERLEWAT */}
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Jaminan Pelanggan:</p>
-            <p className="font-semibold text-gray-200">{transaction.pelanggan?.jaminan || 'Tidak ditemukan'}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Tanggal Mulai Sewa:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
           </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Tanggal Mulai Sewa:</p>
-            <p className="font-semibold text-gray-200">{moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Tanggal Selesai Sewa:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
           </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Tanggal Selesai Sewa:</p>
-            <p className="font-semibold text-gray-200">{moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Durasi Sewa:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.durasi_hari} malam</p>
           </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Durasi Sewa:</p>
-            <p className="font-semibold text-gray-200">{transaction.durasi_hari} malam</p>
-          </div>
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Metode Pembayaran:</p>
-            <p className="font-semibold text-gray-200">{transaction.jenis_pembayaran}</p>
+          <div className="border-b border-gray-700 pb-2 print:border-black print:pb-0">
+            <p className="text-sm text-gray-400 print:text-black">Metode Pembayaran:</p>
+            <p className="font-semibold text-gray-200 print:text-black">{transaction.jenis_pembayaran}</p>
           </div>
           {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-lg font-bold text-gray-200 mb-2">Barang yang Disewa:</h4>
-              <ul className="space-y-1 text-gray-300">
+            <div className="mt-4 print:mt-0">
+              <h4 className="text-lg font-bold text-gray-200 mb-2 print:text-black">Barang yang Disewa:</h4>
+              <ul className="space-y-1 text-gray-300 print:text-black">
                 {transaction.transaksi_detail.map((item, index) => (
-                    <li key={item.id || index} className="flex justify-between py-1 text-gray-300">
+                    <li key={item.id || index} className="flex justify-between py-1 text-gray-300 print:text-black">
                         <span>{item.nama_barang} ({item.jumlah})</span>
                         <span>{formatRupiah(item.jumlah * (item.produk?.harga || 0))}</span>
                     </li>
@@ -195,7 +197,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
               </ul>
             </div>
           )}
-          <div className="border-t border-gray-700 pt-4">
+          <div className="border-t border-gray-700 pt-4 print:border-black print:pt-0">
             <div className="flex justify-between text-xl font-semibold mb-2">
                 <span className="text-gray-300">Subtotal:</span>
                 <span className="text-gray-200">{formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</span>
@@ -208,7 +210,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
         </div>
         <button
           onClick={handlePrint}
-          className="w-full bg-teal-600 text-white p-3 rounded-lg font-bold hover:bg-teal-700 transition-colors mt-6"
+          className="w-full bg-teal-600 text-white p-3 rounded-lg font-bold hover:bg-teal-700 transition-colors mt-6 print:hidden"
         >
           CETAK STRUK
         </button>
@@ -230,10 +232,12 @@ export default function Laporan() {
   const router = useRouter();
   
   const [initialLoading, setInitialLoading] = useState(true);
+  
   const [statusFilter, setStatusFilter] = useState('Semua');
 
   const fetchLaporan = async () => {
     setLoading(true);
+    
     let query = supabase
       .from('transaksi')
       .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian`)
@@ -255,6 +259,7 @@ export default function Laporan() {
     }
 
     const { data, error } = await query;
+
     if (error) {
       console.error('Error fetching laporan:', error);
     } else {
@@ -363,6 +368,7 @@ export default function Laporan() {
   
   const updateStatusPengembalian = async (transactionId, status) => {
     setLoading(true);
+    
     const { error } = await supabase
       .from('transaksi')
       .update({ status_pengembalian: status })
@@ -384,22 +390,35 @@ export default function Laporan() {
     }
 
     const headers = [
-      'ID Transaksi', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)',
-      'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran',
-      'Status Pengembalian', 'Total Biaya'
+      'ID Transaksi',
+      'Tanggal Mulai',
+      'Tanggal Selesai',
+      'Durasi (malam)',
+      'Nama Pelanggan',
+      'Alamat Pelanggan',
+      'No WhatsApp',
+      'Metode Pembayaran',
+      'Status Pengembalian',
+      'Total Biaya'
     ];
 
     const csvRows = [headers.join(';')];
+
     sortedTransaksi.forEach(t => {
       const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
       const statusText = isLate ? 'Terlambat' : t.status_pengembalian;
       
       const row = [
-        `"${t.id}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
-        `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari,
-        `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`,
-        `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`,
-        `"${statusText}"`, t.total_biaya
+        `"${t.id}"`,
+        `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
+        `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`,
+        t.durasi_hari,
+        `"${t.pelanggan?.nama || 'N/A'}"`,
+        `"${t.pelanggan?.alamat || 'N/A'}"`,
+        `"${t.pelanggan?.no_whatsapp || 'N/A'}"`,
+        `"${t.jenis_pembayaran}"`,
+        `"${statusText}"`,
+        t.total_biaya
       ].join(';');
       csvRows.push(row);
     });
@@ -444,7 +463,7 @@ export default function Laporan() {
       <Head>
         <title>Laporan Keuangan</title>
       </Head>
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex justify-between items-center mb-10 print:hidden">
         <h1 className="text-4xl font-bold text-teal-400">Laporan Keuangan</h1>
         <button
           onClick={() => router.push('/')}
@@ -463,7 +482,7 @@ export default function Laporan() {
         </div>
       ) : (
         <>
-            <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8">
+            <div className="mt-12 bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8 print:hidden">
               <h2 className="text-2xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div className="flex-1 w-full">
@@ -529,7 +548,7 @@ export default function Laporan() {
               </div>
             </div>
 
-            <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+            <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 print:hidden">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-200">Detail Transaksi</h2>
                 <button
