@@ -483,7 +483,7 @@ export default function Home() {
             </div>
 
             <div className="w-[110rem] p-8 bg-gray-900 overflow-y-auto scrollbar-hide">
-                <h1 className="text-3xl font-bold mb-8 text-white text-center">PLODUK PLODUK SEWAA</h1>
+                <h1 className="text-3xl font-bold mb-8 text-white text-center">PRODUK SEWA</h1>
                 
                 <div className="mb-8 relative">
                     <input
