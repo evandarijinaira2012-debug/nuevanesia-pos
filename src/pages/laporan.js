@@ -21,126 +21,211 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
     return `Rp${angka.toLocaleString('id-ID')}`;
   };
 
-  const handlePrint = () => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Cetak Struk #${transaction.id}</title>
-          <style>
-            @page {
-              size: 80mm 100%; 
-              margin: 0;
-            }
-            body {
-              font-family: 'monospace';
-              font-size: 12px;
-              padding: 10px;
-              color: black;
-              line-height: 1.5;
-              background-color: white;
-            }
-            .header, .footer, .divider {
-              text-align: center;
-              margin-bottom: 10px;
-            }
-            .divider {
-              border-bottom: 1px dashed black;
-              margin: 10px 0;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-            }
-            th, td {
-              text-align: left;
-              padding: 2px 0;
-            }
-            .text-right {
-              text-align: right;
-            }
-            h3 {
-              font-size: 16px;
-              font-weight: bold;
-              margin: 5px 0;
-            }
-            /* Tombol khusus cetak manual agar bersahabat dengan tablet */
-            .btn-print-manual {
-              display: block;
-              width: 100%;
-              background-color: #0d9488;
-              color: white;
-              text-align: center;
-              padding: 12px;
-              font-weight: bold;
-              border: none;
-              border-radius: 6px;
-              margin-top: 15px;
-              cursor: pointer;
-              font-size: 14px;
-            }
-            /* Tombol hilang saat struk benar-benar diprint */
-            @media print {
-              .btn-print-manual {
-                display: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h3>Nuevanesia</h3>
-            <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
-            <p>WhatsApp: 08180.208.9909</p>
-          </div>
-          <div class="divider"></div>
-          <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
-          <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
-          <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
-          <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
-          <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
-          <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
-          <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
-          <div class="divider"></div>
-          <table>
-            <thead>
-              <tr>
-                <th>Barang</th>
-                <th class="text-right">Harga</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transaction.transaksi_detail.map(item => `
-                <tr>
-                  <td>${item.nama_barang} (${item.jumlah})</td>
-                  <td class="text-right">${formatRupiah(item.jumlah * (item.produk?.harga || 0))}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="divider"></div>
-          <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
-          <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
-          <div class="divider"></div>
-          <div class="footer">
-            <p>Terima kasih telah menyewa!</p>
-            <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
-          </div>
-          
-          <button class="btn-print-manual" onclick="window.print()">KLIK DI SINI UNTUK PRINT</button>
-        </body>
-      </html>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-    } else {
-      alert('Gagal membuka tab cetak. Pastikan izin pop-up browser Anda aktif.');
-    }
+const handlePrint = () => {
+  const formatRupiah = (angka) => {
+    return `Rp${angka.toLocaleString('id-ID')}`;
   };
+
+  const printContent = `
+    <html>
+      <head>
+        <title>Cetak Struk #${transaction.id}</title>
+
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+
+          body {
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            color: black;
+            background: white;
+            line-height: 1.5;
+          }
+
+          .header,
+          .footer,
+          .divider {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+
+          .divider {
+            border-bottom: 1px dashed black;
+            margin: 10px 0;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+
+          th,
+          td {
+            text-align: left;
+            padding: 2px 0;
+          }
+
+          .text-right {
+            text-align: right;
+          }
+
+          h3 {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px 0;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="header">
+          <h3>Nuevanesia</h3>
+          <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
+          <p>WhatsApp: 08180.208.9909</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <p>
+          <strong>ID Transaksi:</strong>
+          ${transaction.id}
+        </p>
+
+        <p>
+          <strong>Pelanggan:</strong>
+          ${transaction.pelanggan?.nama || 'N/A'}
+        </p>
+
+        <p>
+          <strong>Whatsapp:</strong>
+          ${transaction.pelanggan?.no_whatsapp || 'N/A'}
+        </p>
+
+        <p>
+          <strong>Tanggal Mulai:</strong>
+          ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}
+        </p>
+
+        <p>
+          <strong>Tanggal Selesai:</strong>
+          ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}
+        </p>
+
+        <p>
+          <strong>Durasi:</strong>
+          ${transaction.durasi_hari} malam
+        </p>
+
+        <p>
+          <strong>Pembayaran:</strong>
+          ${transaction.jenis_pembayaran}
+        </p>
+
+        <div class="divider"></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Barang</th>
+              <th class="text-right">Harga</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${transaction.transaksi_detail
+              .map(
+                (item) => `
+                  <tr>
+                    <td>
+                      ${item.nama_barang} (${item.jumlah})
+                    </td>
+
+                    <td class="text-right">
+                      ${formatRupiah(
+                        item.jumlah * (item.produk?.harga || 0)
+                      )}
+                    </td>
+                  </tr>
+                `
+              )
+              .join('')}
+          </tbody>
+        </table>
+
+        <div class="divider"></div>
+
+        <p style="font-size: 14px; text-align: right;">
+          <strong>
+            Subtotal:
+            ${formatRupiah(
+              transaction.total_biaya / transaction.durasi_hari
+            )}
+          </strong>
+        </p>
+
+        <p
+          style="
+            font-size: 18px;
+            text-align: right;
+            margin-top: 5px;
+          "
+        >
+          <strong>
+            Total:
+            ${formatRupiah(transaction.total_biaya)}
+          </strong>
+        </p>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+          <p>Terima kasih telah menyewa!</p>
+          <p>
+            Barang yang disewa harus dikembalikan
+            dalam kondisi baik.
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    const iframe = document.createElement('iframe');
+
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+
+    document.body.appendChild(iframe);
+
+    const iframeDoc =
+      iframe.contentWindow.document;
+
+    iframeDoc.open();
+    iframeDoc.write(printContent);
+    iframeDoc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 700);
+  } catch (error) {
+    console.error('Print error:', error);
+    alert('Gagal membuka print.');
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 print:bg-white print:text-black">
