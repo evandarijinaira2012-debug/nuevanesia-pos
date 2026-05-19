@@ -23,96 +23,107 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
 
   const handlePrint = () => {
     const printContent = `
-      <style>
-        @page {
-          size: 80mm 100%; /* Common thermal paper size */
-          margin: 0;
-        }
-        body {
-          font-family: 'monospace';
-          font-size: 12px;
-          padding: 10px;
-          color: black;
-          line-height: 1.5;
-        }
-        .header, .footer, .divider {
-          text-align: center;
-          margin-bottom: 10px;
-        }
-        .divider {
-          border-bottom: 1px dashed black;
-          margin: 10px 0;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 10px;
-        }
-        th, td {
-          text-align: left;
-          padding: 2px 0;
-        }
-        .text-right {
-          text-align: right;
-        }
-        h3 {
-          font-size: 16px;
-          font-weight: bold;
-          margin: 5px 0;
-        }
-      </style>
-      <body>
-        <div class="header">
-          <h3>Nuevanesia</h3>
-          <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
-          <p>WhatsApp: 08180.208.9909</p>
-        </div>
-        <div class="divider"></div>
-        <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
-        <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
-        <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
-        <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
-        <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
-        <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
-        <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
-        <div class="divider"></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Barang</th>
-              <th class="text-right">Harga</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${transaction.transaksi_detail.map(item => `
+      <html>
+        <head>
+          <title>Cetak Struk #${transaction.id}</title>
+          <style>
+            @page {
+              size: 80mm 100%; /* Ukuran kertas kasir thermal tetap aman dikunci di sini */
+              margin: 0;
+            }
+            body {
+              font-family: 'monospace';
+              font-size: 12px;
+              padding: 10px;
+              color: black;
+              line-height: 1.5;
+              background-color: white;
+            }
+            .header, .footer, .divider {
+              text-align: center;
+              margin-bottom: 10px;
+            }
+            .divider {
+              border-bottom: 1px dashed black;
+              margin: 10px 0;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            th, td {
+              text-align: left;
+              padding: 2px 0;
+            }
+            .text-right {
+              text-align: right;
+            }
+            h3 {
+              font-size: 16px;
+              font-weight: bold;
+              margin: 5px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h3>Nuevanesia</h3>
+            <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
+            <p>WhatsApp: 08180.208.9909</p>
+          </div>
+          <div class="divider"></div>
+          <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
+          <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
+          <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
+          <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
+          <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
+          <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
+          <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
+          <div class="divider"></div>
+          <table>
+            <thead>
               <tr>
-                <td>${item.nama_barang} (${item.jumlah})</td>
-                <td class="text-right">${formatRupiah(item.jumlah * item.produk?.harga)}</td>
+                <th>Barang</th>
+                <th class="text-right">Harga</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="divider"></div>
-        <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
-        <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
-        <div class="divider"></div>
-        <div class="footer">
-          <p>Terima kasih telah menyewa!</p>
-          <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
-        </div>
-      </body>
+            </thead>
+            <tbody>
+              ${transaction.transaksi_detail.map(item => `
+                <tr>
+                  <td>${item.nama_barang} (${item.jumlah})</td>
+                  <td class="text-right">${formatRupiah(item.jumlah * (item.produk?.harga || 0))}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
+          <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
+          <div class="divider"></div>
+          <div class="footer">
+            <p>Terima kasih telah menyewa!</p>
+            <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500); 
+            };
+          </script>
+        </body>
+      </html>
     `;
 
-    const printWindow = window.open('', '_blank', 'width=300,height=400');
+    // Diubah menjadi tanpa parameter width & height agar membuka New Tab utuh di tablet
+    const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.open();
       printWindow.document.write(printContent);
       printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
     } else {
-      alert('Pop-up window blocked. Please allow pop-ups for this site to print.');
+      alert('Gagal membuka tab cetak. Pastikan izin pop-up browser Anda aktif.');
     }
   };
 
@@ -165,7 +176,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
                 {transaction.transaksi_detail.map((item, index) => (
                     <li key={item.id || index} className="flex justify-between py-1 text-gray-300 print:text-black">
                         <span>{item.nama_barang} ({item.jumlah})</span>
-                        <span>{formatRupiah(item.jumlah * item.produk?.harga)}</span>
+                        <span>{formatRupiah(item.jumlah * (item.produk?.harga || 0))}</span>
                     </li>
                 ))}
               </ul>
@@ -275,7 +286,6 @@ export default function Laporan() {
     }
   };
 
-
   const handleSort = (field) => {
     let direction = 'asc';
     if (sortConfig.field === field && sortConfig.direction === 'desc') {
@@ -357,7 +367,6 @@ export default function Laporan() {
       await fetchLaporan();
     }
   };
-
 
   const handleExportCSV = () => {
     if (sortedTransaksi.length === 0) {
