@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -60,52 +60,18 @@ import ProductPopup from '../components/ProductPopup';
 export default function Home() {
     const [produk, setProduk] = useState([]);
     const [keranjang, setKeranjang] = useState([]);
-    const [tanggalMulai, setTanggalMulai] = useState('');
-    const [tanggalSelesai, setTanggalSelesai] = useState('');
-    const [showPaymentPopup, setShowPaymentPopup] = useState(false);
-    const [showStrukPopup, setShowStrukPopup] = useState(false);
-    const [namaPelanggan, setNamaPelanggan] = useState('');
-    const [alamatPelanggan, setAlamatPelanggan] = useState('');
-    const [noWhatsapp, setNoWhatsapp] = useState('');
-    const [jaminan, setJaminan] = useState('');
     const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
     const [semuaKategori, setSemuaKategori] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [session, setSession] = useState(null);
     const router = useRouter();
-    const [metodePembayaran, setMetodePembayaran] = useState('Cash');
-    const [catatan, setCatatan] = useState('');
-    const [diskon, setDiskon] = useState(0); 
     const [justAddedProductId, setJustAddedProductId] = useState(null);
-    const [diskonOtomatisAktif, setDiskonOtomatisAktif] = useState(true);
  
     // --- PENAMBAHAN KODE: State untuk produk yang dipilih ---
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    // >>> KODE BARU DIMULAI <<<
-    // State untuk diskon manual
-    const [diskonManual, setDiskonManual] = useState(0);
-    const [jenisDiskonManual, setJenisDiskonManual] = useState('nominal'); // 'nominal' atau 'persentase'
-    // <<< KODE BARU SELESAI >>>
-
-    // --- PERBAIKAN: Pindahkan deklarasi fungsi ke atas ---
-    const hitungDurasiHari = () => {
-        if (tanggalMulai && tanggalSelesai) {
-            const tglMulai = new Date(tanggalMulai);
-            const tglSelesai = new Date(tanggalSelesai);
-            const selisihWaktu = tglSelesai.getTime() - tglMulai.getTime();
-            const selisihHari = Math.ceil(selisihWaktu / (1000 * 3600 * 24));
-            return selisihHari > 0 ? selisihHari : 0;
-        }
-        return 0;
-    };
-
     const hitungSubtotalPerMalam = () => {
         return keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
-    };
-
-    const hitungTotalAkhir = () => {
-        const durasi = hitungDurasiHari();
         if (durasi === 0) return 0;
         
         let subtotal = hitungSubtotalPerMalam() * durasi;
@@ -175,61 +141,27 @@ export default function Home() {
         fetchProduk();
     }, []);
 
+    // Muat keranjang sementara dari checkout jika ada (agar tidak hilang saat kembali dari checkout)
     useEffect(() => {
-        const durasi = hitungDurasiHari();
-        if (diskonOtomatisAktif && durasi >= 3) {
-            const subtotalPerMalam = hitungSubtotalPerMalam();
-            const sisaMalam = durasi - 2;
-            const nilaiDiskon = (subtotalPerMalam * 0.5) * sisaMalam;
-            setDiskon(nilaiDiskon);
-        } else {
-            setDiskon(0);
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('nuevanesia-checkout-data');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && Array.isArray(parsed.keranjang)) {
+                        setKeranjang(parsed.keranjang);
+                    }
+                } catch (err) {
+                    console.error('Gagal parse nuevanesia-checkout-data', err);
+                }
+            }
         }
-    }, [keranjang, tanggalMulai, tanggalSelesai, diskonOtomatisAktif]);
+    }, []);
+
+
     if (!session) {
         return null;
     }
-
-    const handleCetak = () => {
-        const transaksiDataUntukStruk = {
-            pelanggan: {
-                nama: namaPelanggan,
-                alamat: alamatPelanggan,
-                noWhatsapp: noWhatsapp,
-                jaminan: jaminan,
-            },
-            keranjang: keranjang,
-            tanggalMulai: tanggalMulai,
-            tanggalSelesai: tanggalSelesai,
-            durasi: hitungDurasiHari(),
-            subtotal: hitungSubtotalPerMalam() * hitungDurasiHari(),
-            diskonOtomatis: diskon,
-            // >>> KODE BARU DIMULAI <<<
-            diskonManual: jenisDiskonManual === 'persentase' ? (diskonManual/100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon) : diskonManual,
-            // <<< KODE BARU SELESAI >>>
-            total: hitungTotalAkhir(),
-            metodePembayaran: metodePembayaran,
-            catatan: catatan,
-        };
-
-        localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(transaksiDataUntukStruk));
-        window.open('/cetak-struk', '_blank');
-        
-        setKeranjang([]);
-        setShowStrukPopup(false);
-        setNamaPelanggan('');
-        setAlamatPelanggan('');
-        setNoWhatsapp('');
-        setJaminan('');
-        setTanggalMulai('');
-        setTanggalSelesai('');
-        setMetodePembayaran('Cash');
-        setCatatan('');
-        // >>> KODE BARU DIMULAI <<<
-        setDiskonManual(0);
-        setJenisDiskonManual('nominal');
-        // <<< KODE BARU SELESAI >>>
-    };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -237,16 +169,43 @@ export default function Home() {
     };
 
     const tambahKeKeranjang = (item) => {
+        // Hitung newKeranjang secara deterministik lalu set state + sinkron ke localStorage
+        let newKeranjang;
         const itemSudahAda = keranjang.find((i) => i.id === item.id);
         if (itemSudahAda) {
-            setKeranjang(
-                keranjang.map((i) =>
-                    i.id === item.id ? { ...i, qty: i.qty + 1 } : i
-                )
+            newKeranjang = keranjang.map((i) =>
+                i.id === item.id ? { ...i, qty: i.qty + 1 } : i
             );
         } else {
-            setKeranjang([...keranjang, { ...item, qty: 1 }]);
+            newKeranjang = [...keranjang, { ...item, qty: 1 }];
         }
+        setKeranjang(newKeranjang);
+
+        // Sinkron ke localStorage (merge dengan apa yang sudah ada di checkout)
+        if (typeof window !== 'undefined') {
+            try {
+                const savedRaw = localStorage.getItem('nuevanesia-checkout-data');
+                const saved = savedRaw ? JSON.parse(savedRaw) : {};
+                saved.keranjang = Array.isArray(saved.keranjang) ? saved.keranjang : [];
+
+                const exists = saved.keranjang.find(i => i.id === item.id);
+                if (exists) {
+                    saved.keranjang = saved.keranjang.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+                    toast.success('Produk berhasil ditambahkan ke barang sewa yang sudah ada.');
+                    // tandai merge agar checkout menampilkan notifikasi saat kembali
+                    localStorage.setItem('nuevanesia-just-merged', JSON.stringify({ id: item.id, nama: item.nama, qty: 1, time: Date.now() }));
+                } else {
+                    saved.keranjang.push({ ...item, qty: 1 });
+                    toast.success('Produk baru berhasil ditambahkan ke barang sewa.');
+                    // tandai merge agar checkout menampilkan notifikasi saat kembali
+                    localStorage.setItem('nuevanesia-just-merged', JSON.stringify({ id: item.id, nama: item.nama, qty: 1, time: Date.now() }));
+                }
+                localStorage.setItem('nuevanesia-checkout-data', JSON.stringify(saved));
+            } catch (err) {
+                console.error('Gagal sinkron keranjang ke localStorage', err);
+            }
+        }
+
         setJustAddedProductId(item.id);
         setTimeout(() => {
             setJustAddedProductId(null);
@@ -258,16 +217,41 @@ export default function Home() {
         if (item.qty === 1) {
             hapusItem(itemId);
         } else {
-            setKeranjang(
-                keranjang.map((i) =>
-                    i.id === itemId ? { ...i, qty: i.qty - 1 } : i
-                )
+            const newKeranjang = keranjang.map((i) =>
+                i.id === itemId ? { ...i, qty: i.qty - 1 } : i
             );
+            setKeranjang(newKeranjang);
+
+            // update localStorage
+            if (typeof window !== 'undefined') {
+                try {
+                    const savedRaw = localStorage.getItem('nuevanesia-checkout-data');
+                    const saved = savedRaw ? JSON.parse(savedRaw) : {};
+                    saved.keranjang = Array.isArray(saved.keranjang) ? saved.keranjang : [];
+                    saved.keranjang = saved.keranjang.map(i => i.id === itemId ? { ...i, qty: Math.max(0, i.qty - 1) } : i).filter(i => i.qty > 0);
+                    localStorage.setItem('nuevanesia-checkout-data', JSON.stringify(saved));
+                } catch (err) {
+                    console.error('Gagal update keranjang di localStorage', err);
+                }
+            }
         }
     };
 
     const hapusItem = (itemId) => {
-        setKeranjang(keranjang.filter((i) => i.id !== itemId));
+        const newKeranjang = keranjang.filter((i) => i.id !== itemId);
+        setKeranjang(newKeranjang);
+
+        if (typeof window !== 'undefined') {
+            try {
+                const savedRaw = localStorage.getItem('nuevanesia-checkout-data');
+                const saved = savedRaw ? JSON.parse(savedRaw) : {};
+                saved.keranjang = Array.isArray(saved.keranjang) ? saved.keranjang : [];
+                saved.keranjang = saved.keranjang.filter((i) => i.id !== itemId);
+                localStorage.setItem('nuevanesia-checkout-data', JSON.stringify(saved));
+            } catch (err) {
+                console.error('Gagal hapus item di localStorage', err);
+            }
+        }
     };
 
     const handleProses = () => {
@@ -275,118 +259,20 @@ export default function Home() {
             toast.error('Keranjang sewa masih kosong!');
             return;
         }
-        if (!tanggalMulai || !tanggalSelesai) {
-            toast.error('Mohon isi tanggal sewa terlebih dahulu!');
-            return;
-        }
-        setShowPaymentPopup(true);
-    };
-
-    const handleSimpanPembayaran = async () => {
-        if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
-            toast.error('Mohon lengkapi semua data pelanggan!');
-            return;
-        }
-
-        const toastId = toast.loading('Menyimpan transaksi...');
-
-        let pelangganId;
-
-        const { data: existingPelanggan, error: fetchError } = await supabase
-            .from('pelanggan')
-            .select('id')
-            .eq('no_whatsapp', noWhatsapp)
-            .single();
-
-        if (fetchError && fetchError.code === 'PGRST116') {
-            const { data: newPelangganData, error: insertError } = await supabase
-                .from('pelanggan')
-                .insert([{
-                    nama: namaPelanggan,
-                    alamat: alamatPelanggan,
-                    no_whatsapp: noWhatsapp,
-                    jaminan: jaminan,
-                }, ])
-                .select();
-
-            if (insertError) {
-                console.error('Error menyimpan pelanggan baru:', insertError);
-                toast.error('Gagal menyimpan pelanggan baru.', { id: toastId });
-                return;
+        if (typeof window !== 'undefined') {
+            try {
+                const savedRaw = localStorage.getItem('nuevanesia-checkout-data');
+                const saved = savedRaw ? JSON.parse(savedRaw) : {};
+                saved.keranjang = keranjang;
+                localStorage.setItem('nuevanesia-checkout-data', JSON.stringify(saved));
+            } catch (err) {
+                console.error('Gagal menyimpan checkout data', err);
+                localStorage.setItem('nuevanesia-checkout-data', JSON.stringify({ keranjang }));
             }
-            pelangganId = newPelangganData[0].id;
-        } else if (existingPelanggan) {
-            pelangganId = existingPelanggan.id;
-        } else {
-            console.error('Error saat mencari pelanggan:', fetchError);
-            toast.error('Gagal mencari data pelanggan.', { id: toastId });
-            return;
         }
-
-        // >>> KODE BARU DIMULAI <<<
-        // Hitung nilai diskon manual yang sebenarnya untuk disimpan di database
-        let nilaiDiskonManual = 0;
-        if (jenisDiskonManual === 'nominal') {
-            nilaiDiskonManual = diskonManual;
-        } else if (jenisDiskonManual === 'persentase') {
-            const subtotalSetelahDiskonOtomatis = (hitungSubtotalPerMalam() * hitungDurasiHari()) - diskon;
-            nilaiDiskonManual = (diskonManual / 100) * subtotalSetelahDiskonOtomatis;
-        }
-        
-        const { data: transaksiData, error: transaksiError } = await supabase
-            .from('transaksi')
-            .insert([{
-                pelanggan_id: pelangganId,
-                tanggal_mulai: tanggalMulai,
-                tanggal_selesai: tanggalSelesai,
-                durasi_hari: hitungDurasiHari(),
-                total_biaya: hitungTotalAkhir(),
-                jenis_pembayaran: metodePembayaran,
-                catatan: catatan,
-                diskon_manual: nilaiDiskonManual, // Kolom baru
-            }, ])
-            .select();
-        // <<< KODE BARU SELESAI >>>
-
-        if (transaksiError) {
-            console.error('Error menyimpan transaksi:', transaksiError);
-            toast.error('Gagal menyimpan data transaksi.', { id: toastId });
-            return;
-        }
-
-        const transaksiId = transaksiData[0].id;
-
-        const itemsToInsert = keranjang.map((item) => ({
-            transaksi_id: transaksiId,
-            produk_id: item.id,
-            nama_barang: item.nama,
-            jumlah: item.qty,
-        }));
-
-        const { error: detailError } = await supabase
-            .from('transaksi_detail')
-            .insert(itemsToInsert);
-
-        if (detailError) {
-            console.error('Error menyimpan detail transaksi:', detailError);
-            toast.error('Gagal menyimpan detail transaksi.', { id: toastId });
-            return;
-        }
-
-        await Promise.all(
-            keranjang.map((item) =>
-                supabase
-                .from('produk')
-                .update({ stok: item.stok - item.qty })
-                .eq('id', item.id)
-            )
-        );
-
-        toast.success('Data sewa berhasil disimpan!', { id: toastId });
-        setShowPaymentPopup(false);
-        setShowStrukPopup(true);
+        router.push('/checkout');
     };
-    
+
     const produkTerfilter = produk.filter(item => {
         const kategoriCocok = kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
         const pencarianCocok = item.nama.toLowerCase().includes(searchQuery.toLowerCase());
@@ -552,13 +438,7 @@ export default function Home() {
             <div className="w-full lg:w-150 bg-gray-900 border-l border-gray-800 p-6 flex flex-col">
                 <h2 className="text-2xl font-bold mb-6 text-white">Keranjang</h2>
                 
-                <div className="bg-gray-800 p-4 rounded-xl mb-4 border border-gray-700">
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Tanggal Ambil Barang</label>
-                    <input type="date" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                    <label className="block text-sm font-medium text-gray-400 mt-4 mb-2">Tanggal Kembali Barang</label>
-                    <input type="date" value={tanggalSelesai} onChange={(e) => setTanggalSelesai(e.target.value)} className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                    <p className="text-sm mt-4 text-gray-400">Durasi: <span className="font-semibold text-white">{hitungDurasiHari()} Malam</span></p>
-                </div>
+
 
                 <div className="flex-grow bg-gray-800 rounded-xl mb-4 border border-gray-700 min-h-[200px] flex flex-col">
                     <div className="p-4 flex-grow overflow-y-auto">
@@ -590,33 +470,13 @@ export default function Home() {
                 <div className="bg-gray-800 p-5 rounded-xl border border-gray-700">
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between items-center">
-                            <span className="text-blue-400">Subtotal:</span>
+                            <span className="text-blue-400">Total Harga Per Hari:</span>
                             <span className="font-semibold text-gray-200">Rp{(hitungSubtotalPerMalam()).toLocaleString('id-ID')}</span>
                         </div>
-                        {hitungDurasiHari() >= 3 && (
-                            <div className="flex justify-between items-center">
-                                <span className="text-yellow-400">Diskon(50%)Hari ke 3:</span>
-                                <span className="font-semibold text-yellow-400">-Rp{diskon.toLocaleString('id-ID')}</span>
-                            </div>
-                        )}
-                        {/* >>> KODE BARU DIMULAI <<< */}
-                        {diskonManual > 0 && (
-                            <div className="flex justify-between items-center">
-                                <span className="text-red-400">Special Diskon:</span>
-                                <span className="font-semibold text-red-400">
-                                    -Rp{
-                                        jenisDiskonManual === 'persentase' 
-                                        ? ((diskonManual / 100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon)).toLocaleString('id-ID')
-                                        : diskonManual.toLocaleString('id-ID')
-                                    }
-                                </span>
-                            </div>
-                        )}
-                        {/* <<< KODE BARU SELESAI >>> */}
                     </div>
                     <div className="flex justify-between items-center border-t border-gray-700 pt-4 mt-4">
-                        <p className="text-xl font-bold text-white">Total:</p>
-                        <p className="text-2xl font-bold text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</p>
+                        <p className="text-lg font-bold text-white">Total Produk:</p>
+                        <p className="text-xl font-bold text-teal-400">{keranjang.reduce((sum, item) => sum + item.qty, 0)} Item</p>
                     </div>
                     <button onClick={handleProses} className="bg-gradient-to-r from-teal-500 to-green-500 text-white p-4 w-full mt-6 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity duration-200">
                         PROSES TRANSAKSI
@@ -624,215 +484,6 @@ export default function Home() {
                 </div>
             </div>
 
-            {(showPaymentPopup || showStrukPopup) && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-                    <div className="p-8 bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
-                        {showPaymentPopup && (
-                            <>
-                                <h2 className="text-3xl font-bold text-teal-400 mb-6 text-center">Data Pelanggan & Pembayaran</h2>
-                                
-                                <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner">
-                                    <h3 className="text-xl font-semibold text-gray-200 mb-4">Detail Pelanggan</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-1">Nama Pelanggan</label>
-                                            <input type="text" value={namaPelanggan} onChange={(e) => setNamaPelanggan(e.target.value)} className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Nama Lengkap" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-1">Alamat</label>
-                                            <input type="text" value={alamatPelanggan} onChange={(e) => setAlamatPelanggan(e.target.value)} className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Alamat Lengkap" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-1">No. WhatsApp</label>
-                                            <input type="text" value={noWhatsapp} onChange={(e) => setNoWhatsapp(e.target.value)} className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="+62..." />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-1">Jaminan</label>
-                                            <input type="text" value={jaminan} onChange={(e) => setJaminan(e.target.value)} className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="KTP/SIM/Lainnya" />
-                                        </div>
-                                    </div>
-                                    <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-400 mb-1">Catatan</label>
-                                        <textarea
-                                            value={catatan}
-                                            onChange={(e) => setCatatan(e.target.value)}
-                                            className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                            rows="3"
-                                            placeholder="Tambahkan NAMA PELANGGAN disini..."
-                                        ></textarea>
-                                    </div>
-                                </div>
-                                
-                                {/* >>> KODE BARU DIMULAI <<< */}
-                                <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner mt-10">
-                                <button
-                                    onClick={() => setDiskonOtomatisAktif(!diskonOtomatisAktif)}
-                                    className={`w-full p-3 rounded-lg font-semibold transition-all duration-200 
-                                        ${diskonOtomatisAktif 
-                                            ? "flex items-center justify-center bg-red-600 text-white-300 p-3 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-colors duration-200 w-full font-semiboldbg-red-600 text-white hover:bg-red-700" 
-                                            : "bg-green-600 text-white hover:bg-green-700"}`}
-                                >
-                                    {diskonOtomatisAktif ? " Nonaktifkan Diskon 50% hari ke 3" : " Aktifkan Kembali Diskon 50% hari ke 3"}
-                                </button>
-                                
-                                    <h3 className="text-xl font-semibold text-gray-200 mb-4 mt-5">Diskon Manual</h3>
-                                    <div className="flex items-center space-x-4 mb-4">
-                                        <div className="flex items-center">
-                                            <input 
-                                                type="radio" 
-                                                id="nominal" 
-                                                name="discount-type"
-                                                value="nominal" 
-                                                checked={jenisDiskonManual === 'nominal'}
-                                                onChange={() => setJenisDiskonManual('nominal')}
-                                                className="form-radio text-teal-500 h-4 w-4"
-                                            />
-                                            <label htmlFor="nominal" className="ml-2 text-gray-300">Nominal</label>
-                                        </div>
-                                        <div className="flex items-center">
-                                            <input 
-                                                type="radio" 
-                                                id="persentase" 
-                                                name="discount-type"
-                                                value="persentase" 
-                                                checked={jenisDiskonManual === 'persentase'}
-                                                onChange={() => setJenisDiskonManual('persentase')}
-                                                className="form-radio text-teal-500 h-4 w-4"
-                                            />
-                                            <label htmlFor="persentase" className="ml-2 text-gray-300">Persentase</label>
-                                        </div>
-                                    </div>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">{jenisDiskonManual === 'nominal' ? 'Rp' : '%'}</span>
-                                        <input
-                                            type="number"
-                                            value={diskonManual === 0 ? '' : diskonManual}
-                                            onChange={(e) => setDiskonManual(Number(e.target.value))}
-                                            placeholder="Masukkan nilai diskon..."
-                                            className="w-full p-2 pl-9 bg-gray-600 border border-gray-500 rounded text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                        />
-                                    </div>
-                                </div>
-                                {/* <<< KODE BARU SELESAI >>> */}
-                                
-                                <div className="bg-gray-700 p-6 rounded-lg mb-6 shadow-inner">
-                                    <h3 className="text-xl font-semibold text-gray-200 mb-4">Detail Pembayaran</h3>
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div className="text-gray-300">Tanggal Ambil:</div>
-                                        <div className="font-semibold text-gray-200">{tanggalMulai}</div>
-                                        <div className="text-gray-300">Tanggal Kembali:</div>
-                                        <div className="font-semibold text-gray-200">{tanggalSelesai}</div>
-                                        <div className="text-gray-300">Durasi:</div>
-                                        <div className="font-semibold text-gray-200">{hitungDurasiHari()} malam</div>
-                                        <div className="text-gray-300">Subtotal:</div>
-                                        <div className="font-semibold text-gray-200">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</div>
-                                        {hitungDurasiHari() >= 3 && (
-                                            <>
-                                                <div className="text-yellow-400 font-bold">Diskon (50%):</div>
-                                                <div className="text-yellow-400 font-bold">-Rp{diskon.toLocaleString('id-ID')}</div>
-                                            </>
-                                        )}
-                                        {/* >>> KODE BARU DIMULAI <<< */}
-                                        {diskonManual > 0 && (
-                                            <>
-                                                <div className="text-red-400 font-bold">Diskon Manual:</div>
-                                                <div className="text-red-400 font-bold">
-                                                    -Rp{
-                                                        jenisDiskonManual === 'persentase' 
-                                                        ? ((diskonManual / 100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon)).toLocaleString('id-ID')
-                                                        : diskonManual.toLocaleString('id-ID')
-                                                    }
-                                                </div>
-                                            </>
-                                        )}
-                                        {/* <<< KODE BARU SELESAI >>> */}
-                                    </div>
-                                    <div className="border-t border-gray-600 pt-4 flex justify-between items-center mt-4">
-                                        <span className="text-2xl font-bold text-teal-400">Grand Total:</span>
-                                        <span className="text-3xl font-bold text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-around space-x-4 mb-6">
-                                    <button
-                                        onClick={() => setMetodePembayaran('Cash')}
-                                        className={`p-4 rounded-lg w-full font-bold text-lg transition-all duration-200 ${metodePembayaran === 'Cash' ? 'bg-teal-500 text-white shadow-lg' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
-                                    >
-                                        CASH
-                                    </button>
-                                    <button
-                                        onClick={() => setMetodePembayaran('Transfer')}
-                                        className={`p-4 rounded-lg w-full font-bold text-lg transition-all duration-200 ${metodePembayaran === 'Transfer' ? 'bg-teal-500 text-white shadow-lg' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
-                                    >
-                                        TRANSFER
-                                    </button>
-                                    <button
-                                        onClick={() => setMetodePembayaran('QRIS')}
-                                        className={`p-4 rounded-lg w-full font-bold text-lg transition-all duration-200 ${metodePembayaran === 'QRIS' ? 'bg-teal-500 text-white shadow-lg' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
-                                    >
-                                        QRIS
-                                    </button>
-                                </div>
-                                <div className="flex space-x-4">
-                                    <button
-                                        onClick={handleSimpanPembayaran}
-                                        className="bg-blue-600 text-white p-4 rounded-lg w-full font-bold text-lg hover:bg-blue-700 transition-colors duration-200"
-                                    >
-                                        SIMPAN TRANSAKSI
-                                    </button>
-                                    <button
-                                        onClick={() => setShowPaymentPopup(false)}
-                                        className="bg-gray-600 text-gray-300 p-4 rounded-lg w-1/4 font-bold text-lg hover:bg-gray-500 transition-colors duration-200"
-                                    >
-                                        BATAL
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                        
-                        {showStrukPopup && (
-                            <>
-                                <h2 className="text-3xl font-bold text-teal-400 mb-6 text-center">Struk Transaksi</h2>
-                                <div className="bg-gray-700 p-6 rounded-lg w-full mb-4 shadow-inner">
-                                    <h3 className="text-xl font-semibold text-gray-200 mb-4">Detail Pelanggan</h3>
-                                    <p className="text-gray-300 mb-1">Nama: <span className="font-semibold text-gray-200">{namaPelanggan}</span></p>
-                                    <p className="text-gray-300 mb-1">Alamat: <span className="font-semibold text-gray-200">{alamatPelanggan}</span></p>
-                                    <p className="text-gray-300 mb-1">No. WA: <span className="font-semibold text-gray-200">{noWhatsapp}</span></p>
-                                    <p className="text-gray-300 mb-1">Jaminan: <span className="font-semibold text-gray-200">{jaminan}</span></p>
-                                    <p className="text-gray-300 mt-2">Catatan: <span className="font-semibold text-gray-200">{catatan || '-'}</span></p>
-                                    <p className="mt-4 text-gray-300 mb-1">Tanggal Sewa: <span className="font-semibold text-gray-200">{tanggalMulai} s/d {tanggalSelesai}</span></p>
-                                    <p className="text-gray-300">Durasi: <span className="font-semibold text-gray-200">{hitungDurasiHari()} malam</span></p>
-                                    <p className="text-gray-300 mt-2">Metode Pembayaran: <span className="font-semibold text-gray-200">{metodePembayaran}</span></p>
-                                </div>
-                                <div className="bg-gray-700 p-6 rounded-lg w-full mb-4 shadow-inner">
-                                    <h3 className="text-xl font-semibold text-gray-200 mb-4">Item Disewa</h3>
-                                    <ul>
-                                        {keranjang.map(item => (
-                                            <li key={item.id} className="flex justify-between py-1 text-gray-300">
-                                                <span>{item.nama} ({item.qty})</span>
-                                                <span>Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="bg-gray-700 p-6 rounded-lg w-full shadow-inner">
-                                    <div className="flex justify-between font-bold text-3xl">
-                                        <span className="text-teal-400">Total Biaya:</span>
-                                        <span className="text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</span>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={handleCetak}
-                                    className="bg-green-600 text-white p-4 rounded-lg w-full mt-6 font-bold text-lg hover:bg-green-700 transition-colors duration-200"
-                                >
-                                    CETAK STRUK
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-            
             {/* --- PENAMBAHAN KODE: Komponen popup produk --- */}
             <ProductPopup product={selectedProduct} onClose={closeProductPopup} />
 
