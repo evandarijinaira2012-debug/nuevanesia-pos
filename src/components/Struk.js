@@ -7,30 +7,41 @@ const buatBarisKolom = (kiri, kanan, lebarMaksimal = 48) => {
   return kiri + " ".repeat(sisaSpasi > 0 ? sisaSpasi : 1) + kanan + "\n";
 };
 
-// 1. FUNGSI UTAMA: Pembuat teks untuk printer Bluetooth & Preview Layar
+// 1. FUNGSI UTAMA: Pembuat teks murni untuk RawBT & Preview Layar
 export const generateTextStruk = (transaksiData, lebarMaksimal = 48) => {
   if (!transaksiData) return '';
 
-  const { pelanggan, keranjang, tanggalMulai, tanggalSelesai, total, metodePembayaran, catatan, durasi, diskonOtomatis, diskonManual } = transaksiData;
-
-  const ESC = '\x1B';
-  const CLEAR = ESC + '@'; 
-  const CENTER = ESC + 'a' + '\x01'; 
-  const LEFT = ESC + 'a' + '\x00'; 
+  const { 
+    pelanggan, 
+    keranjang, 
+    tanggalMulai, 
+    tanggalSelesai, 
+    total, 
+    metodePembayaran, 
+    catatan, 
+    durasi, 
+    diskonOtomatis = 0, 
+    diskonManual = 0 
+  } = transaksiData;
 
   const formatRupiah = (angka) => `Rp${Number(angka).toLocaleString('id-ID')}`;
   const formatDate = (date) => date ? new Date(date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
   const waktuCetak = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) + `, Jam ` + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-  let txt = CLEAR;
+  let txt = "";
 
-  // --- Mulai Susun Konten Struk Di Sini ---
-  txt += CENTER + "NUEVANESIA\n";
-  txt += "Jl Sarirasa Blok 4 No 114 Bandung\n";
-  txt += "Tlp. 08180.208.9909\n";
+  // --- Header Struk (Perataan tengah manual menggunakan spasi agar cocok di RawBT & Layar) ---
+  const t1 = "NUEVANESIA";
+  const t2 = "Jl Sarirasa Blok 4 No 114 Bandung";
+  const t3 = "Tlp. 08180.208.9909";
+  
+  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - t1.length) / 2))) + t1 + "\n";
+  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - t2.length) / 2))) + t2 + "\n";
+  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - t3.length) / 2))) + t3 + "\n";
   txt += "-".repeat(lebarMaksimal) + "\n";
 
-  txt += LEFT + `Tgl Cetak   : ${waktuCetak}\n`;
+  // --- Data Transaksi & Pelanggan ---
+  txt += `Tgl Cetak   : ${waktuCetak}\n`;
   txt += `Pelanggan   : ${pelanggan?.nama || '-'}\n`;
   txt += `No.WhatsApp : ${pelanggan?.noWhatsapp || '-'}\n`;
   txt += `Jaminan     : ${pelanggan?.jaminan || '-'}\n`;
@@ -38,6 +49,7 @@ export const generateTextStruk = (transaksiData, lebarMaksimal = 48) => {
   txt += `Tgl Kembali : ${formatDate(tanggalSelesai)}\n`;
   txt += "-".repeat(lebarMaksimal) + "\n";
 
+  // --- Daftar Item ---
   let subTotal = 0;
   keranjang?.forEach(item => {
     subTotal += item.harga * item.qty;
@@ -45,26 +57,35 @@ export const generateTextStruk = (transaksiData, lebarMaksimal = 48) => {
     txt += buatBarisKolom(`  ${formatRupiah(item.harga)} x${item.qty}`, formatRupiah(item.harga * item.qty), lebarMaksimal);
   });
 
+  // --- Rincian Pembayaran & Fitur Total Diskon Baru ---
   txt += "-".repeat(lebarMaksimal) + "\n";
   txt += buatBarisKolom("Durasi:", `${durasi || 0} hari`, lebarMaksimal);
   txt += buatBarisKolom("Sub Total:", formatRupiah(subTotal), lebarMaksimal);
   
-  if (diskonOtomatis > 0) txt += buatBarisKolom("Diskon Otomatis:", formatRupiah(diskonOtomatis), lebarMaksimal);
-  if (diskonManual > 0) txt += buatBarisKolom("Diskon Manual:", `-${formatRupiah(diskonManual)}`, lebarMaksimal);
+  // Akumulasi total diskon (Otomatis + Manual) sesuai keinginanmu
+  const totalDiskon = Number(diskonOtomatis) + Number(diskonManual);
+  if (totalDiskon > 0) {
+    txt += buatBarisKolom("Total Diskon:", `-${formatRupiah(totalDiskon)}`, lebarMaksimal);
+  }
   
   txt += "-".repeat(lebarMaksimal) + "\n";
   txt += buatBarisKolom("TOTAL:", formatRupiah(total || 0), lebarMaksimal);
   txt += "-".repeat(lebarMaksimal) + "\n";
 
+  // --- Footer Struk ---
   txt += `Metode Bayar: ${metodePembayaran || '-'}\n`;
-  txt += `Catatan: ${catatan || '-'}\n\n`;
-  txt += CENTER + "Mulai petualanganmu dari sini\n";
-  txt += "Nuevanesia teman camping saat healing\n\n\n\n"; 
+  txt += `Catatan     : ${catatan || '-'}\n\n`;
+  
+  const f1 = "Mulai petualanganmu dari sini";
+  const f2 = "Nuevanesia teman camping saat healing";
+  
+  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - f1.length) / 2))) + f1 + "\n";
+  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - f2.length) / 2))) + f2 + "\n\n\n\n"; 
 
   return txt;
 };
 
-// 2. KOMPONEN VISUAL: Hanya bertugas menampilkan hasil teks di atas agar muncul di layar monitor
+// 2. KOMPONEN VISUAL: Menampilkan hasil teks di atas agar muncul di layar monitor POS
 const Struk = ({ transaksiData, lebarMaksimal = 48 }) => {
   const teksStruk = generateTextStruk(transaksiData, lebarMaksimal);
   
@@ -79,8 +100,7 @@ const Struk = ({ transaksiData, lebarMaksimal = 48 }) => {
       width: 'fit-content',
       boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
     }}>
-      {/* Bersihkan kode biner printer khusus agar tidak merusak tampilan teks di layar browser */}
-      {teksStruk.replace(/[\x1B\x40\x61\x01\x00]/g, '')}
+      {teksStruk}
     </pre>
   );
 };
