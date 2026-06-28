@@ -5,16 +5,24 @@ const Struk = ({ transaksiData }) => {
     return <div>Data transaksi tidak ditemukan.</div>;
   }
 
-  // Mengambil data dari prop transaksiData
-  const { pelanggan, keranjang, tanggalMulai, tanggalSelesai, total, metodePembayaran, catatan, durasi, diskonOtomatis, diskonManual } = transaksiData;
+  const { 
+    pelanggan, 
+    keranjang, 
+    tanggalMulai, 
+    tanggalSelesai, 
+    total, 
+    metodePembayaran, 
+    catatan, 
+    durasi, 
+    diskonOtomatis = 0, // Beri default value 0 jika null/undefined
+    diskonManual = 0    // Beri default value 0 jika null/undefined
+  } = transaksiData;
 
-  // Fungsi untuk mengubah format tanggal menjadi lebih rapi dan menyertakan hari
   const formatDate = (dateString) => {
     const options = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  // Fungsi untuk mendapatkan tanggal dan waktu saat ini untuk struk, dengan hari dan jam
   const formatDateTime = () => {
     const now = new Date();
     const dateOptions = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
@@ -24,10 +32,12 @@ const Struk = ({ transaksiData }) => {
     return `${formattedDate}, Jam ${formattedTime}`;
   };
   
-  // Hitung sub total secara manual dari keranjang
   const hitungSubTotal = () => {
     return keranjang.reduce((total, item) => total + (item.harga * item.qty), 0);
   };
+
+  // Menghitung total diskon gabungan untuk mempermudah pengecekan
+  const totalDiskon = Number(diskonOtomatis) + Number(diskonManual);
 
   return (
     <div className="print-struk">
@@ -47,21 +57,17 @@ const Struk = ({ transaksiData }) => {
         <p>Tanggal Ambil: {formatDate(tanggalMulai)}</p>
         <p>Tanggal Kembali: {formatDate(tanggalSelesai)}</p>
         <hr className="divider" />
-        <p>Keterlambatan otomatis memperpanjang durasi sewa</p>
+        <p style={{ textAlign: 'center', fontSize: '9px' }}>Keterlambatan otomatis memperpanjang durasi sewa</p>
         <hr className="divider" />
       </div>
       
       <div className="items">
         {keranjang.map(item => (
           <div key={item.id} className="item">
-            <div className="item-left">
+            <div className="item-info">
               <span className="item-name">{item.nama}</span>
-              
-              <div className="summary-row">
-                <span>{item.harga} x{item.qty}</span>
-              </div>
+              <span className="item-qty">{item.harga.toLocaleString('id-ID')} x{item.qty}</span>
             </div>
-            
             <span className="item-total">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
           </div>
         ))}
@@ -77,18 +83,23 @@ const Struk = ({ transaksiData }) => {
           <span>Sub Total:</span>
           <span>Rp{hitungSubTotal().toLocaleString('id-ID')}</span>
         </div>
-        {diskonOtomatis > 0 && (
-          <div className="summary-row">
+        
+        {/* Menampilkan Diskon Otomatis */}
+        {Number(diskonOtomatis) > 0 && (
+          <div className="summary-row diskon">
             <span>Diskon:</span>
-            <span>Rp{diskonOtomatis.toLocaleString('id-ID')}</span>
+            <span>-Rp{Number(diskonOtomatis).toLocaleString('id-ID')}</span>
           </div>
         )}
-        {diskonManual > 0 && (
-          <div className="summary-row">
+        
+        {/* Menampilkan Diskon Manual / Promo */}
+        {Number(diskonManual) > 0 && (
+          <div className="summary-row diskon">
             <span>Diskon/Promo Khusus:</span>
-            <span>-Rp{diskonManual.toLocaleString('id-ID')}</span>
+            <span>-Rp{Number(diskonManual).toLocaleString('id-ID')}</span>
           </div>
         )}
+
         <div className="summary-row total-row">
           <span>TOTAL:</span>
           <span>Rp{total.toLocaleString('id-ID')}</span>
@@ -108,15 +119,19 @@ const Struk = ({ transaksiData }) => {
       </div>
 
       <style jsx>{`
+        * {
+          box-sizing: border-box;
+        }
         .print-struk {
           width: 80mm;
           font-family: 'Courier New', Courier, monospace;
-          font-size: 10px;
-          line-height: 1.2;
-          padding: 5mm;
-          margin: 0;
+          font-size: 11px;
+          line-height: 1.3;
+          padding: 4mm;
+          margin: 0 auto;
+          background: white;
         }
-        .header, .items, .footer, .summary-section {
+        .header, .footer {
           text-align: center;
           margin-bottom: 5px;
         }
@@ -125,45 +140,73 @@ const Struk = ({ transaksiData }) => {
           margin-bottom: 5px;
         }
         .details-with-center-date > p:first-child {
-            text-align: center;
+          text-align: center;
         }
         .space-after-date {
-            margin-bottom: 5px;
+          margin-bottom: 5px;
         }
         h1 {
-          font-size: 14px;
-          margin: 0;
+          font-size: 16px;
+          font-weight: bold;
+          margin: 0 0 5px 0;
         }
         .divider {
+          border: none;
           border-top: 1px dashed black;
-          margin: 5px 0;
+          margin: 6px 0;
+        }
+        .items {
+          margin-bottom: 5px;
         }
         .items .item {
           display: flex;
           justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 4px;
         }
-        .item span:first-child {
-          width: 50%;
+        .item-info {
+          display: flex;
+          flex-direction: column;
           text-align: left;
+          max-width: 70%;
         }
-        .item span:nth-child(2), .item span:nth-child(3) {
-          width: 25%;
+        .item-name {
+          font-weight: bold;
+        }
+        .item-qty {
+          font-size: 10px;
+          color: #333;
+        }
+        .item-total {
           text-align: right;
+          white-space: nowrap;
+        }
+        .summary-section {
+          margin-top: 5px;
         }
         .summary-row {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 2px;
+          margin-bottom: 3px;
+        }
+        .diskon {
+          color: black;
+          font-style: italic;
         }
         .total-row {
           font-weight: bold;
-          font-size: 12px;
+          font-size: 13px;
+          margin-top: 4px;
         }
         .note {
-            text-align: left; /* Membuat baris catatan rata kiri */
+          text-align: left;
+          margin-top: 5px;
         }
         .space-before-thanks {
-          margin-top: 10px;
+          margin-top: 15px;
+        }
+        .footer p {
+          margin: 2px 0;
         }
       `}</style>
     </div>

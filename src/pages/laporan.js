@@ -43,8 +43,8 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
       total: transaction.total_biaya,
       metodePembayaran: transaction.jenis_pembayaran,
       catatan: transaction.catatan || '', 
-      diskonOtomatis: 0, 
-      diskonManual: 0
+      diskonOtomatis: transaction.diskon_otomatis || transaction.diskonOtomatis || 0, 
+      diskonManual: transaction.diskon_manual || transaction.diskonManual || 0
     };
 
     localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(dataUntukStruk));
