@@ -1,107 +1,172 @@
-// src/components/Struk.js
 import React from 'react';
 
-// Fungsi pembantu otomatis untuk meratakan teks kanan-kiri (misal: Nama Barang ...... Total)
-const buatBarisKolom = (kiri, kanan, lebarMaksimal = 48) => {
-  const sisaSpasi = lebarMaksimal - kiri.length - kanan.length;
-  return kiri + " ".repeat(sisaSpasi > 0 ? sisaSpasi : 1) + kanan + "\n";
-};
-
-// 1. FUNGSI UTAMA: Pembuat teks murni untuk RawBT & Preview Layar
-export const generateTextStruk = (transaksiData, lebarMaksimal = 48) => {
-  if (!transaksiData) return '';
-
-  const { 
-    pelanggan, 
-    keranjang, 
-    tanggalMulai, 
-    tanggalSelesai, 
-    total, 
-    metodePembayaran, 
-    catatan, 
-    durasi, 
-    diskonOtomatis = 0, 
-    diskonManual = 0 
-  } = transaksiData;
-
-  const formatRupiah = (angka) => `Rp${Number(angka).toLocaleString('id-ID')}`;
-  const formatDate = (date) => date ? new Date(date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
-  const waktuCetak = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) + `, Jam ` + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-  let txt = "";
-
-  // --- Header Struk (Perataan tengah manual menggunakan spasi agar cocok di RawBT & Layar) ---
-  const t1 = "NUEVANESIA";
-  const t2 = "Jl Sarirasa Blok 4 No 114 Bandung";
-  const t3 = "Tlp. 08180.208.9909";
-  
-  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - t1.length) / 2))) + t1 + "\n";
-  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - t2.length) / 2))) + t2 + "\n";
-  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - t3.length) / 2))) + t3 + "\n";
-  txt += "-".repeat(lebarMaksimal) + "\n";
-
-  // --- Data Transaksi & Pelanggan ---
-  txt += `Tgl Cetak   : ${waktuCetak}\n`;
-  txt += `Pelanggan   : ${pelanggan?.nama || '-'}\n`;
-  txt += `No.WhatsApp : ${pelanggan?.noWhatsapp || '-'}\n`;
-  txt += `Jaminan     : ${pelanggan?.jaminan || '-'}\n`;
-  txt += `Tgl Ambil   : ${formatDate(tanggalMulai)}\n`;
-  txt += `Tgl Kembali : ${formatDate(tanggalSelesai)}\n`;
-  txt += "-".repeat(lebarMaksimal) + "\n";
-
-  // --- Daftar Item ---
-  let subTotal = 0;
-  keranjang?.forEach(item => {
-    subTotal += item.harga * item.qty;
-    txt += `${item.nama}\n`;
-    txt += buatBarisKolom(`  ${formatRupiah(item.harga)} x${item.qty}`, formatRupiah(item.harga * item.qty), lebarMaksimal);
-  });
-
-  // --- Rincian Pembayaran & Fitur Total Diskon Baru ---
-  txt += "-".repeat(lebarMaksimal) + "\n";
-  txt += buatBarisKolom("Durasi:", `${durasi || 0} hari`, lebarMaksimal);
-  txt += buatBarisKolom("Sub Total:", formatRupiah(subTotal), lebarMaksimal);
-  
-  // Akumulasi total diskon (Otomatis + Manual) sesuai keinginanmu
-  const totalDiskon = Number(diskonOtomatis) + Number(diskonManual);
-  if (totalDiskon > 0) {
-    txt += buatBarisKolom("Total Diskon:", `-${formatRupiah(totalDiskon)}`, lebarMaksimal);
+const Struk = ({ transaksiData }) => {
+  if (!transaksiData) {
+    return <div>Data transaksi tidak ditemukan.</div>;
   }
-  
-  txt += "-".repeat(lebarMaksimal) + "\n";
-  txt += buatBarisKolom("TOTAL:", formatRupiah(total || 0), lebarMaksimal);
-  txt += "-".repeat(lebarMaksimal) + "\n";
 
-  // --- Footer Struk ---
-  txt += `Metode Bayar: ${metodePembayaran || '-'}\n`;
-  txt += `Catatan     : ${catatan || '-'}\n\n`;
-  
-  const f1 = "Mulai petualanganmu dari sini";
-  const f2 = "Nuevanesia teman camping saat healing";
-  
-  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - f1.length) / 2))) + f1 + "\n";
-  txt += " ".repeat(Math.max(0, Math.floor((lebarMaksimal - f2.length) / 2))) + f2 + "\n\n\n\n"; 
+  // Mengambil data dari prop transaksiData
+  const { pelanggan, keranjang, tanggalMulai, tanggalSelesai, total, metodePembayaran, catatan, durasi, diskonOtomatis, diskonManual } = transaksiData;
 
-  return txt;
-};
+  // Fungsi untuk mengubah format tanggal menjadi lebih rapi dan menyertakan hari
+  const formatDate = (dateString) => {
+    const options = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
+    return new Date(dateString).toLocaleDateString('id-ID', options);
+  };
 
-// 2. KOMPONEN VISUAL: Menampilkan hasil teks di atas agar muncul di layar monitor POS
-const Struk = ({ transaksiData, lebarMaksimal = 48 }) => {
-  const teksStruk = generateTextStruk(transaksiData, lebarMaksimal);
+  // Fungsi untuk mendapatkan tanggal dan waktu saat ini untuk struk, dengan hari dan jam
+  const formatDateTime = () => {
+    const now = new Date();
+    const dateOptions = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
+    const timeOptions = { hour: '2-digit', minute: '2-digit' };
+    const formattedDate = now.toLocaleDateString('id-ID', dateOptions);
+    const formattedTime = now.toLocaleTimeString('id-ID', timeOptions);
+    return `${formattedDate}, Jam ${formattedTime}`;
+  };
   
+  // Hitung sub total secara manual dari keranjang
+  const hitungSubTotal = () => {
+    return keranjang.reduce((total, item) => total + (item.harga * item.qty), 0);
+  };
+
   return (
-    <pre style={{
-      fontFamily: 'Courier New, Courier, monospace',
-      fontSize: '13px',
-      background: 'white',
-      color: 'black',
-      padding: '20px',
-      whiteSpace: 'pre-wrap',
-      width: 'fit-content',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-    }}>
-      {teksStruk}
-    </pre>
+    <div className="print-struk">
+      <div className="header">
+        <h1>NUEVANESIA</h1>
+        <p>Jl Sarirasa Blok 4 No 114 Bandung</p>
+        <p>Tlp. 08180.208.9909</p>
+        <hr className="divider" />
+      </div>
+
+      <div className="details-with-center-date">
+        <p>Tgl: {formatDateTime()}</p>
+        <div className="space-after-date"></div>
+        <p>Pelanggan: {pelanggan.nama || '-'}</p>
+        <p>No.WhatsApp: {pelanggan.noWhatsapp || '-'}</p>
+        <p>Jaminan: {pelanggan.jaminan || '-'}</p>
+        <p>Tanggal Ambil: {formatDate(tanggalMulai)}</p>
+        <p>Tanggal Kembali: {formatDate(tanggalSelesai)}</p>
+        <hr className="divider" />
+        <p>Keterlambatan otomatis memperpanjang durasi sewa</p>
+        <hr className="divider" />
+      </div>
+      
+      <div className="items">
+        {keranjang.map(item => (
+          <div key={item.id} className="item">
+            <div className="item-left">
+              <span className="item-name">{item.nama}</span>
+              
+              <div className="summary-row">
+                <span>{item.harga} x{item.qty}</span>
+              </div>
+            </div>
+            
+            <span className="item-total">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="summary-section">
+        <hr className="divider" />
+        <div className="summary-row">
+          <span>Durasi:</span>
+          <span>{durasi} hari</span>
+        </div>
+        <div className="summary-row">
+          <span>Sub Total:</span>
+          <span>Rp{hitungSubTotal().toLocaleString('id-ID')}</span>
+        </div>
+        {diskonOtomatis > 0 && (
+          <div className="summary-row">
+            <span>Diskon:</span>
+            <span>Rp{diskonOtomatis.toLocaleString('id-ID')}</span>
+          </div>
+        )}
+        {diskonManual > 0 && (
+          <div className="summary-row">
+            <span>Diskon/Promo Khusus:</span>
+            <span>-Rp{diskonManual.toLocaleString('id-ID')}</span>
+          </div>
+        )}
+        <div className="summary-row total-row">
+          <span>TOTAL:</span>
+          <span>Rp{total.toLocaleString('id-ID')}</span>
+        </div>
+        <hr className="divider" />
+      </div>
+      
+      <div className="footer">
+        <div className="summary-row">
+          <span>Metode Pembayaran:</span>
+          <span><strong>{metodePembayaran}</strong></span>
+        </div>
+        <p className="note">Catatan: <strong>{catatan || '-'}</strong></p>
+        <div className="space-before-thanks"></div>
+        <p>Mulai petualanganmu dari sini</p>
+        <p>Nuevanesia teman camping saat healing</p>
+      </div>
+
+      <style jsx>{`
+        .print-struk {
+          width: 80mm;
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 10px;
+          line-height: 1.2;
+          padding: 5mm;
+          margin: 0;
+        }
+        .header, .items, .footer, .summary-section {
+          text-align: center;
+          margin-bottom: 5px;
+        }
+        .details-with-center-date {
+          text-align: left;
+          margin-bottom: 5px;
+        }
+        .details-with-center-date > p:first-child {
+            text-align: center;
+        }
+        .space-after-date {
+            margin-bottom: 5px;
+        }
+        h1 {
+          font-size: 14px;
+          margin: 0;
+        }
+        .divider {
+          border-top: 1px dashed black;
+          margin: 5px 0;
+        }
+        .items .item {
+          display: flex;
+          justify-content: space-between;
+        }
+        .item span:first-child {
+          width: 50%;
+          text-align: left;
+        }
+        .item span:nth-child(2), .item span:nth-child(3) {
+          width: 25%;
+          text-align: right;
+        }
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 2px;
+        }
+        .total-row {
+          font-weight: bold;
+          font-size: 12px;
+        }
+        .note {
+            text-align: left; /* Membuat baris catatan rata kiri */
+        }
+        .space-before-thanks {
+          margin-top: 10px;
+        }
+      `}</style>
+    </div>
   );
 };
 
