@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+// src/pages/laporan.js
+
+// 1. SEMUA IMPORT WAJIB DI PALING ATAS
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import moment from 'moment';
 import 'moment/locale/id';
 
-// Komponen Ikon
+// 2. KOMPONEN IKON
 const IconExport = () => (
     <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
 );
@@ -13,7 +16,7 @@ const IconSort = () => (
     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7l4-4m0 0l4 4m-4-4v12"></path></svg>
 );
 
-// TransactionModal Component
+// 3. KOMPONEN MODAL (TRANSACTION MODAL)
 const TransactionModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
 
@@ -22,123 +25,33 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   };
 
   const handlePrint = () => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Cetak Struk #${transaction.id}</title>
-          <style>
-            @page {
-              size: 80mm 100%; 
-              margin: 0;
-            }
-            body {
-              font-family: 'monospace';
-              font-size: 12px;
-              padding: 10px;
-              color: black;
-              line-height: 1.5;
-              background-color: white;
-            }
-            .header, .footer, .divider {
-              text-align: center;
-              margin-bottom: 10px;
-            }
-            .divider {
-              border-bottom: 1px dashed black;
-              margin: 10px 0;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-            }
-            th, td {
-              text-align: left;
-              padding: 2px 0;
-            }
-            .text-right {
-              text-align: right;
-            }
-            h3 {
-              font-size: 16px;
-              font-weight: bold;
-              margin: 5px 0;
-            }
-            /* Tombol khusus cetak manual agar bersahabat dengan tablet */
-            .btn-print-manual {
-              display: block;
-              width: 100%;
-              background-color: #0d9488;
-              color: white;
-              text-align: center;
-              padding: 12px;
-              font-weight: bold;
-              border: none;
-              border-radius: 6px;
-              margin-top: 15px;
-              cursor: pointer;
-              font-size: 14px;
-            }
-            /* Tombol hilang saat struk benar-benar diprint */
-            @media print {
-              .btn-print-manual {
-                display: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h3>Nuevanesia</h3>
-            <p>Komp. Sarijadi Blok 4 No 114 Bandung</p>
-            <p>WhatsApp: 08180.208.9909</p>
-          </div>
-          <div class="divider"></div>
-          <p><strong>ID Transaksi:</strong> ${transaction.id}</p>
-          <p><strong>Pelanggan:</strong> ${transaction.pelanggan?.nama || 'N/A'}</p>
-          <p><strong>Whatsapp:</strong> ${transaction.pelanggan?.no_whatsapp || 'N/A'}</p>
-          <p><strong>Tanggal Mulai Sewa:</strong> ${moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY')}</p>
-          <p><strong>Tanggal Selesai Sewa:</strong> ${moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY')}</p>
-          <p><strong>Durasi Sewa:</strong> ${transaction.durasi_hari} malam</p>
-          <p><strong>Metode Pembayaran:</strong> ${transaction.jenis_pembayaran}</p>
-          <div class="divider"></div>
-          <table>
-            <thead>
-              <tr>
-                <th>Barang</th>
-                <th class="text-right">Harga</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transaction.transaksi_detail.map(item => `
-                <tr>
-                  <td>${item.nama_barang} (${item.jumlah})</td>
-                  <td class="text-right">${formatRupiah(item.jumlah * (item.produk?.harga || 0))}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="divider"></div>
-          <p style="font-size: 14px; text-align: right;"><strong>Subtotal: ${formatRupiah(transaction.total_biaya / transaction.durasi_hari)}</strong></p>
-          <p style="font-size: 18px; text-align: right; margin-top: 5px;"><strong>Total Biaya: ${formatRupiah(transaction.total_biaya)}</strong></p>
-          <div class="divider"></div>
-          <div class="footer">
-            <p>Terima kasih telah menyewa!</p>
-            <p>Barang yang disewa harus dikembalikan dalam kondisi baik.</p>
-          </div>
-          
-          <button class="btn-print-manual" onclick="window.print()">KLIK DI SINI UNTUK PRINT</button>
-        </body>
-      </html>
-    `;
+    const dataUntukStruk = {
+      pelanggan: {
+        nama: transaction.pelanggan?.nama || '-',
+        noWhatsapp: transaction.pelanggan?.no_whatsapp || '-',
+        jaminan: transaction.pelanggan?.jaminan || '-'
+      },
+      keranjang: transaction.transaksi_detail ? transaction.transaksi_detail.map(item => ({
+        id: item.id,
+        nama: item.nama_barang,
+        harga: item.produk?.harga || 0,
+        qty: item.jumlah
+      })) : [],
+      tanggalMulai: transaction.tanggal_mulai,
+      tanggalSelesai: transaction.tanggal_selesai,
+      durasi: transaction.durasi_hari,
+      total: transaction.total_biaya,
+      metodePembayaran: transaction.jenis_pembayaran,
+      catatan: transaction.catatan || '', 
+      diskonOtomatis: 0, 
+      diskonManual: 0
+    };
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-    } else {
-      alert('Gagal membuka tab cetak. Pastikan izin pop-up browser Anda aktif.');
+    localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(dataUntukStruk));
+
+    const printWindow = window.open('/cetak-struk', '_blank');
+    if (!printWindow) {
+      alert('Gagal membuka halaman cetak. Pastikan izin pop-up browser Anda aktif.');
     }
   };
 
@@ -219,6 +132,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   );
 };
 
+// 4. HALAMAN UTAMA LAPORAN
 export default function Laporan() {
   const [transaksiData, setTransaksiData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -232,12 +146,10 @@ export default function Laporan() {
   const router = useRouter();
   
   const [initialLoading, setInitialLoading] = useState(true);
-  
   const [statusFilter, setStatusFilter] = useState('Semua');
 
   const fetchLaporan = async () => {
     setLoading(true);
-    
     let query = supabase
       .from('transaksi')
       .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian`)
@@ -368,7 +280,6 @@ export default function Laporan() {
   
   const updateStatusPengembalian = async (transactionId, status) => {
     setLoading(true);
-    
     const { error } = await supabase
       .from('transaksi')
       .update({ status_pengembalian: status })
@@ -390,16 +301,9 @@ export default function Laporan() {
     }
 
     const headers = [
-      'ID Transaksi',
-      'Tanggal Mulai',
-      'Tanggal Selesai',
-      'Durasi (malam)',
-      'Nama Pelanggan',
-      'Alamat Pelanggan',
-      'No WhatsApp',
-      'Metode Pembayaran',
-      'Status Pengembalian',
-      'Total Biaya'
+      'ID Transaksi', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)',
+      'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran',
+      'Status Pengembalian', 'Total Biaya'
     ];
 
     const csvRows = [headers.join(';')];
@@ -409,16 +313,11 @@ export default function Laporan() {
       const statusText = isLate ? 'Terlambat' : t.status_pengembalian;
       
       const row = [
-        `"${t.id}"`,
-        `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
-        `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`,
-        t.durasi_hari,
-        `"${t.pelanggan?.nama || 'N/A'}"`,
-        `"${t.pelanggan?.alamat || 'N/A'}"`,
-        `"${t.pelanggan?.no_whatsapp || 'N/A'}"`,
-        `"${t.jenis_pembayaran}"`,
-        `"${statusText}"`,
-        t.total_biaya
+        `"${t.id}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`,
+        `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari,
+        `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`,
+        `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`,
+        `"${statusText}"`, t.total_biaya
       ].join(';');
       csvRows.push(row);
     });
