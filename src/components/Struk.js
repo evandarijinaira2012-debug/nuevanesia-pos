@@ -77,7 +77,7 @@ const Struk = ({ transaksiData }) => {
         <hr className="divider" />
         <div className="summary-row">
           <span>Durasi:</span>
-          <span>{durasi} hari</span>
+          <span>{durasi} Malam</span>
         </div>
         <div className="summary-row">
           <span>Sub Total:</span>
