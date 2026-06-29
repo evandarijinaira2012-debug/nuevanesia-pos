@@ -45,22 +45,29 @@ const Struk = ({ transaksiData }) => {
   <img src="/nuevanesialogo.png" alt="nuevanesialogo" className="logo-struk" />
     <div className="alamat-toko">
     <p></p>
-    <p>Jl Sarirasa Blok 4 No 114 Bandung</p>
+    <p>Jl Sarirasa V Blok 4 No 114 Bandung</p>
     <p>Tlp. 08180.208.9909</p>
   </div>
   <hr className="divider" />
 </div>
 
       <div className="details-with-center-date">
-        <p>Tgl: {formatDateTime()}</p>
+        <p>Tgl Order: {formatDateTime()}</p>
         <div className="space-after-date"></div>
-        <p>Pelanggan: {pelanggan.nama || '-'}</p>
+        <p>Pelanggan:<strong> {pelanggan.nama || '-'}</strong></p>
         <p>No.WhatsApp: {pelanggan.noWhatsapp || '-'}</p>
         <p>Jaminan: {pelanggan.jaminan || '-'}</p>
         <p>Tanggal Ambil: {formatDate(tanggalMulai)}</p>
         <p>Tanggal Kembali: {formatDate(tanggalSelesai)}</p>
         <hr className="divider" />
-        <p style={{ textAlign: 'center', fontSize: '9px' }}>Keterlambatan otomatis memperpanjang durasi sewa</p>
+      <p style={{ textAlign: 'left', fontSize: '9px' }}>
+      <strong>CATATAN:</strong>
+      <br />
+      • Keterlambatan pengembalian akan otomatis memperpanjang durasi sewa.
+      <br />
+      • Mohon informasikan admin apabila terdapat kerusakan barang.
+      </p>
+        
         <hr className="divider" />
       </div>
       
@@ -117,8 +124,9 @@ const Struk = ({ transaksiData }) => {
         </div>
         <p className="note">Catatan: <strong>{catatan || '-'}</strong></p>
         <div className="space-before-thanks"></div>
-        <p>Mulai petualanganmu dari sini</p>
-        <p>Nuevanesia teman camping saat healing</p>
+        <p><i>Mulai petualanganmu dari sini</i></p>
+        <p><i>Nuevanesia teman camping saat healing</i></p>
+        <p><strong>www.nuevanesia.com</strong></p>
       </div>
 
       <style jsx>{`
