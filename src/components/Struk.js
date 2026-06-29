@@ -42,11 +42,14 @@ const Struk = ({ transaksiData }) => {
   return (
     <div className="print-struk">
       <div className="header">
-        <h1>NUEVANESIA</h1>
-        <p>Jl Sarirasa Blok 4 No 114 Bandung</p>
-        <p>Tlp. 08180.208.9909</p>
-        <hr className="divider" />
-      </div>
+  <img src="/nuevanesialogo.png" alt="nuevanesialogo" className="logo-struk" />
+    <div className="alamat-toko">
+    <p></p>
+    <p>Jl Sarirasa Blok 4 No 114 Bandung</p>
+    <p>Tlp. 08180.208.9909</p>
+  </div>
+  <hr className="divider" />
+</div>
 
       <div className="details-with-center-date">
         <p>Tgl: {formatDateTime()}</p>
@@ -134,6 +137,12 @@ const Struk = ({ transaksiData }) => {
         .header, .footer {
           text-align: center;
           margin-bottom: 5px;
+        }
+        .logo-struk {
+          max-width: 38mm; /* Mengecilkan lebar logo dari 45mm menjadi 38mm agar proporsional */
+          height: auto;
+          margin: 0 auto 8px auto; /* Memberikan spasi bawah sebesar 8px agar tidak terlalu mepet dengan alamat */
+          display: block;
         }
         .details-with-center-date {
           text-align: left;
