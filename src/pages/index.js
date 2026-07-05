@@ -278,10 +278,14 @@ export default function Home() {
     };
 
     const produkTerfilter = produk.filter(item => {
-        const kategoriCocok = kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
-        const pencarianCocok = item.nama.toLowerCase().includes(searchQuery.toLowerCase());
-        return kategoriCocok && pencarianCocok;
-    });
+    // 1. Jika admin sedang mengetik di kolom search, cari di SEMUA produk
+    if (searchQuery.trim() !== '') {
+        return item.nama.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    
+    // 2. Jika kolom search kosong, filter produk berdasarkan kategori yang diklik
+    return kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
+});
     
     // --- FUNGSI BARU: Untuk membuka dan menutup popup produk ---
     const openProductPopup = (product) => {
