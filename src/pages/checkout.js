@@ -45,44 +45,52 @@ export default function Checkout() {
         };
     }, [router]);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
+useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-        const rawData = window.localStorage.getItem('nuevanesia-checkout-data');
-        if (!rawData) {
+    const rawData = window.localStorage.getItem('nuevanesia-checkout-data');
+    if (!rawData) {
+        router.replace('/');
+        return;
+    }
+
+    try {
+        const savedData = JSON.parse(rawData);
+        if (!savedData?.keranjang || savedData.keranjang.length === 0) {
             router.replace('/');
             return;
         }
+        setKeranjang(savedData.keranjang);
+        setTanggalMulai(savedData.tanggalMulai || '');
+        setTanggalSelesai(savedData.tanggalSelesai || '');
+        
+        // Ambil data pelanggan jika ada di localStorage
+        setNamaPelanggan(savedData.namaPelanggan || '');
+        setAlamatPelanggan(savedData.alamatPelanggan || '');
+        setNoWhatsapp(savedData.noWhatsapp || '');
+        setJaminan(savedData.jaminan || '');
+        setCatatan(savedData.catatan || '');
 
+        // Jika ada flag merge dari halaman utama, tampilkan notifikasi singkat
         try {
-            const savedData = JSON.parse(rawData);
-            if (!savedData?.keranjang || savedData.keranjang.length === 0) {
-                router.replace('/');
-                return;
-            }
-            setKeranjang(savedData.keranjang);
-            setTanggalMulai(savedData.tanggalMulai || '');
-            setTanggalSelesai(savedData.tanggalSelesai || '');
-            // Jika ada flag merge dari halaman utama, tampilkan notifikasi singkat
-            try {
-                const mergedRaw = window.localStorage.getItem('nuevanesia-just-merged');
-                if (mergedRaw) {
-                    const merged = JSON.parse(mergedRaw);
-                    if (merged && merged.nama) {
-                        toast.success(`Produk "${merged.nama}" ditambahkan ke keranjang.`, { duration: 3500 });
-                    } else {
-                        toast.success('Produk baru ditambahkan ke keranjang.', { duration: 3500 });
-                    }
-                    window.localStorage.removeItem('nuevanesia-just-merged');
+            const mergedRaw = window.localStorage.getItem('nuevanesia-just-merged');
+            if (mergedRaw) {
+                const merged = JSON.parse(mergedRaw);
+                if (merged && merged.nama) {
+                    toast.success(`Produk "${merged.nama}" ditambahkan ke keranjang.`, { duration: 3500 });
+                } else {
+                    toast.success('Produk baru ditambahkan ke keranjang.', { duration: 3500 });
                 }
-            } catch (e) {
-                // ignore
+                window.localStorage.removeItem('nuevanesia-just-merged');
             }
-        } catch (error) {
-            console.error('Gagal membaca checkout data:', error);
-            router.replace('/');
+        } catch (e) {
+            // ignore
         }
-    }, [router]);
+    } catch (error) {
+        console.error('Gagal membaca checkout data:', error);
+        router.replace('/');
+    }
+}, [router]);
 
     const handleNoWhatsappChange = (value) => {
         setNoWhatsapp(value);
@@ -164,20 +172,36 @@ export default function Checkout() {
         };
     }, [noWhatsapp]);
 
-    const saveCheckoutData = (updatedKeranjang = keranjang, updatedTanggalMulai = tanggalMulai, updatedTanggalSelesai = tanggalSelesai) => {
-        if (typeof window === 'undefined') return;
+const saveCheckoutData = (
+    updatedKeranjang = keranjang, 
+    updatedTanggalMulai = tanggalMulai, 
+    updatedTanggalSelesai = tanggalSelesai,
+    // Tambahkan parameter opsional untuk data pelanggan
+    updatedNama = namaPelanggan,
+    updatedAlamat = alamatPelanggan,
+    updatedWhatsapp = noWhatsapp,
+    updatedJaminan = jaminan,
+    updatedCatatan = catatan
+) => {
+    if (typeof window === 'undefined') return;
 
-        if (!updatedKeranjang || updatedKeranjang.length === 0) {
-            window.localStorage.removeItem('nuevanesia-checkout-data');
-            return;
-        }
+    if (!updatedKeranjang || updatedKeranjang.length === 0) {
+        window.localStorage.removeItem('nuevanesia-checkout-data');
+        return;
+    }
 
-        window.localStorage.setItem('nuevanesia-checkout-data', JSON.stringify({
-            keranjang: updatedKeranjang,
-            tanggalMulai: updatedTanggalMulai,
-            tanggalSelesai: updatedTanggalSelesai,
-        }));
-    };
+    window.localStorage.setItem('nuevanesia-checkout-data', JSON.stringify({
+        keranjang: updatedKeranjang,
+        tanggalMulai: updatedTanggalMulai,
+        tanggalSelesai: updatedTanggalSelesai,
+        // Ikut simpan data pelanggan ke localStorage
+        namaPelanggan: updatedNama,
+        alamatPelanggan: updatedAlamat,
+        noWhatsapp: updatedWhatsapp,
+        jaminan: updatedJaminan,
+        catatan: updatedCatatan
+    }));
+};
 
     const updateKeranjang = (updatedKeranjang) => {
         setKeranjang(updatedKeranjang);
@@ -287,14 +311,12 @@ export default function Checkout() {
 
     const isSaveDisabled = missingRequirements.length > 0;
 
-    const handleTambahProdukManual = () => {
-        // Save current checkout state and navigate back to homepage so shopkeeper
-        // can add products from the product list, then return to checkout.
-        saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai);
-        toast('Silakan kembali ke beranda dan tambahkan produk. Setelah selesai, klik PROSES TRANSAKSI untuk kembali ke checkout.', { icon: 'ℹ️' });
-        router.push('/');
-    };
-
+const handleTambahProdukManual = () => {
+    // Ambil semua state saat ini dan amankan ke localStorage sebelum pindah halaman
+    saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
+    toast('Silakan kembali ke beranda dan tambahkan produk. Setelah selesai, klik PROSES TRANSAKSI untuk kembali ke checkout.', { icon: 'ℹ️' });
+    router.push('/');
+};
     const resetCheckoutState = () => {
         setKeranjang([]);
         setTanggalMulai('');
@@ -489,10 +511,13 @@ export default function Checkout() {
                         <p className="text-gray-400 mt-1">Periksa kembali detail pelanggan dan barang sebelum menyimpan transaksi.</p>
                     </div>
                     <button
-                        onClick={() => router.push('/')}
-                        className="bg-gray-700 px-5 py-3 rounded-lg text-white hover:bg-gray-600 transition-colors"
+                    onClick={() => {
+                    saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
+                    router.push('/');
+                    }}
+                    className="bg-gray-700 px-5 py-3 rounded-lg text-white hover:bg-gray-600 transition-colors"
                     >
-                        Kembali ke Halaman Utama
+                    Kembali ke Halaman Utama
                     </button>
                 </div>
 
