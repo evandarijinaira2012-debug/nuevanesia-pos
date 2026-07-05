@@ -115,6 +115,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
                         'Nama Pelanggan': transaction.pelanggan?.nama || 'Nama tidak ditemukan',
                         'Alamat': transaction.pelanggan?.alamat || 'Tidak ditemukan',
                         'Nomor WhatsApp': transaction.pelanggan?.no_whatsapp || 'Tidak ditemukan',
+                        'Tanggal Order Masuk': moment(transaction.created_at).format('dddd, DD MMMM YYYY HH:mm'),
                         'Tanggal Mulai Sewa': moment(transaction.tanggal_mulai).format('dddd, DD MMMM YYYY'),
                         'Tanggal Selesai Sewa': moment(transaction.tanggal_selesai).format('dddd, DD MMMM YYYY'),
                         'Durasi Sewa': `${transaction.durasi_hari} malam`,
@@ -163,7 +164,8 @@ export default function Laporan() {
     const [transaksiData, setTransaksiData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [session, setSession] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' });
+    // FIX: default sorting diganti ke 'created_at' agar riwayat terbawah adalah orderan paling baru dibuat
+    const [sortConfig, setSortConfig] = useState({ field: 'created_at', direction: 'desc' });
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [startDate, setStartDate] = useState(moment().startOf('month').format('YYYY-MM-DD'));
@@ -181,15 +183,17 @@ export default function Laporan() {
 
     const fetchLaporan = async (start, end) => {
         setLoading(true);
-        let transaksiQuery = supabase.from('transaksi').select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian`).order('tanggal_mulai', { ascending: false });
+        // FIX: Ubah order penyaringan query Supabase dari 'tanggal_mulai' ke 'created_at'
+        let transaksiQuery = supabase.from('transaksi').select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian, created_at`).order('created_at', { ascending: false });
         let pengeluaranQuery = supabase.from('pengeluaran').select(`*`).order('tanggal', { ascending: false });
 
+        // FIX: Tambahkan timestamp penuh pada batasan filter tanggal transaksi agar pembacaan 'created_at' akurat
         if (start) {
-            transaksiQuery = transaksiQuery.gte('tanggal_mulai', start);
+            transaksiQuery = transaksiQuery.gte('created_at', `${start} 00:00:00`);
             pengeluaranQuery = pengeluaranQuery.gte('tanggal', start);
         }
         if (end) {
-            transaksiQuery = transaksiQuery.lte('tanggal_mulai', end);
+            transaksiQuery = transaksiQuery.lte('created_at', `${end} 23:59:59`);
             pengeluaranQuery = pengeluaranQuery.lte('tanggal', end);
         }
         if (statusFilter !== 'Semua') {
@@ -242,7 +246,6 @@ export default function Laporan() {
             const { data: { session } = {} } = await supabase.auth.getSession();
             setSession(session);
             if (session) {
-                // Fetch initial data for the current month
                 fetchLaporan(startDate, endDate);
             } else {
                 router.push('/login');
@@ -282,7 +285,8 @@ export default function Laporan() {
         sortableItems.sort((a, b) => {
             let aValue, bValue;
             switch (sortConfig.field) {
-                case 'tanggal_mulai': aValue = new Date(a.tanggal_mulai); bValue = new Date(b.tanggal_mulai); break;
+                // FIX: Ubah target logika sorting frontend dari 'tanggal_mulai' ke 'created_at'
+                case 'created_at': aValue = new Date(a.created_at); bValue = new Date(b.created_at); break;
                 case 'pelanggan.nama': aValue = a.pelanggan?.nama || ''; bValue = b.pelanggan?.nama || ''; break;
                 case 'total_biaya': aValue = a.total_biaya; bValue = b.total_biaya; break;
                 case 'jenis_pembayaran': aValue = a.jenis_pembayaran; bValue = b.jenis_pembayaran; break;
@@ -334,12 +338,13 @@ export default function Laporan() {
 
     const handleExportCSV = () => {
         if (sortedTransaksi.length === 0) { alert('Tidak ada data untuk diekspor!'); return; }
-        const headers = ['ID Transaksi', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)', 'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pengembalian', 'Total Biaya'];
+        // FIX: Header & data CSV disesuaikan menggunakan tanggal order dibuat (created_at)
+        const headers = ['ID Transaksi', 'Tanggal Order', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)', 'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pengembalian', 'Total Biaya'];
         const csvRows = [headers.join(';')];
         sortedTransaksi.forEach(t => {
             const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
             const statusText = isLate ? 'Terlambat' : t.status_pengembalian;
-            const row = [`"${t.id}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`, `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari, `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`, `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`, `"${statusText}"`, t.total_biaya].join(';');
+            const row = [`"${t.id}"`, `"${moment(t.created_at).format('YYYY-MM-DD HH:mm')}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`, `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari, `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`, `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`, `"${statusText}"`, t.total_biaya].join(';');
             csvRows.push(row);
         });
         const csvString = csvRows.join('\n');
@@ -383,7 +388,7 @@ export default function Laporan() {
     const handleResetFilters = () => {
         setSearchQuery(''); 
         setStatusFilter('Semua');
-        handleTimeframeChange(timeframe); // Reset other filters but keep current timeframe
+        handleTimeframeChange(timeframe);
     };
 
     const handleResetPengeluaranFilters = () => {
@@ -400,8 +405,9 @@ export default function Laporan() {
         const dataMap = new Map();
         const format = 'YYYY-MM-DD';
 
+        // FIX: Agregasi grafik pemasukan disesuaikan berdasarkan 'created_at'
         transaksiData.forEach(t => {
-            const dateKey = moment(t.tanggal_mulai).format(format);
+            const dateKey = moment(t.created_at).format(format);
             const entry = dataMap.get(dateKey) || { date: dateKey, pemasukan: 0, pengeluaran: 0 };
             entry.pemasukan += t.total_biaya;
             dataMap.set(dateKey, entry);
@@ -451,23 +457,15 @@ export default function Laporan() {
         plugins: {
             legend: {
                 position: 'top',
-                labels: {
-                    color: '#e2e8f0',
-                },
+                labels: { color: '#e2e8f0' },
             },
-            title: {
-                display: false,
-            },
+            title: { display: false },
             tooltip: {
                 callbacks: {
                     label: (context) => {
                         let label = context.dataset.label || '';
-                        if (label) {
-                            label += ': ';
-                        }
-                        if (context.parsed.y !== null) {
-                            label += formatRupiah(context.parsed.y);
-                        }
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) label += formatRupiah(context.parsed.y);
                         return label;
                     }
                 },
@@ -488,9 +486,7 @@ export default function Laporan() {
                 grid: { color: '#334155' },
                 ticks: {
                     color: '#e2e8f0',
-                    callback: function(value) {
-                        return formatRupiah(value);
-                    }
+                    callback: function(value) { return formatRupiah(value); }
                 }
             }
         }
@@ -498,8 +494,9 @@ export default function Laporan() {
 
     const sortedDailyIncome = useMemo(() => {
         const incomeMap = {};
+        // FIX: Perhitungan total kumulatif pemasukan harian diarahkan ke 'created_at'
         transaksiData.forEach(t => {
-            const date = moment(t.tanggal_mulai).format('YYYY-MM-DD');
+            const date = moment(t.created_at).format('YYYY-MM-DD');
             if (!incomeMap[date]) {
                 incomeMap[date] = { count: 0, amount: 0 };
             }
@@ -595,7 +592,7 @@ export default function Laporan() {
                 )}
             </div>
 
-            {/* Filter Waktu - Pindah ke Bawah Grafik */}
+            {/* Filter Waktu */}
             <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 print:hidden">
                 <h2 className="text-lg font-bold text-gray-200">Filter Berdasarkan Tanggal:</h2>
                 <div className="flex flex-wrap justify-center md:justify-end gap-2">
@@ -630,7 +627,7 @@ export default function Laporan() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 <div className="bg-gray-800/50 rounded-2xl border border-gray-700">
                     <button onClick={() => setShowDailyIncome(!showDailyIncome)} className="w-full text-left p-6 flex justify-between items-center text-xl font-semibold text-white hover:bg-gray-800 transition-colors rounded-t-2xl">
-                        Laporan Pemasukan Harian
+                        Laporan Pemasukan Harian (Real-time Order)
                         {showDailyIncome ? <ChevronUp /> : <ChevronDown />}
                     </button>
                     {showDailyIncome && (
@@ -641,7 +638,7 @@ export default function Laporan() {
                             <table className="w-full text-left table-auto">
                                 <thead className="sticky top-0 bg-gray-800/80 backdrop-blur-sm text-xs uppercase text-gray-400">
                                     <tr>
-                                        <th className="p-2">Tanggal</th>
+                                        <th className="p-2">Tanggal Order</th>
                                         <th className="p-2">Jumlah Transaksi</th>
                                         <th className="p-2 text-right">Jumlah Pemasukan</th>
                                     </tr>
@@ -734,7 +731,8 @@ export default function Laporan() {
                             <table className="w-full text-left table-auto">
                                 <thead className="bg-gray-700/50 text-xs uppercase text-gray-400 sticky top-0">
                                     <tr>
-                                        <th className="p-4 cursor-pointer" onClick={() => handleSort('tanggal_mulai')}>Tanggal {getSortIcon('tanggal_mulai')}</th>
+                                        {/* FIX: Header Th kolom diubah dari 'tanggal_mulai' ke 'created_at' */}
+                                        <th className="p-4 cursor-pointer" onClick={() => handleSort('created_at')}>Tanggal Order {getSortIcon('created_at')}</th>
                                         <th className="p-4 cursor-pointer" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
                                         <th className="p-4">Status</th>
                                         <th className="p-4 cursor-pointer text-right" onClick={() => handleSort('total_biaya')}>Total {getSortIcon('total_biaya')}</th>
@@ -745,7 +743,8 @@ export default function Laporan() {
                                         const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
                                         return (
                                             <tr key={t.id} className="hover:bg-gray-700/50 transition-colors duration-200">
-                                                <td className="p-4 align-middle text-sm text-gray-300">{moment(t.tanggal_mulai).format('DD MMM YYYY')}</td>
+                                                {/* FIX: Sel data tabel menampilkan tanggal order riil (created_at) */}
+                                                <td className="p-4 align-middle text-sm text-gray-300">{moment(t.created_at).format('DD MMM YYYY HH:mm')}</td>
                                                 <td className="p-4 align-middle font-semibold text-teal-400 cursor-pointer hover:underline" onClick={() => handleRowClick(t)}>{t.pelanggan?.nama || 'N/A'}</td>
                                                 <td className="p-4 align-middle">
                                                     {t.status_pengembalian === 'Sudah Kembali' ?
@@ -763,6 +762,7 @@ export default function Laporan() {
                     ) : <p className="text-gray-400 text-center py-8">Tidak ada data transaksi.</p>}
                 </div>
     
+                {/* Riwayat Pengeluaran */}
                 <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xl font-semibold text-white">Riwayat Pengeluaran</h3>
