@@ -23,6 +23,11 @@ export default function Checkout() {
     const [pelangganDitemukan, setPelangganDitemukan] = useState(false);
     const [pelangganBaru, setPelangganBaru] = useState(false);
     const [loadingPelanggan, setLoadingPelanggan] = useState(false);
+    
+    // State Pembayaran
+    const [statusPembayaran, setStatusPembayaran] = useState('Lunas');
+    const [jumlahTerbayar, setJumlahTerbayar] = useState(0);
+    
     const noWhatsappTimeoutRef = useRef(null);
 
     useEffect(() => {
@@ -45,52 +50,50 @@ export default function Checkout() {
         };
     }, [router]);
 
-useEffect(() => {
-    if (typeof window === 'undefined') return;
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
 
-    const rawData = window.localStorage.getItem('nuevanesia-checkout-data');
-    if (!rawData) {
-        router.replace('/');
-        return;
-    }
-
-    try {
-        const savedData = JSON.parse(rawData);
-        if (!savedData?.keranjang || savedData.keranjang.length === 0) {
+        const rawData = window.localStorage.getItem('nuevanesia-checkout-data');
+        if (!rawData) {
             router.replace('/');
             return;
         }
-        setKeranjang(savedData.keranjang);
-        setTanggalMulai(savedData.tanggalMulai || '');
-        setTanggalSelesai(savedData.tanggalSelesai || '');
-        
-        // Ambil data pelanggan jika ada di localStorage
-        setNamaPelanggan(savedData.namaPelanggan || '');
-        setAlamatPelanggan(savedData.alamatPelanggan || '');
-        setNoWhatsapp(savedData.noWhatsapp || '');
-        setJaminan(savedData.jaminan || '');
-        setCatatan(savedData.catatan || '');
 
-        // Jika ada flag merge dari halaman utama, tampilkan notifikasi singkat
         try {
-            const mergedRaw = window.localStorage.getItem('nuevanesia-just-merged');
-            if (mergedRaw) {
-                const merged = JSON.parse(mergedRaw);
-                if (merged && merged.nama) {
-                    toast.success(`Produk "${merged.nama}" ditambahkan ke keranjang.`, { duration: 3500 });
-                } else {
-                    toast.success('Produk baru ditambahkan ke keranjang.', { duration: 3500 });
-                }
-                window.localStorage.removeItem('nuevanesia-just-merged');
+            const savedData = JSON.parse(rawData);
+            if (!savedData?.keranjang || savedData.keranjang.length === 0) {
+                router.replace('/');
+                return;
             }
-        } catch (e) {
-            // ignore
+            setKeranjang(savedData.keranjang);
+            setTanggalMulai(savedData.tanggalMulai || '');
+            setTanggalSelesai(savedData.tanggalSelesai || '');
+            
+            setNamaPelanggan(savedData.namaPelanggan || '');
+            setAlamatPelanggan(savedData.alamatPelanggan || '');
+            setNoWhatsapp(savedData.noWhatsapp || '');
+            setJaminan(savedData.jaminan || '');
+            setCatatan(savedData.catatan || '');
+
+            try {
+                const mergedRaw = window.localStorage.getItem('nuevanesia-just-merged');
+                if (mergedRaw) {
+                    const merged = JSON.parse(mergedRaw);
+                    if (merged && merged.nama) {
+                        toast.success(`Produk "${merged.nama}" ditambahkan ke keranjang.`, { duration: 3500 });
+                    } else {
+                        toast.success('Produk baru ditambahkan ke keranjang.', { duration: 3500 });
+                    }
+                    window.localStorage.removeItem('nuevanesia-just-merged');
+                }
+            } catch (e) {
+                // ignore
+            }
+        } catch (error) {
+            console.error('Gagal membaca checkout data:', error);
+            router.replace('/');
         }
-    } catch (error) {
-        console.error('Gagal membaca checkout data:', error);
-        router.replace('/');
-    }
-}, [router]);
+    }, [router]);
 
     const handleNoWhatsappChange = (value) => {
         setNoWhatsapp(value);
@@ -172,36 +175,34 @@ useEffect(() => {
         };
     }, [noWhatsapp]);
 
-const saveCheckoutData = (
-    updatedKeranjang = keranjang, 
-    updatedTanggalMulai = tanggalMulai, 
-    updatedTanggalSelesai = tanggalSelesai,
-    // Tambahkan parameter opsional untuk data pelanggan
-    updatedNama = namaPelanggan,
-    updatedAlamat = alamatPelanggan,
-    updatedWhatsapp = noWhatsapp,
-    updatedJaminan = jaminan,
-    updatedCatatan = catatan
-) => {
-    if (typeof window === 'undefined') return;
+    const saveCheckoutData = (
+        updatedKeranjang = keranjang, 
+        updatedTanggalMulai = tanggalMulai, 
+        updatedTanggalSelesai = tanggalSelesai,
+        updatedNama = namaPelanggan,
+        updatedAlamat = alamatPelanggan,
+        updatedWhatsapp = noWhatsapp,
+        updatedJaminan = jaminan,
+        updatedCatatan = catatan
+    ) => {
+        if (typeof window === 'undefined') return;
 
-    if (!updatedKeranjang || updatedKeranjang.length === 0) {
-        window.localStorage.removeItem('nuevanesia-checkout-data');
-        return;
-    }
+        if (!updatedKeranjang || updatedKeranjang.length === 0) {
+            window.localStorage.removeItem('nuevanesia-checkout-data');
+            return;
+        }
 
-    window.localStorage.setItem('nuevanesia-checkout-data', JSON.stringify({
-        keranjang: updatedKeranjang,
-        tanggalMulai: updatedTanggalMulai,
-        tanggalSelesai: updatedTanggalSelesai,
-        // Ikut simpan data pelanggan ke localStorage
-        namaPelanggan: updatedNama,
-        alamatPelanggan: updatedAlamat,
-        noWhatsapp: updatedWhatsapp,
-        jaminan: updatedJaminan,
-        catatan: updatedCatatan
-    }));
-};
+        window.localStorage.setItem('nuevanesia-checkout-data', JSON.stringify({
+            keranjang: updatedKeranjang,
+            tanggalMulai: updatedTanggalMulai,
+            tanggalSelesai: updatedTanggalSelesai,
+            namaPelanggan: updatedNama,
+            alamatPelanggan: updatedAlamat,
+            noWhatsapp: updatedWhatsapp,
+            jaminan: updatedJaminan,
+            catatan: updatedCatatan
+        }));
+    };
 
     const updateKeranjang = (updatedKeranjang) => {
         setKeranjang(updatedKeranjang);
@@ -311,12 +312,12 @@ const saveCheckoutData = (
 
     const isSaveDisabled = missingRequirements.length > 0;
 
-const handleTambahProdukManual = () => {
-    // Ambil semua state saat ini dan amankan ke localStorage sebelum pindah halaman
-    saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
-    toast('Silakan kembali ke beranda dan tambahkan produk. Setelah selesai, klik PROSES TRANSAKSI untuk kembali ke checkout.', { icon: 'ℹ️' });
-    router.push('/');
-};
+    const handleTambahProdukManual = () => {
+        saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
+        toast('Silakan kembali ke beranda dan tambahkan produk. Setelah selesai, klik PROSES TRANSAKSI untuk kembali ke checkout.', { icon: 'ℹ️' });
+        router.push('/');
+    };
+
     const resetCheckoutState = () => {
         setKeranjang([]);
         setTanggalMulai('');
@@ -333,6 +334,8 @@ const handleTambahProdukManual = () => {
         setJenisDiskonManual('nominal');
         setPelangganDitemukan(false);
         setPelangganBaru(false);
+        setStatusPembayaran('Lunas');
+        setJumlahTerbayar(0);
     };
 
     const handleSimpanPembayaran = async () => {
@@ -351,8 +354,27 @@ const handleTambahProdukManual = () => {
             return;
         }
 
+        // --- KODE BARU: Penentuan Variabel Pembayaran & Validasi ---
+        const totalBiayaAkhir = hitungTotalAkhir();
+        const finalJumlahTerbayar = statusPembayaran === 'Lunas' ? totalBiayaAkhir : jumlahTerbayar;
+        const finalStatus = statusPembayaran === 'Lunas' ? 'Lunas' : 'DP';
+        const tipeLog = statusPembayaran === 'Lunas' ? 'Lunas Langsung' : 'DP';
+
+        if (statusPembayaran === 'DP') {
+            if (!finalJumlahTerbayar || finalJumlahTerbayar <= 0) {
+                toast.error('Nominal DP harus diisi dan lebih dari 0!');
+                return;
+            }
+            if (finalJumlahTerbayar >= totalBiayaAkhir) {
+                toast.error('Nominal DP tidak boleh lebih besar atau sama dengan total. Pilih Lunas Langsung.');
+                return;
+            }
+        }
+        // --- AKHIR KODE BARU ---
+
         const toastId = toast.loading('Menyimpan transaksi...');
 
+        // 1. Simpan/Update Pelanggan
         let pelangganId;
         const { data: existingPelanggan, error: fetchError } = await supabase
             .from('pelanggan')
@@ -376,7 +398,6 @@ const handleTambahProdukManual = () => {
                 toast.error('Gagal menyimpan pelanggan baru.', { id: toastId });
                 return;
             }
-
             pelangganId = newPelangganData[0].id;
         } else if (existingPelanggan) {
             pelangganId = existingPelanggan.id;
@@ -407,6 +428,7 @@ const handleTambahProdukManual = () => {
             return;
         }
 
+        // 2. Hitung Diskon
         let nilaiDiskonManual = 0;
         if (jenisDiskonManual === 'nominal') {
             nilaiDiskonManual = diskonManual;
@@ -415,6 +437,7 @@ const handleTambahProdukManual = () => {
             nilaiDiskonManual = (diskonManual / 100) * subtotalSetelahDiskonOtomatis;
         }
 
+        // 3. Simpan ke tabel Transaksi
         const { data: transaksiData, error: transaksiError } = await supabase
             .from('transaksi')
             .insert([{
@@ -422,10 +445,14 @@ const handleTambahProdukManual = () => {
                 tanggal_mulai: tanggalMulai,
                 tanggal_selesai: tanggalSelesai,
                 durasi_hari: hitungDurasiHari(),
-                total_biaya: hitungTotalAkhir(),
+                total_biaya: totalBiayaAkhir,
                 jenis_pembayaran: metodePembayaran,
                 catatan: catatan,
                 diskon_manual: nilaiDiskonManual,
+                // --- KODE BARU: Masukkan Status dan Jumlah Terbayar ---
+                status_pembayaran: finalStatus,
+                jumlah_terbayar: finalJumlahTerbayar
+                // --- AKHIR KODE BARU ---
             }])
             .select();
 
@@ -436,6 +463,26 @@ const handleTambahProdukManual = () => {
         }
 
         const transaksiId = transaksiData[0].id;
+
+        // 4. Simpan ke tabel Log Pembayaran (KODE BARU)
+        if (finalJumlahTerbayar > 0) {
+            const { error: logError } = await supabase
+                .from('log_pembayaran')
+                .insert([{
+                    transaksi_id: transaksiId,
+                    nominal: finalJumlahTerbayar,
+                    jenis_pembayaran: metodePembayaran,
+                    tipe: tipeLog
+                }]);
+
+            if (logError) {
+                console.error('Error menyimpan log pembayaran:', logError);
+                // Kita tidak return error agar transaksi tetap berjalan, namun idealnya dicatat
+            }
+        }
+        // --- AKHIR KODE BARU ---
+
+        // 5. Simpan ke tabel Transaksi Detail
         const itemsToInsert = keranjang.map((item) => ({
             transaksi_id: transaksiId,
             produk_id: item.id,
@@ -453,6 +500,7 @@ const handleTambahProdukManual = () => {
             return;
         }
 
+        // 6. Potong Stok Produk
         await Promise.all(
             keranjang.map((item) =>
                 supabase
@@ -462,6 +510,7 @@ const handleTambahProdukManual = () => {
             )
         );
 
+        // 7. Siapkan Data untuk Struk
         const transaksiDataUntukStruk = {
             pelanggan: {
                 nama: namaPelanggan,
@@ -478,9 +527,13 @@ const handleTambahProdukManual = () => {
             diskonManual: jenisDiskonManual === 'persentase'
                 ? (diskonManual / 100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon)
                 : diskonManual,
-            total: hitungTotalAkhir(),
+            total: totalBiayaAkhir,
             metodePembayaran,
             catatan,
+            // --- KODE BARU: Kirim data pembayaran ke struk ---
+            statusPembayaran: finalStatus,
+            jumlahTerbayar: finalJumlahTerbayar
+            // --- AKHIR KODE BARU ---
         };
 
         if (typeof window !== 'undefined') {
@@ -511,13 +564,13 @@ const handleTambahProdukManual = () => {
                         <p className="text-gray-400 mt-1">Periksa kembali detail pelanggan dan barang sebelum menyimpan transaksi.</p>
                     </div>
                     <button
-                    onClick={() => {
-                    saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
-                    router.push('/');
-                    }}
-                    className="bg-gray-700 px-5 py-3 rounded-lg text-white hover:bg-gray-600 transition-colors"
+                        onClick={() => {
+                            saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
+                            router.push('/');
+                        }}
+                        className="bg-gray-700 px-5 py-3 rounded-lg text-white hover:bg-gray-600 transition-colors"
                     >
-                    Kembali ke Halaman Utama
+                        Kembali ke Halaman Utama
                     </button>
                 </div>
 
@@ -768,26 +821,74 @@ const handleTambahProdukManual = () => {
                             <button
                                 type="button"
                                 onClick={() => setMetodePembayaran('QRIS')}
-                                className={`w-full p-3 rounded-xl text-left ${metodePembayaran === 'QRIS' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                                className={`w-full p-3 rounded-xl text-left font-semibold ${metodePembayaran === 'QRIS' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
                             >
                                 QRIS
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setMetodePembayaran('Transfer')}
-                                className={`w-full p-3 rounded-xl text-left ${metodePembayaran === 'Transfer' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                                className={`w-full p-3 rounded-xl text-left font-semibold ${metodePembayaran === 'Transfer' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
                             >
                                 TRANSFER
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setMetodePembayaran('Cash')}
-                                className={`w-full p-3 rounded-xl text-left ${metodePembayaran === 'Cash' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                                className={`w-full p-3 rounded-xl text-left font-semibold ${metodePembayaran === 'Cash' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
                             >
                                 CASH
                             </button>
                         </div>
                     </div>
+
+                    {/* --- KODE BARU: Opsi Pembayaran (Lunas/DP) --- */}
+                    <div className="mt-6 bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
+                        <h2 className="text-2xl font-semibold text-teal-400 mb-4">Status Pembayaran</h2>
+                        
+                        <div className="flex gap-3 mb-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setStatusPembayaran('Lunas');
+                                    setJumlahTerbayar(hitungTotalAkhir()); 
+                                }}
+                                className={`flex-1 p-3 rounded-xl font-semibold transition-colors ${statusPembayaran === 'Lunas' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                            >
+                                LUNAS LANGSUNG
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setStatusPembayaran('DP');
+                                    setJumlahTerbayar(''); 
+                                }}
+                                className={`flex-1 p-3 rounded-xl font-semibold transition-colors ${statusPembayaran === 'DP' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                            >
+                                DOWN PAYMENT (DP)
+                            </button>
+                        </div>
+
+                        {statusPembayaran === 'DP' && (
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-400 mb-2">
+                                    Nominal DP yang Dibayarkan (Rp)
+                                </label>
+                                <input 
+                                    type="number" 
+                                    value={jumlahTerbayar}
+                                    onChange={(e) => setJumlahTerbayar(Number(e.target.value))}
+                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                    placeholder="Masukkan nominal DP..."
+                                />
+                                {jumlahTerbayar > 0 && jumlahTerbayar < hitungTotalAkhir() && (
+                                    <p className="text-sm text-yellow-400 mt-2 font-medium">Sisa Tagihan: Rp{(hitungTotalAkhir() - jumlahTerbayar).toLocaleString('id-ID')}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {/* --- AKHIR KODE BARU --- */}
+
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
