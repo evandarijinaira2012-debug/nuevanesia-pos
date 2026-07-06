@@ -72,8 +72,8 @@ const PelunasanModal = ({ isOpen, onClose, transaction, onSuccess }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-[60]">
-            <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md border border-teal-700/50">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
+            <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-teal-700/50">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-teal-400">Pelunasan Tagihan</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
@@ -127,7 +127,7 @@ const PelunasanModal = ({ isOpen, onClose, transaction, onSuccess }) => {
     );
 };
 
-// --- MODAL RINCIAN TRANSAKSI (Telah Diperbaiki & Ditambah Fitur Log Pembayaran) ---
+// --- MODAL RINCIAN TRANSAKSI ---
 const TransactionModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
 
@@ -164,8 +164,8 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 print:bg-white print:text-black">
-      <div className="bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-lg border border-gray-700 max-h-[90vh] overflow-y-auto print:shadow-none print:border-0">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 print:bg-white print:text-black">
+      <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto border border-gray-700 print:shadow-none print:border-0">
         <div className="flex justify-between items-center mb-4 print:hidden">
           <h3 className="text-xl font-bold text-teal-400">Rincian Transaksi</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-3xl">&times;</button>
@@ -196,13 +196,12 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-400">Status Pembayaran:</p>
-              <p className={`font-bold ${transaction.status_pembayaran === 'Lunas' ? 'text-green-400' : 'text-yellow-400'}`}>
+              <p className={`font-bold ${transaction.status_pembayaran === 'Lunas' ? 'text-green-400' : 'text-red-400'}`}>
                 {transaction.status_pembayaran}
               </p>
             </div>
           </div>
 
-          {/* --- BUG FIX: Menampilkan Barang yang Disewa --- */}
           {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
             <div className="border-b border-gray-700 pb-4 mt-2">
               <h4 className="text-sm font-bold text-gray-400 mb-2">Barang yang Disewa:</h4>
@@ -217,7 +216,6 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
             </div>
           )}
 
-          {/* --- FITUR BARU: Riwayat Pembayaran (DP & Pelunasan) --- */}
           {transaction.log_pembayaran && transaction.log_pembayaran.length > 0 && (
             <div className="border-b border-gray-700 pb-4 mt-2">
               <h4 className="text-sm font-bold text-gray-400 mb-2">Riwayat Pembayaran:</h4>
@@ -274,10 +272,11 @@ export default function Laporan() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Semua');
-  const [statusBayarFilter, setStatusBayarFilter] = useState('Semua');
+  
+  // State Tab Filter Cepat
+  const [activeTab, setActiveTab] = useState('Semua');
 
-  // State Rekap Kas Harian 
+  // State Rekap Kas Harian (Khusus Hari Ini Saja)
   const [rekapKas, setRekapKas] = useState({ cash: 0, transfer: 0, qris: 0, total: 0 });
 
   // State Pelunasan Modal
@@ -290,25 +289,29 @@ export default function Laporan() {
   const fetchLaporan = async () => {
     setLoading(true);
 
-    // --- KODE BARU (Query): Menambahkan log_pembayaran ke dalam select ---
     let query = supabase
       .from('transaksi')
       .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), log_pembayaran(id, nominal, jenis_pembayaran, tipe, tanggal_bayar), status_pengembalian, status_pembayaran, jumlah_terbayar`)
+      .order('created_at', { ascending: false })
       .order('tanggal_mulai', { ascending: false });
 
+    // Filter Tanggal Sewa
     if (startDate) query = query.gte('tanggal_mulai', startDate);
     if (endDate) query = query.lte('tanggal_mulai', endDate);
     
-    if (statusFilter !== 'Semua') {
-      if (statusFilter === 'Terlambat') {
-        query = query.lte('tanggal_selesai', moment().format('YYYY-MM-DD')).eq('status_pengembalian', 'Belum Kembali');
-      } else {
-        query = query.eq('status_pengembalian', statusFilter);
-      }
-    }
-
-    if (statusBayarFilter !== 'Semua') {
-      query = query.eq('status_pembayaran', statusBayarFilter);
+    // --- PERBAIKAN: Logika Tab Filter Cepat ---
+    if (activeTab === 'Belum Kembali') {
+        query = query.eq('status_pengembalian', 'Belum Kembali');
+    } else if (activeTab === 'Terlambat') {
+        query = query.eq('status_pengembalian', 'Belum Kembali').lt('tanggal_selesai', moment().format('YYYY-MM-DD'));
+    } else if (activeTab === 'Belum Lunas') {
+        // PERBAIKAN: Memastikan semua transaksi yang bukan 'Lunas' akan muncul
+        query = query.neq('status_pembayaran', 'Lunas'); 
+    } else if (activeTab === 'Lunas') {
+        query = query.eq('status_pembayaran', 'Lunas');
+    } else if (activeTab === 'Closing Hari Ini') {
+        const today = moment().format('YYYY-MM-DD');
+        query = query.gte('created_at', `${today}T00:00:00`).lte('created_at', `${today}T23:59:59`);
     }
 
     const { data, error } = await query;
@@ -318,23 +321,32 @@ export default function Laporan() {
       setTransaksiData(data);
     }
 
-    // Fetch Data Rekap Kas
-    const mulai = startDate ? `${startDate}T00:00:00Z` : moment().startOf('day').toISOString();
-    const selesai = endDate ? `${endDate}T23:59:59Z` : moment().endOf('day').toISOString();
-
+    // --- PERBAIKAN TOTAL: Hitung Uang Kas HANYA untuk HARI INI ---
+    // Mengambil semua log, kita filter secara manual di Javascript agar 100% akurat
     const { data: logData, error: logError } = await supabase
         .from('log_pembayaran')
-        .select('nominal, jenis_pembayaran')
-        .gte('tanggal_bayar', mulai)
-        .lte('tanggal_bayar', selesai);
+        .select('nominal, jenis_pembayaran, tanggal_bayar, created_at');
     
     if (!logError && logData) {
         let tCash = 0, tTransfer = 0, tQris = 0;
+        const hariIni = moment().format('YYYY-MM-DD'); // Tanggal komputer kasir saat ini
+
         logData.forEach(log => {
-            const nom = Number(log.nominal);
-            if (log.jenis_pembayaran === 'Cash') tCash += nom;
-            if (log.jenis_pembayaran === 'Transfer') tTransfer += nom;
-            if (log.jenis_pembayaran === 'QRIS') tQris += nom;
+            // Kita cari waktu pastinya. Jika tanggal_bayar kosong, pakai created_at
+            const waktuValid = log.tanggal_bayar || log.created_at;
+            
+            // CEGAH BUG: Pastikan waktuValid benar-benar ada datanya
+            if (waktuValid) {
+                const tglMasuk = moment(waktuValid).format('YYYY-MM-DD');
+                
+                // Jika tanggal masuk sama persis dengan hari ini, baru ditambahkan
+                if (tglMasuk === hariIni) {
+                    const nom = Number(log.nominal);
+                    if (log.jenis_pembayaran === 'Cash') tCash += nom;
+                    if (log.jenis_pembayaran === 'Transfer') tTransfer += nom;
+                    if (log.jenis_pembayaran === 'QRIS') tQris += nom;
+                }
+            }
         });
         setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
     }
@@ -356,17 +368,21 @@ export default function Laporan() {
     });
 
     return () => { if (subscription) subscription.unsubscribe(); };
-  }, [router]);
+  }, [router, activeTab]);
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') fetchLaporan();
   };
 
+  // Filter Ganda: Cari di Nama ATAU Nomor HP
   const filteredTransaksi = useMemo(() => {
     if (!transaksiData) return [];
-    return transaksiData.filter(t =>
-      t.pelanggan?.nama?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const searchLower = searchQuery.toLowerCase();
+    return transaksiData.filter(t => {
+        const matchNama = t.pelanggan?.nama?.toLowerCase().includes(searchLower);
+        const matchHp = t.pelanggan?.no_whatsapp?.toLowerCase().includes(searchLower);
+        return matchNama || matchHp;
+    });
   }, [transaksiData, searchQuery]);
 
   const sortedTransaksi = useMemo(() => {
@@ -429,7 +445,7 @@ export default function Laporan() {
   };
 
   const handleResetFilters = () => {
-    setStartDate(''); setEndDate(''); setSearchQuery(''); setStatusFilter('Semua'); setStatusBayarFilter('Semua');
+    setStartDate(''); setEndDate(''); setSearchQuery(''); setActiveTab('Semua');
     setTimeout(() => fetchLaporan(), 100);
   };
 
@@ -459,45 +475,51 @@ export default function Laporan() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 print:hidden">
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10"><IconCheck /></div>
-            <p className="text-gray-400 text-sm font-medium mb-1">Kas Laci (Cash)</p>
+            <p className="text-gray-400 text-sm font-medium mb-1">Kas Laci (Cash) Hari Ini</p>
             <h3 className="text-2xl font-bold text-green-400">Rp{rekapKas.cash.toLocaleString('id-ID')}</h3>
         </div>
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg">
-            <p className="text-gray-400 text-sm font-medium mb-1">Transfer Bank</p>
+            <p className="text-gray-400 text-sm font-medium mb-1">Transfer Bank Hari Ini</p>
             <h3 className="text-2xl font-bold text-blue-400">Rp{rekapKas.transfer.toLocaleString('id-ID')}</h3>
         </div>
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg">
-            <p className="text-gray-400 text-sm font-medium mb-1">QRIS</p>
+            <p className="text-gray-400 text-sm font-medium mb-1">QRIS Hari Ini</p>
             <h3 className="text-2xl font-bold text-purple-400">Rp{rekapKas.qris.toLocaleString('id-ID')}</h3>
         </div>
         <div className="bg-gradient-to-br from-teal-600 to-teal-800 p-5 rounded-2xl border border-teal-500 shadow-lg">
-            <p className="text-teal-100 text-sm font-medium mb-1">Total Uang Masuk Aktual</p>
+            <p className="text-teal-100 text-sm font-medium mb-1">Total Uang Masuk Hari Ini</p>
             <h3 className="text-2xl font-bold text-white">Rp{rekapKas.total.toLocaleString('id-ID')}</h3>
         </div>
       </div>
 
       <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8 print:hidden">
         <h2 className="text-xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        
+        {/* Tombol Filter Cepat */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            {['Semua', 'Belum Kembali', 'Terlambat', 'Belum Lunas', 'Lunas', 'Closing Hari Ini'].map(tab => (
+                <button 
+                    key={tab} 
+                    onClick={() => setActiveTab(tab)} 
+                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/50' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                >
+                    {tab}
+                </button>
+            ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="w-full">
-            <label className="block text-xs text-gray-400 mb-1">Cari Pelanggan</label>
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Nama..." className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3 focus:ring-teal-500" />
+            <label className="block text-xs text-gray-400 mb-1">Cari Nama atau No HP</label>
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Ketik disini..." className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3 focus:ring-teal-500" />
           </div>
           <div className="w-full">
-            <label className="block text-xs text-gray-400 mb-1">Dari Tanggal</label>
+            <label className="block text-xs text-gray-400 mb-1">Sewa Dari Tanggal</label>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3" />
           </div>
           <div className="w-full">
-            <label className="block text-xs text-gray-400 mb-1">Sampai Tanggal</label>
+            <label className="block text-xs text-gray-400 mb-1">Sewa Sampai Tanggal</label>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3" />
-          </div>
-          <div className="w-full">
-            <label className="block text-xs text-gray-400 mb-1">Status Bayar</label>
-            <select value={statusBayarFilter} onChange={(e) => setStatusBayarFilter(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3">
-              <option value="Semua">Semua</option>
-              <option value="Lunas">Lunas</option>
-              <option value="DP">DP</option>
-            </select>
           </div>
           <div className="flex gap-2 w-full mt-2 md:mt-0">
             <button onClick={fetchLaporan} className="flex-1 bg-teal-600 text-white py-2.5 rounded-lg hover:bg-teal-500 transition-colors font-medium">Terapkan</button>
@@ -540,24 +562,28 @@ export default function Laporan() {
                       <td className="p-4 text-gray-300">{moment(t.tanggal_mulai).format('DD MMM')} - {moment(t.tanggal_selesai).format('DD MMM')}</td>
                       <td className="p-4 cursor-pointer hover:underline text-teal-400 font-medium" onClick={() => { setSelectedTransaction(t); setModalOpen(true); }}>
                         {t.pelanggan?.nama || 'Anonim'}
+                        <p className="text-xs text-gray-500 mt-0.5">{t.pelanggan?.no_whatsapp}</p>
                       </td>
                       <td className="p-4 font-semibold text-gray-200">{formatRupiah(t.total_biaya)}</td>
+                      
                       <td className="p-4">
                         {isReturned ? (
                           <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium border border-green-500/30">Sudah Kembali</span>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${isLate ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isLate ? 'bg-red-700 text-white border-red-800' : 'bg-red-500 text-white border-red-600'}`}>
                               {isLate ? 'Terlambat' : 'Belum Kembali'}
                             </span>
                           </div>
                         )}
                       </td>
+                      
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${isLunas ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
-                          {t.status_pembayaran}
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isLunas ? 'bg-green-600 text-white border-green-700' : 'bg-red-500 text-white border-red-600'}`}>
+                          {isLunas ? 'Lunas' : 'Belum Lunas'}
                         </span>
                       </td>
+                      
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
                           {!isReturned && (
@@ -567,7 +593,7 @@ export default function Laporan() {
                           )}
                           {!isLunas && (
                             <button onClick={(e) => { e.stopPropagation(); setSelectedForPelunasan(t); setPelunasanModalOpen(true); }} className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-teal-900/50">
-                                Lunasi Tagihan
+                                Lunasi
                             </button>
                           )}
                         </div>
