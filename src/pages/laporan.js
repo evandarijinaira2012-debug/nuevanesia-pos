@@ -264,7 +264,7 @@ export default function Laporan() {
   const [transaksiData, setTransaksiData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ field: 'tanggal_mulai', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ field: 'created_at', direction: 'desc' });
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   
@@ -276,8 +276,11 @@ export default function Laporan() {
   // State Tab Filter Cepat
   const [activeTab, setActiveTab] = useState('Semua');
 
-  // State Rekap Kas Harian (Khusus Hari Ini Saja)
+  // State Rekap Kas Harian
   const [rekapKas, setRekapKas] = useState({ cash: 0, transfer: 0, qris: 0, total: 0 });
+  
+  // --- KODE BARU: State Jumlah Transaksi Hari Ini ---
+  const [jumlahTransaksiHariIni, setJumlahTransaksiHariIni] = useState(0);
 
   // State Pelunasan Modal
   const [pelunasanModalOpen, setPelunasanModalOpen] = useState(false);
@@ -295,17 +298,14 @@ export default function Laporan() {
       .order('created_at', { ascending: false })
       .order('tanggal_mulai', { ascending: false });
 
-    // Filter Tanggal Sewa
     if (startDate) query = query.gte('tanggal_mulai', startDate);
     if (endDate) query = query.lte('tanggal_mulai', endDate);
     
-    // --- PERBAIKAN: Logika Tab Filter Cepat ---
     if (activeTab === 'Belum Kembali') {
-        query = query.eq('status_pengembalian', 'Belum Kembali');
+        query = query.eq('status_pengembalian', 'Belum_Kembali');
     } else if (activeTab === 'Terlambat') {
-        query = query.eq('status_pengembalian', 'Belum Kembali').lt('tanggal_selesai', moment().format('YYYY-MM-DD'));
+        query = query.eq('status_pengembalian', 'Belum_Kembali').lt('tanggal_selesai', moment().format('YYYY-MM-DD'));
     } else if (activeTab === 'Belum Lunas') {
-        // PERBAIKAN: Memastikan semua transaksi yang bukan 'Lunas' akan muncul
         query = query.neq('status_pembayaran', 'Lunas'); 
     } else if (activeTab === 'Lunas') {
         query = query.eq('status_pembayaran', 'Lunas');
@@ -321,25 +321,19 @@ export default function Laporan() {
       setTransaksiData(data);
     }
 
-    // --- PERBAIKAN TOTAL: Hitung Uang Kas HANYA untuk HARI INI ---
-    // Mengambil semua log, kita filter secara manual di Javascript agar 100% akurat
+    // Menghitung Kas Khusus Hari Ini
     const { data: logData, error: logError } = await supabase
         .from('log_pembayaran')
         .select('nominal, jenis_pembayaran, tanggal_bayar, created_at');
     
     if (!logError && logData) {
         let tCash = 0, tTransfer = 0, tQris = 0;
-        const hariIni = moment().format('YYYY-MM-DD'); // Tanggal komputer kasir saat ini
+        const hariIni = moment().format('YYYY-MM-DD');
 
         logData.forEach(log => {
-            // Kita cari waktu pastinya. Jika tanggal_bayar kosong, pakai created_at
             const waktuValid = log.tanggal_bayar || log.created_at;
-            
-            // CEGAH BUG: Pastikan waktuValid benar-benar ada datanya
             if (waktuValid) {
                 const tglMasuk = moment(waktuValid).format('YYYY-MM-DD');
-                
-                // Jika tanggal masuk sama persis dengan hari ini, baru ditambahkan
                 if (tglMasuk === hariIni) {
                     const nom = Number(log.nominal);
                     if (log.jenis_pembayaran === 'Cash') tCash += nom;
@@ -350,6 +344,19 @@ export default function Laporan() {
         });
         setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
     }
+
+    // --- KODE BARU: Mengambil Total Jumlah Order Hari Ini ---
+    const todayStr = moment().format('YYYY-MM-DD');
+    const { count: countTrx, error: countError } = await supabase
+        .from('transaksi')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', `${todayStr}T00:00:00`)
+        .lte('created_at', `${todayStr}T23:59:59`);
+
+    if (!countError) {
+        setJumlahTransaksiHariIni(countTrx || 0);
+    }
+    // --- AKHIR KODE BARU ---
 
     setLoading(false);
     setInitialLoading(false);
@@ -374,7 +381,6 @@ export default function Laporan() {
     if (e.key === 'Enter') fetchLaporan();
   };
 
-  // Filter Ganda: Cari di Nama ATAU Nomor HP
   const filteredTransaksi = useMemo(() => {
     if (!transaksiData) return [];
     const searchLower = searchQuery.toLowerCase();
@@ -472,30 +478,36 @@ export default function Laporan() {
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 print:hidden">
+      {/* --- KODE BARU: Widget diubah jadi 5 Kolom agar Transaksi Hari Ini muat --- */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 print:hidden">
+        {/* Widget Jumlah Order Hari Ini */}
+        <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden">
+            <p className="text-gray-400 text-sm font-medium mb-1">Total Transaksi Hari Ini</p>
+            <h3 className="text-2xl font-bold text-yellow-400">{jumlahTransaksiHariIni} <span className="text-sm font-normal text-gray-500">Order</span></h3>
+        </div>
+        
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10"><IconCheck /></div>
-            <p className="text-gray-400 text-sm font-medium mb-1">Kas Laci (Cash) Hari Ini</p>
-            <h3 className="text-2xl font-bold text-green-400">Rp{rekapKas.cash.toLocaleString('id-ID')}</h3>
+            <p className="text-gray-400 text-sm font-medium mb-1">Kas Laci (Cash)</p>
+            <h3 className="text-xl font-bold text-green-400">Rp{rekapKas.cash.toLocaleString('id-ID')}</h3>
         </div>
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg">
-            <p className="text-gray-400 text-sm font-medium mb-1">Transfer Bank Hari Ini</p>
-            <h3 className="text-2xl font-bold text-blue-400">Rp{rekapKas.transfer.toLocaleString('id-ID')}</h3>
+            <p className="text-gray-400 text-sm font-medium mb-1">Transfer Bank</p>
+            <h3 className="text-xl font-bold text-blue-400">Rp{rekapKas.transfer.toLocaleString('id-ID')}</h3>
         </div>
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg">
-            <p className="text-gray-400 text-sm font-medium mb-1">QRIS Hari Ini</p>
-            <h3 className="text-2xl font-bold text-purple-400">Rp{rekapKas.qris.toLocaleString('id-ID')}</h3>
+            <p className="text-gray-400 text-sm font-medium mb-1">QRIS</p>
+            <h3 className="text-xl font-bold text-purple-400">Rp{rekapKas.qris.toLocaleString('id-ID')}</h3>
         </div>
         <div className="bg-gradient-to-br from-teal-600 to-teal-800 p-5 rounded-2xl border border-teal-500 shadow-lg">
-            <p className="text-teal-100 text-sm font-medium mb-1">Total Uang Masuk Hari Ini</p>
-            <h3 className="text-2xl font-bold text-white">Rp{rekapKas.total.toLocaleString('id-ID')}</h3>
+            <p className="text-teal-100 text-sm font-medium mb-1">Total Uang Masuk</p>
+            <h3 className="text-xl font-bold text-white">Rp{rekapKas.total.toLocaleString('id-ID')}</h3>
         </div>
       </div>
 
       <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8 print:hidden">
         <h2 className="text-xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
         
-        {/* Tombol Filter Cepat */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             {['Semua', 'Belum Kembali', 'Terlambat', 'Belum Lunas', 'Lunas', 'Closing Hari Ini'].map(tab => (
                 <button 
@@ -543,6 +555,9 @@ export default function Laporan() {
             <table className="w-full text-left table-auto whitespace-nowrap">
               <thead className="bg-gray-900/50 text-sm">
                 <tr>
+                  {/* --- KODE BARU: Kolom Tanggal Order (created_at) --- */}
+                  <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('created_at')}>Tgl Order {getSortIcon('created_at')}</th>
+                  
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('tanggal_mulai')}>Tgl Sewa {getSortIcon('tanggal_mulai')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
@@ -559,6 +574,9 @@ export default function Laporan() {
 
                   return (
                     <tr key={t.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                      {/* --- KODE BARU: Menampilkan Waktu Order dengan Jam/Menit --- */}
+                      <td className="p-4 text-gray-400 font-medium">{moment(t.created_at).format('DD/MM/YY HH:mm')}</td>
+                      
                       <td className="p-4 text-gray-300">{moment(t.tanggal_mulai).format('DD MMM')} - {moment(t.tanggal_selesai).format('DD MMM')}</td>
                       <td className="p-4 cursor-pointer hover:underline text-teal-400 font-medium" onClick={() => { setSelectedTransaction(t); setModalOpen(true); }}>
                         {t.pelanggan?.nama || 'Anonim'}
