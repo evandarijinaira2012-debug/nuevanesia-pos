@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../../../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import toast, { Toaster } from 'react-hot-toast';
 
-export default function Checkout() {
+export default function CheckoutSewa() {
     const router = useRouter();
     const [session, setSession] = useState(null);
     const [keranjang, setKeranjang] = useState([]);

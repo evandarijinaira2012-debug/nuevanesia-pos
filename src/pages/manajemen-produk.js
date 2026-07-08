@@ -27,17 +27,27 @@ const ManajemenProduk = () => {
   const [kategori, setKategori] = useState('');
   const [description, setDescription] = useState('');
   const [handling_notes, setHandlingNotes] = useState('');
+  
+  // State Baru Sesuai Database
+  const [jenis_layanan, setJenisLayanan] = useState('Sewa');
+  const [harga_diskon, setHargaDiskon] = useState('');
+  const [variasi, setVariasi] = useState('');
+
+  // State pendukung untuk input kategori manual
+  const [isKategoriBaru, setIsKategoriBaru] = useState(false);
+
   const [produkUntukDiedit, setProdukUntukDiedit] = useState(null);
+  
+  // State Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [kategoriFilter, setKategoriFilter] = useState('Semua');
-
+  const [layananFilter, setLayananFilter] = useState('Semua');
 
   useEffect(() => {
     fetchProduk();
   }, []);
 
   async function fetchProduk() {
-    // Menggunakan nama tabel 'produk'
     const { data, error } = await supabase.from('produk').select('*').order('id', { ascending: false });
     if (error) {
       console.error('Error fetching produk:', error);
@@ -54,27 +64,34 @@ const ManajemenProduk = () => {
     setKategori('');
     setDescription('');
     setHandlingNotes('');
+    setJenisLayanan('Sewa');
+    setHargaDiskon('');
+    setVariasi('');
+    setIsKategoriBaru(false);
     setProdukUntukDiedit(null);
   };
 
   const handleSimpan = async (e) => {
     e.preventDefault();
-    if (!nama || !harga || !stok || !kategori) {
-      toast.error('Nama, harga, stok, dan kategori harus diisi.');
+    if (!nama || !harga || !stok || !kategori || !jenis_layanan) {
+      toast.error('Nama, harga, stok, kategori, dan layanan harus diisi.');
       return;
     }
 
     const toastId = toast.loading('Menyimpan produk...');
     
-    // Menggunakan nama kolom yang benar saat menyimpan data
     const dataToSave = {
-      nama: nama,
-      harga: harga,
-      stok: stok,
-      url_gambar: url_gambar,
-      kategori: kategori,
-      description: description,
-      handling_notes: handling_notes,
+      nama,
+      harga,
+      stok,
+      url_gambar,
+      kategori: kategori.trim(),
+      description,
+      handling_notes,
+      jenis_layanan,
+      harga_diskon: harga_diskon || null,
+      variasi: variasi || null,
+      seo_title: nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
     };
 
     if (produkUntukDiedit) {
@@ -106,7 +123,6 @@ const ManajemenProduk = () => {
 
   const handleEdit = (produk) => {
     setProdukUntukDiedit(produk);
-    // Mengambil data dari database dengan nama kolom yang benar
     setNama(produk.nama);
     setHarga(produk.harga);
     setStok(produk.stok);
@@ -114,6 +130,10 @@ const ManajemenProduk = () => {
     setKategori(produk.kategori);
     setDescription(produk.description || '');
     setHandlingNotes(produk.handling_notes || '');
+    setJenisLayanan(produk.jenis_layanan || 'Sewa');
+    setHargaDiskon(produk.harga_diskon || '');
+    setVariasi(produk.variasi || '');
+    setIsKategoriBaru(false); // Menggunakan kategori yang sudah ada saat edit
   };
 
   const handleDelete = async (produkId) => {
@@ -132,15 +152,21 @@ const ManajemenProduk = () => {
       }
     }
   };
-// 🔎 Filter produk berdasarkan search & kategori
-const kategoriUnik = ['Semua', ...new Set(produk.map((item) => item.kategori))];
-const kategoriUnikForm = [...new Set(produk.map((item) => item.kategori))];
 
-const produkTerfilter = produk.filter((item) => {
-  const cocokNama = item.nama.toLowerCase().includes(searchQuery.toLowerCase());
-  const cocokKategori = kategoriFilter === 'Semua' || item.kategori === kategoriFilter;
-  return cocokNama && cocokKategori;
-});
+  // 🔎 Ekstraksi Kategori & Layanan Unik untuk Filter dan Dropdown Form
+  const kategoriUnik = ['Semua', ...new Set(produk.map((item) => item.kategori).filter(Boolean))];
+  const daftarKategoriForm = [...new Set(produk.map((item) => item.kategori).filter(Boolean))];
+  const layananUnik = ['Semua', 'Sewa', 'Penjualan', 'Laundry'];
+
+  const produkTerfilter = produk.filter((item) => {
+    const cocokNama = item.nama.toLowerCase().includes(searchQuery.toLowerCase());
+    const cocokKategori = kategoriFilter === 'Semua' || item.kategori === kategoriFilter;
+    const layananItem = item.jenis_layanan || 'Sewa';
+    const cocokLayanan = layananFilter === 'Semua' || layananItem === layananFilter;
+    
+    return cocokNama && cocokKategori && cocokLayanan;
+  });
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 p-8 font-sans">
       <Head>
@@ -157,7 +183,6 @@ const produkTerfilter = produk.filter((item) => {
           </Link>
         </div>
         
-        {/* Kontainer Utama untuk 2 Kolom */}
         <div className="flex flex-col lg:flex-row gap-8">
             
             {/* Kolom 1: Formulir Tambah/Edit Produk */}
@@ -167,8 +192,22 @@ const produkTerfilter = produk.filter((item) => {
                     
                     <form onSubmit={handleSimpan} className="space-y-4">
                         <div className="space-y-4">
+                            
                             <div>
-                                <label className="block text-gray-400 mb-2">Nama Produk</label>
+                                <label className="block text-gray-400 mb-2">Jenis Layanan</label>
+                                <select
+                                  value={jenis_layanan}
+                                  onChange={(e) => setJenisLayanan(e.target.value)}
+                                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white font-semibold"
+                                >
+                                  <option value="Sewa">🏕️ Sewa</option>
+                                  <option value="Penjualan">🛒 Penjualan</option>
+                                  <option value="Laundry">🧼 Laundry</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-400 mb-2">Nama Produk / Layanan</label>
                                 <input
                                   type="text"
                                   value={nama}
@@ -178,55 +217,109 @@ const produkTerfilter = produk.filter((item) => {
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-gray-400 mb-2">Harga Sewa</label>
-                                <input
-                                  type="number"
-                                  value={harga}
-                                  onChange={(e) => setHarga(e.target.value)}
-                                  placeholder="Harga aja jgn pake titik dan Rp"
-                                  required
-                                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-                                />
+
+                            <div className="flex gap-4">
+                              <div className="w-1/2">
+                                  <label className="block text-gray-400 mb-2">Harga Utama</label>
+                                  <input
+                                    type="number"
+                                    value={harga}
+                                    onChange={(e) => setHarga(e.target.value)}
+                                    placeholder="Tanpa titik"
+                                    required
+                                    className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                                  />
+                              </div>
+                              <div className="w-1/2">
+                                  <label className="block text-gray-400 mb-2">Harga Diskon (Opsional)</label>
+                                  <input
+                                    type="number"
+                                    value={harga_diskon}
+                                    onChange={(e) => setHargaDiskon(e.target.value)}
+                                    placeholder="Tanpa titik"
+                                    className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                                  />
+                              </div>
                             </div>
-                            <div>
-                                <label className="block text-gray-400 mb-2">Stok</label>
-                                <input
-                                  type="number"
-                                  value={stok}
-                                  onChange={(e) => setStok(e.target.value)}
-                                  placeholder="Stok"
-                                  required
-                                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-                                />
+
+                            <div className="flex gap-4">
+                              <div className="w-1/2">
+                                  <label className="block text-gray-400 mb-2">Stok</label>
+                                  <input
+                                    type="number"
+                                    value={stok}
+                                    onChange={(e) => setStok(e.target.value)}
+                                    placeholder="Stok"
+                                    required
+                                    className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                                  />
+                              </div>
+                              <div className="w-1/2">
+                                  <label className="block text-gray-400 mb-2">Variasi (Opsional)</label>
+                                  <input
+                                    type="text"
+                                    value={variasi}
+                                    onChange={(e) => setVariasi(e.target.value)}
+                                    placeholder="Contoh: XL, Merah"
+                                    className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                                  />
+                              </div>
                             </div>
+
+                            {/* --- PILIH KATEGORI (DROPDOWN + MANUAL INPUT) --- */}
                             <div>
                                 <label className="block text-gray-400 mb-2">Kategori</label>
-                                <input
-                                  type="text"
-                                  value={kategori}
-                                  onChange={(e) => setKategori(e.target.value)}
-                                  placeholder="Contoh: Tenda, Sleeping System"
-                                  required
+                                <select
+                                  value={isKategoriBaru ? 'KategoriBaru' : kategori}
+                                  onChange={(e) => {
+                                    if (e.target.value === 'KategoriBaru') {
+                                      setIsKategoriBaru(true);
+                                      setKategori(''); // Kosongkan agar user bisa isi manual
+                                    } else {
+                                      setIsKategoriBaru(false);
+                                      setKategori(e.target.value);
+                                    }
+                                  }}
+                                  required={!isKategoriBaru}
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-                                />
+                                >
+                                  <option value="" disabled>-- Pilih Kategori --</option>
+                                  {daftarKategoriForm.map((kat) => (
+                                    <option key={kat} value={kat}>{kat}</option>
+                                  ))}
+                                  <option value="KategoriBaru" className="text-teal-400 font-semibold">✏️ + Tambah Kategori Baru...</option>
+                                </select>
+
+                                {/* Input text manual ini hanya muncul jika memilih 'Tambah Kategori Baru...' */}
+                                {isKategoriBaru && (
+                                  <input
+                                    type="text"
+                                    value={kategori}
+                                    onChange={(e) => setKategori(e.target.value)}
+                                    placeholder="Tulis nama kategori baru di sini..."
+                                    required
+                                    className="w-full p-3 bg-gray-700 rounded-lg border border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white mt-2 placeholder-gray-500"
+                                  />
+                                )}
                             </div>
+
                             <div>
                                 <label className="block text-gray-400 mb-2">URL Gambar</label>
                                 <input
                                   type="text"
                                   value={url_gambar}
                                   onChange={(e) => setUrlGambar(e.target.value)}
-                                  placeholder="URL gambar produk ambil dari web storelink"
+                                  placeholder="URL gambar produk"
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                 />
                             </div>
+                            
                             <div>
                                 <label className="block text-gray-400 mb-2">Deskripsi Produk</label>
                                 <textarea
                                   value={description}
                                   onChange={(e) => setDescription(e.target.value)}
-                                  placeholder="Shift+Enter dulu sekali baru tulis deskripsi produk"
+                                  placeholder="Deskripsi detail produk atau spesifikasi layanan"
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                   rows="3"
                                 ></textarea>
@@ -236,14 +329,14 @@ const produkTerfilter = produk.filter((item) => {
                                 <textarea
                                   value={handling_notes}
                                   onChange={(e) => setHandlingNotes(e.target.value)}
-                                  placeholder="Shift+Enter dulu sekali baru tulis catatan (Opsional)"
+                                  placeholder="Catatan handling (Opsional)"
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                   rows="3"
                                 ></textarea>
                             </div>
                         </div>
 
-                        <div className="flex space-x-4">
+                        <div className="flex space-x-4 pt-4">
                             <button
                                 type="submit"
                                 className="flex-grow flex items-center justify-center p-3 rounded-lg bg-teal-600 text-white font-semibold hover:bg-teal-500 transition-colors"
@@ -268,69 +361,96 @@ const produkTerfilter = produk.filter((item) => {
             {/* Kolom 2: Daftar Produk */}
             <div className="lg:w-2/3 w-full lg:h-[85vh] overflow-y-auto scrollbar-hide">
                 <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-                    <h2 className="text-2xl font-semibold mb-6 text-white">Daftar Produk</h2>
+                    <h2 className="text-2xl font-semibold mb-6 text-white">Daftar Produk & Layanan</h2>
                     
-{/* ✅ Search & Filter */}
-<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 mt-4">
-  <input
-    type="text"
-    placeholder="Cari produk..."
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    className="w-full md:w-1/2 p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-  />
+                    {/* Search & Filter */}
+                    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 mt-4">
+                      <input
+                        type="text"
+                        placeholder="Cari produk..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full xl:w-2/5 p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                      />
 
-  <div className="flex items-center gap-3 w-full md:w-1/3">
-    <select
-      value={kategoriFilter}
-      onChange={(e) => setKategoriFilter(e.target.value)}
-      className="flex-grow p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-    >
-      {kategoriUnik.map((kategori) => (
-        <option key={kategori} value={kategori}>{kategori}</option>
-      ))}
-    </select>
+                      <div className="flex items-center gap-3 w-full xl:w-3/5">
+                        <select
+                          value={layananFilter}
+                          onChange={(e) => setLayananFilter(e.target.value)}
+                          className="flex-grow p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white font-medium"
+                        >
+                          {layananUnik.map((layanan) => (
+                            <option key={layanan} value={layanan}>Layanan: {layanan}</option>
+                          ))}
+                        </select>
 
-    {/* 🔘 Tombol Clear Filter */}
-    <button
-      onClick={() => {
-        setSearchQuery('');
-        setKategoriFilter('Semua');
-      }}
-      className="px-3 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 transition-colors"
-    >
-      Clear
-    </button>
-  </div>
-</div>
+                        <select
+                          value={kategoriFilter}
+                          onChange={(e) => setKategoriFilter(e.target.value)}
+                          className="flex-grow p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                        >
+                          {kategoriUnik.map((kategori) => (
+                            <option key={kategori} value={kategori}>{kategori}</option>
+                          ))}
+                        </select>
 
+                        <button
+                          onClick={() => {
+                            setSearchQuery('');
+                            setKategoriFilter('Semua');
+                            setLayananFilter('Semua');
+                          }}
+                          className="px-4 py-3 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 transition-colors whitespace-nowrap"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto rounded-lg border border-gray-700">
                         <table className="min-w-full table-auto">
                             <thead>
-                                <tr className="bg-gray-700">
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Nama Produk</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Harga</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stok</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Kategori</th>
-                                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Aksi</th>
+                                <tr className="bg-gray-700/50">
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Nama Produk</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Layanan</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Harga</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Stok</th>
+                                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-gray-800 divide-y divide-gray-700">
                                 {produkTerfilter.length > 0 ? (
                                 produkTerfilter.map((item) => (
                                     <tr key={item.id} className="hover:bg-gray-700/50 transition-colors">
-                                      {/* Menggunakan nama kolom yang benar dari database */}
-                                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-white">{item.nama}</td>
-                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">Rp{item.harga.toLocaleString('id-ID')}</td>
-                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">{item.stok}</td>
-                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">{item.kategori}</td>
+                                      <td className="px-4 py-4 text-sm font-medium text-white max-w-[200px] truncate">
+                                        {item.nama}
+                                        <div className="flex gap-2 mt-1">
+                                          <span className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">{item.kategori}</span>
+                                          {item.variasi && <span className="text-[10px] text-teal-400 font-mono">({item.variasi})</span>}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                          (item.jenis_layanan || 'Sewa') === 'Sewa' ? 'bg-blue-900/50 text-blue-300 border border-blue-700' :
+                                          (item.jenis_layanan) === 'Penjualan' ? 'bg-green-900/50 text-green-300 border border-green-700' :
+                                          'bg-purple-900/50 text-purple-300 border border-purple-700'
+                                        }`}>
+                                          {item.jenis_layanan || 'Sewa'}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        Rp{item.harga.toLocaleString('id-ID')}
+                                        {item.harga_diskon && (
+                                            <span className="block text-xs text-red-400 line-through mt-1">Rp{item.harga_diskon.toLocaleString('id-ID')}</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">{item.stok}</td>
                                       <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-center space-x-3">
-                                          <button onClick={() => handleEdit(item)} className="text-yellow-500 hover:text-yellow-400">
+                                          <button onClick={() => handleEdit(item)} className="text-yellow-500 hover:text-yellow-400 p-1 bg-yellow-500/10 rounded">
                                             <IconEdit />
                                           </button>
-                                          <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-400">
+                                          <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-400 p-1 bg-red-500/10 rounded">
                                             <IconTrash />
                                           </button>
                                         </div>
@@ -339,8 +459,9 @@ const produkTerfilter = produk.filter((item) => {
                                   ))
                                 ) : (
                                   <tr>
-                                    <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                                      produkna leungit.
+                                    <td colSpan="5" className="px-4 py-12 text-center text-gray-500">
+                                      <span className="text-4xl block mb-2">🔍</span>
+                                      Produk tidak ditemukan.
                                     </td>
                                   </tr>
                                 )}
