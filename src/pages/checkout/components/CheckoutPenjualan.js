@@ -125,12 +125,15 @@ export default function CheckoutPenjualan() {
                 currentPelangganId = newPelanggan.id;
             }
 
-            // Simpan Transaksi (TANPA DURASI HARI & TANGGAL KEMBALI)
+            // --- BUAT TANGGAL OTOMATIS HARI INI ---
+            const tanggalHariIni = new Date().toISOString();
+
+            // Simpan Transaksi
             const { data: tx, error: errTx } = await supabase
                 .from('transaksi')
                 .insert([{
                     pelanggan_id: currentPelangganId,
-                    jenis_transaksi: 'Penjualan', // Penanda bahwa ini nota jualan
+                    jenis_transaksi: 'Penjualan', 
                     total_biaya: totalBiayaAkhir,
                     jenis_pembayaran: metodePembayaran,
                     catatan: catatan,
@@ -138,7 +141,11 @@ export default function CheckoutPenjualan() {
                     jenis_diskon_manual: jenisDiskonManual,
                     status_pembayaran: statusPembayaran,
                     jumlah_terbayar: statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0),
-                    status_pengembalian: 'Selesai' // Jualan tidak perlu dikembalikan
+                    status_pengembalian: 'Selesai',
+                    
+                    // Inject tanggal otomatis agar Supabase tidak error
+                    tanggal_mulai: tanggalHariIni,
+                    tanggal_kembali: tanggalHariIni 
                 }])
                 .select()
                 .single();
