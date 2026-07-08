@@ -125,10 +125,7 @@ export default function CheckoutPenjualan() {
                 currentPelangganId = newPelanggan.id;
             }
 
-            // --- BUAT TANGGAL OTOMATIS HARI INI ---
-            const tanggalHariIni = new Date().toISOString();
-
-            // Simpan Transaksi
+            // Simpan Transaksi (Murni Penjualan, tanpa input tanggal. Tanggal otomatis dari created_at DB)
             const { data: tx, error: errTx } = await supabase
                 .from('transaksi')
                 .insert([{
@@ -141,11 +138,7 @@ export default function CheckoutPenjualan() {
                     jenis_diskon_manual: jenisDiskonManual,
                     status_pembayaran: statusPembayaran,
                     jumlah_terbayar: statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0),
-                    status_pengembalian: 'Selesai',
-                    
-                    // Inject tanggal otomatis agar Supabase tidak error
-                    tanggal_mulai: tanggalHariIni,
-                    tanggal_kembali: tanggalHariIni 
+                    status_pengembalian: 'Selesai' // Langsung selesai karena barang jadi milik pembeli
                 }])
                 .select()
                 .single();

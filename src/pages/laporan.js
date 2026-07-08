@@ -132,6 +132,9 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
 
   const formatRupiah = (angka) => `Rp${angka.toLocaleString('id-ID')}`;
+  
+  // Deteksi jenis transaksi
+  const isBukanSewa = transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry';
 
   const handlePrint = () => {
     const dataUntukStruk = {
@@ -172,21 +175,33 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
         </div>
         
         <div className="space-y-4">
-          <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">ID Transaksi:</p>
-            <p className="font-semibold text-gray-200 text-xs mt-1">{transaction.id}</p>
+          <div className="border-b border-gray-700 pb-2 flex justify-between items-center">
+            <div>
+              <p className="text-sm text-gray-400">ID Transaksi:</p>
+              <p className="font-semibold text-gray-200 text-xs mt-1">{transaction.id}</p>
+            </div>
+            {isBukanSewa && (
+                <span className="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-lg text-xs font-bold border border-blue-700">
+                    {transaction.jenis_transaksi}
+                </span>
+            )}
           </div>
           <div className="border-b border-gray-700 pb-2">
             <p className="text-sm text-gray-400">Nama Pelanggan:</p>
-            <p className="font-semibold text-gray-200">{transaction.pelanggan?.nama || '-'}</p>
+            <p className="font-semibold text-gray-200">{transaction.pelanggan?.nama || 'Anonim'}</p>
           </div>
           <div className="border-b border-gray-700 pb-2">
             <p className="text-sm text-gray-400">Nomor WhatsApp:</p>
             <p className="font-semibold text-gray-200">{transaction.pelanggan?.no_whatsapp || '-'}</p>
           </div>
+          
           <div className="border-b border-gray-700 pb-2">
-            <p className="text-sm text-gray-400">Tanggal Sewa:</p>
-            <p className="font-semibold text-gray-200">{moment(transaction.tanggal_mulai).format('DD MMM YYYY')} s/d {moment(transaction.tanggal_selesai).format('DD MMM YYYY')}</p>
+            <p className="text-sm text-gray-400">{isBukanSewa ? 'Tanggal Transaksi:' : 'Tanggal Sewa:'}</p>
+            {isBukanSewa || !transaction.tanggal_mulai ? (
+                <p className="font-semibold text-gray-200">{moment(transaction.created_at).format('DD MMM YYYY, HH:mm')}</p>
+            ) : (
+                <p className="font-semibold text-gray-200">{moment(transaction.tanggal_mulai).format('DD MMM YYYY')} s/d {moment(transaction.tanggal_selesai).format('DD MMM YYYY')}</p>
+            )}
           </div>
           
           <div className="border-b border-gray-700 pb-2 flex justify-between">
@@ -204,7 +219,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
 
           {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
             <div className="border-b border-gray-700 pb-4 mt-2">
-              <h4 className="text-sm font-bold text-gray-400 mb-2">Barang yang Disewa:</h4>
+              <h4 className="text-sm font-bold text-gray-400 mb-2">Item Transaksi:</h4>
               <ul className="space-y-1">
                 {transaction.transaksi_detail.map((item, index) => (
                   <li key={item.id || index} className="flex justify-between text-sm text-gray-300">
@@ -278,8 +293,6 @@ export default function Laporan() {
 
   // State Rekap Kas Harian
   const [rekapKas, setRekapKas] = useState({ cash: 0, transfer: 0, qris: 0, total: 0 });
-  
-  // --- KODE BARU: State Jumlah Transaksi Hari Ini ---
   const [jumlahTransaksiHariIni, setJumlahTransaksiHariIni] = useState(0);
 
   // State Pelunasan Modal
@@ -295,8 +308,7 @@ export default function Laporan() {
     let query = supabase
       .from('transaksi')
       .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), log_pembayaran(id, nominal, jenis_pembayaran, tipe, tanggal_bayar), status_pengembalian, status_pembayaran, jumlah_terbayar`)
-      .order('created_at', { ascending: false })
-      .order('tanggal_mulai', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (startDate) query = query.gte('tanggal_mulai', startDate);
     if (endDate) query = query.lte('tanggal_mulai', endDate);
@@ -321,7 +333,6 @@ export default function Laporan() {
       setTransaksiData(data);
     }
 
-    // Menghitung Kas Khusus Hari Ini
     const { data: logData, error: logError } = await supabase
         .from('log_pembayaran')
         .select('nominal, jenis_pembayaran, tanggal_bayar, created_at');
@@ -345,7 +356,6 @@ export default function Laporan() {
         setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
     }
 
-    // --- KODE BARU: Mengambil Total Jumlah Order Hari Ini ---
     const todayStr = moment().format('YYYY-MM-DD');
     const { count: countTrx, error: countError } = await supabase
         .from('transaksi')
@@ -356,7 +366,6 @@ export default function Laporan() {
     if (!countError) {
         setJumlahTransaksiHariIni(countTrx || 0);
     }
-    // --- AKHIR KODE BARU ---
 
     setLoading(false);
     setInitialLoading(false);
@@ -429,13 +438,16 @@ export default function Laporan() {
 
   const handleExportCSV = () => {
     if (sortedTransaksi.length === 0) { toast.error('Tidak ada data untuk diekspor!'); return; }
-    const headers = ['ID Transaksi', 'Tanggal Mulai', 'Tanggal Selesai', 'Nama Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pembayaran', 'Total Biaya', 'Sudah Dibayar'];
+    const headers = ['ID Transaksi', 'Jenis Transaksi', 'Tanggal Mulai', 'Tanggal Selesai', 'Nama Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pembayaran', 'Total Biaya', 'Sudah Dibayar'];
     const csvRows = [headers.join(';')];
 
     sortedTransaksi.forEach(t => {
+      const isSewa = t.jenis_transaksi !== 'Penjualan' && t.jenis_transaksi !== 'Laundry';
       const row = [
-        `"${t.id}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`, `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`,
-        `"${t.pelanggan?.nama || '-'}"`, `"${t.pelanggan?.no_whatsapp || '-'}"`, `"${t.jenis_pembayaran}"`,
+        `"${t.id}"`, `"${t.jenis_transaksi || 'Sewa'}"`, 
+        `"${isSewa && t.tanggal_mulai ? moment(t.tanggal_mulai).format('YYYY-MM-DD') : '-'}"`, 
+        `"${isSewa && t.tanggal_selesai ? moment(t.tanggal_selesai).format('YYYY-MM-DD') : '-'}"`,
+        `"${t.pelanggan?.nama || 'Anonim'}"`, `"${t.pelanggan?.no_whatsapp || '-'}"`, `"${t.jenis_pembayaran}"`,
         `"${t.status_pembayaran}"`, t.total_biaya, t.jumlah_terbayar
       ].join(';');
       csvRows.push(row);
@@ -478,9 +490,7 @@ export default function Laporan() {
         </button>
       </div>
       
-      {/* --- KODE BARU: Widget diubah jadi 5 Kolom agar Transaksi Hari Ini muat --- */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 print:hidden">
-        {/* Widget Jumlah Order Hari Ini */}
         <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden">
             <p className="text-gray-400 text-sm font-medium mb-1">Total Transaksi Hari Ini</p>
             <h3 className="text-2xl font-bold text-yellow-400">{jumlahTransaksiHariIni} <span className="text-sm font-normal text-gray-500">Order</span></h3>
@@ -555,9 +565,7 @@ export default function Laporan() {
             <table className="w-full text-left table-auto whitespace-nowrap">
               <thead className="bg-gray-900/50 text-sm">
                 <tr>
-                  {/* --- KODE BARU: Kolom Tanggal Order (created_at) --- */}
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('created_at')}>Tgl Order {getSortIcon('created_at')}</th>
-                  
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('tanggal_mulai')}>Tgl Sewa {getSortIcon('tanggal_mulai')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
@@ -571,13 +579,21 @@ export default function Laporan() {
                   const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
                   const isReturned = t.status_pengembalian === 'Sudah Kembali';
                   const isLunas = t.status_pembayaran === 'Lunas';
+                  
+                  // Pengecekan apakah transaksi ini BUKAN sewa (Penjualan / Laundry)
+                  const isBukanSewa = t.jenis_transaksi === 'Penjualan' || t.jenis_transaksi === 'Laundry';
 
                   return (
                     <tr key={t.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                      {/* --- KODE BARU: Menampilkan Waktu Order dengan Jam/Menit --- */}
                       <td className="p-4 text-gray-400 font-medium">{moment(t.created_at).format('DD/MM/YY HH:mm')}</td>
                       
-                      <td className="p-4 text-gray-300">{moment(t.tanggal_mulai).format('DD MMM')} - {moment(t.tanggal_selesai).format('DD MMM')}</td>
+                      <td className="p-4 text-gray-300">
+                        {isBukanSewa || !t.tanggal_mulai ? (
+                            <span className="italic text-gray-500">- {t.jenis_transaksi || 'Langsung'} -</span>
+                        ) : (
+                            `${moment(t.tanggal_mulai).format('DD MMM')} - ${moment(t.tanggal_selesai).format('DD MMM')}`
+                        )}
+                      </td>
                       <td className="p-4 cursor-pointer hover:underline text-teal-400 font-medium" onClick={() => { setSelectedTransaction(t); setModalOpen(true); }}>
                         {t.pelanggan?.nama || 'Anonim'}
                         <p className="text-xs text-gray-500 mt-0.5">{t.pelanggan?.no_whatsapp}</p>
@@ -585,7 +601,11 @@ export default function Laporan() {
                       <td className="p-4 font-semibold text-gray-200">{formatRupiah(t.total_biaya)}</td>
                       
                       <td className="p-4">
-                        {isReturned ? (
+                        {t.jenis_transaksi === 'Penjualan' ? (
+                            <span className="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs font-medium border border-blue-700">Terjual</span>
+                        ) : t.jenis_transaksi === 'Laundry' ? (
+                            <span className="bg-purple-900/50 text-purple-300 px-3 py-1 rounded-full text-xs font-medium border border-purple-700">Selesai</span>
+                        ) : isReturned ? (
                           <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium border border-green-500/30">Sudah Kembali</span>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -604,7 +624,8 @@ export default function Laporan() {
                       
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
-                          {!isReturned && (
+                          {/* Tombol Tandai Kembali HANYA muncul untuk transaksi Sewa yang belum kembali */}
+                          {(!isReturned && !isBukanSewa) && (
                             <button onClick={(e) => { e.stopPropagation(); updateStatusPengembalian(t.id, 'Sudah Kembali'); }} className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-gray-600">
                                 Tandai Kembali
                             </button>
