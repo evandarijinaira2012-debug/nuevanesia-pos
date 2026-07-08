@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 
-// Ambil komponen sesuai dengan nama file fisik Anda (menggunakan spasi)
 import CheckoutSewa from './components/CheckoutSewa';
 import CheckoutPenjualan from './components/CheckoutPenjualan';
 import CheckoutLaundry from './components/CheckoutLaundry';
@@ -59,8 +58,8 @@ export default function CheckoutRouter() {
             {jenisTransaksi === 'Penjualan' && <CheckoutPenjualan />}
             {jenisTransaksi === 'Laundry' && <CheckoutLaundry />}
             
-            {/* Antisipasi jika tipe data di luar Sewa & Penjualan */}
-            {jenisTransaksi !== 'Sewa' && jenisTransaksi !== 'Penjualan' && (
+            {/* Antisipasi jika tipe data di luar Sewa, Penjualan, & Laundry */}
+            {jenisTransaksi !== 'Sewa' && jenisTransaksi !== 'Penjualan' && jenisTransaksi !== 'Laundry' && (
                 <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
                     <h1 className="text-xl font-bold text-red-500 mb-2">⚠️ Modul Tidak Dikenali</h1>
                     <p className="text-gray-400 text-sm mb-4">Tipe transaksi "{jenisTransaksi}" belum aktif atau salah ketik.</p>

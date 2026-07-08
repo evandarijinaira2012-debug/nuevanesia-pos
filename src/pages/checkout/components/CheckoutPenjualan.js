@@ -125,7 +125,9 @@ export default function CheckoutPenjualan() {
                 currentPelangganId = newPelanggan.id;
             }
 
-            // Simpan Transaksi (Murni Penjualan, tanpa input tanggal. Tanggal otomatis dari created_at DB)
+            const finalJumlahTerbayar = statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0);
+
+            // Simpan Transaksi 
             const { data: tx, error: errTx } = await supabase
                 .from('transaksi')
                 .insert([{
@@ -137,8 +139,8 @@ export default function CheckoutPenjualan() {
                     diskon_manual: diskonManual,
                     jenis_diskon_manual: jenisDiskonManual,
                     status_pembayaran: statusPembayaran,
-                    jumlah_terbayar: statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0),
-                    status_pengembalian: 'Selesai' // Langsung selesai karena barang jadi milik pembeli
+                    jumlah_terbayar: finalJumlahTerbayar,
+                    status_pengembalian: 'Selesai' // Langsung selesai
                 }])
                 .select()
                 .single();
@@ -163,8 +165,34 @@ export default function CheckoutPenjualan() {
                 }
             }
 
+            // --- KODE BARU: Siapkan Data untuk Struk ---
+            const dataUntukStruk = {
+                transaksiData: {
+                    jenis_transaksi: 'Penjualan',
+                    // Gunakan tanggal hari ini (opsional untuk struk penjualan)
+                    tanggal_mulai: new Date().toLocaleDateString('id-ID'), 
+                    total_biaya: totalBiayaAkhir,
+                    status_pembayaran: statusPembayaran,
+                    jumlah_terbayar: finalJumlahTerbayar,
+                    jenis_pembayaran: metodePembayaran,
+                    catatan: catatan
+                },
+                pelangganData: {
+                    nama: namaPelanggan || 'Umum',
+                    noWhatsapp: noWhatsapp,
+                    alamat: alamatPelanggan
+                },
+                keranjang: keranjang
+            };
+
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(dataUntukStruk));
+                window.open('/cetak-struk', '_blank'); // Buka Tab Print
+                window.localStorage.removeItem('nuevanesia-checkout-data');
+            }
+            // --- AKHIR KODE BARU ---
+
             toast.success('Penjualan Berhasil!');
-            window.localStorage.removeItem('nuevanesia-checkout-data');
             router.push('/');
         } catch (error) {
             toast.error(error.message);
@@ -281,3 +309,4 @@ export default function CheckoutPenjualan() {
         </div>
     );
 }
+

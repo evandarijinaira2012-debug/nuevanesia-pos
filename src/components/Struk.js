@@ -44,6 +44,7 @@ const Struk = ({ transaksiData }) => {
       <div className="header">
   <img src="/nuevanesialogo.png" alt="nuevanesialogo" className="logo-struk" />
     <div className="alamat-toko">
+    <p style={{ marginTop: '5px', fontSize: '14px' }}><strong>---SEWA---</strong></p>
     <p></p>
     <p>Jl Sarirasa V Blok 4 No 114 Bandung</p>
     <p>Tlp. 08180.208.9909</p>

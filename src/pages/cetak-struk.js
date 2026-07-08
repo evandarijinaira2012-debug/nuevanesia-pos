@@ -2,18 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import Struk from '../components/Struk';
+import StrukLaundry from '../components/StrukLaundry';
+import StrukPenjualan from '../components/StrukPenjualan';
 
 const CetakStrukPage = () => {
-  const [transaksiData, setTransaksiData] = useState(null);
+  const [dataStruk, setDataStruk] = useState(null);
 
   useEffect(() => {
     // Ambil data dari localStorage.
     const data = localStorage.getItem('transaksiDataUntukStruk');
     if (data) {
-      // Jika data ditemukan, simpan ke dalam state.
-      setTransaksiData(JSON.parse(data));
+      setDataStruk(JSON.parse(data));
     }
   }, []);
+
+  if (!dataStruk) {
+    return <div>Memuat data struk...</div>;
+  }
+
+  // Cek jenis transaksi dari data yang dikirim oleh CheckoutLaundry atau CheckoutPenjualan
+  const jenisTransaksi = dataStruk?.transaksiData?.jenis_transaksi;
 
   return (
     <>
@@ -29,7 +37,15 @@ const CetakStrukPage = () => {
         }
       `}</style>
       <div className="print-container">
-        {transaksiData ? <Struk transaksiData={transaksiData} /> : <div>Memuat data struk...</div>}
+        {/* LOGIKA PINTU AIR */}
+        {jenisTransaksi === 'Laundry' ? (
+          <StrukLaundry data={dataStruk} />
+        ) : jenisTransaksi === 'Penjualan' ? (
+          <StrukPenjualan data={dataStruk} />
+        ) : (
+          // Jika tidak ada jenis_transaksi, berarti ini struk Sewa yang lama
+          <Struk transaksiData={dataStruk} />
+        )}
       </div>
     </>
   );

@@ -118,6 +118,8 @@ export default function CheckoutLaundry() {
             }
 
             // Simpan Transaksi (Dengan Tanggal Selesai/Estimasi)
+            const finalJumlahTerbayar = statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0);
+            
             const { data: tx, error: errTx } = await supabase
                 .from('transaksi')
                 .insert([{
@@ -131,7 +133,7 @@ export default function CheckoutLaundry() {
                     diskon_manual: diskonManual,
                     jenis_diskon_manual: jenisDiskonManual,
                     status_pembayaran: statusPembayaran,
-                    jumlah_terbayar: statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0),
+                    jumlah_terbayar: finalJumlahTerbayar,
                     status_pengembalian: 'Diproses' // Menandakan cucian masih dikerjakan
                 }])
                 .select()
@@ -148,8 +150,34 @@ export default function CheckoutLaundry() {
 
             await supabase.from('transaksi_detail').insert(rincianInsert);
 
+            // --- KODE BARU: Siapkan Data untuk Struk ---
+            const dataUntukStruk = {
+                transaksiData: {
+                    jenis_transaksi: 'Laundry',
+                    tanggal_mulai: tanggalMulai,
+                    tanggal_selesai: tanggalSelesai,
+                    total_biaya: totalBiayaAkhir,
+                    status_pembayaran: statusPembayaran,
+                    jumlah_terbayar: finalJumlahTerbayar,
+                    jenis_pembayaran: metodePembayaran,
+                    catatan: catatan
+                },
+                pelangganData: {
+                    nama: namaPelanggan,
+                    noWhatsapp: noWhatsapp,
+                    alamat: alamatPelanggan
+                },
+                keranjang: keranjang
+            };
+
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(dataUntukStruk));
+                window.open('/cetak-struk', '_blank'); // Buka Tab Print
+                window.localStorage.removeItem('nuevanesia-checkout-data');
+            }
+            // --- AKHIR KODE BARU ---
+
             toast.success('Nota Laundry Berhasil Dibuat!');
-            window.localStorage.removeItem('nuevanesia-checkout-data');
             router.push('/');
         } catch (error) {
             toast.error(error.message);
@@ -295,3 +323,4 @@ export default function CheckoutLaundry() {
         </div>
     );
 }
+
