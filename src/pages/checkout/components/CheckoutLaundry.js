@@ -58,7 +58,6 @@ export default function CheckoutLaundry() {
     // --- LOGIKA PENCARIAN WHATSAPP OTOMATIS ---
     useEffect(() => {
         const checkWhatsapp = async () => {
-            // Asumsi nomor WA minimal 10 digit untuk valid
             if (noWhatsapp.length >= 10) {
                 setIsSearchingWA(true);
                 
@@ -66,15 +65,13 @@ export default function CheckoutLaundry() {
                     .from('pelanggan')
                     .select('*')
                     .eq('no_whatsapp', noWhatsapp)
-                    .maybeSingle(); // Cari data tunggal, tidak error jika kosong
+                    .maybeSingle(); 
 
                 if (data) {
-                    // Pelanggan Lama Ditemukan
                     setPelangganId(data.id);
                     setNamaPelanggan(data.nama || '');
                     setAlamatPelanggan(data.alamat || '');
                 } else {
-                    // Pelanggan Baru (Tidak mereset nama/alamat agar ketikan user tidak hilang)
                     setPelangganId(null);
                 }
                 
@@ -84,7 +81,6 @@ export default function CheckoutLaundry() {
             }
         };
 
-        // Gunakan Debounce agar tidak query ke DB tiap 1 huruf diketik
         const delayDebounce = setTimeout(() => {
             checkWhatsapp();
         }, 500);
@@ -117,7 +113,6 @@ export default function CheckoutLaundry() {
                 currentPelangganId = newPelanggan.id;
             }
 
-            // Simpan Transaksi (Dengan Tanggal Selesai/Estimasi)
             const finalJumlahTerbayar = statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0);
             
             const { data: tx, error: errTx } = await supabase
@@ -145,12 +140,12 @@ export default function CheckoutLaundry() {
                 transaksi_id: tx.id,
                 produk_id: item.id,
                 nama_barang: item.nama,
-                jumlah: item.qty
+                jumlah: item.qty,
+                produk_variasi_id: item.produk_variasi_id || null // PENTING: Untuk Variasi
             }));
 
             await supabase.from('transaksi_detail').insert(rincianInsert);
 
-            // --- KODE BARU: Siapkan Data untuk Struk ---
             const dataUntukStruk = {
                 transaksiData: {
                     jenis_transaksi: 'Laundry',
@@ -175,7 +170,6 @@ export default function CheckoutLaundry() {
                 window.open('/cetak-struk', '_blank'); // Buka Tab Print
                 window.localStorage.removeItem('nuevanesia-checkout-data');
             }
-            // --- AKHIR KODE BARU ---
 
             toast.success('Nota Laundry Berhasil Dibuat!');
             router.push('/');
@@ -206,7 +200,6 @@ export default function CheckoutLaundry() {
                         <h2 className="text-xl font-bold mb-4 text-teal-400 flex items-center">🧼 Data Pelanggan</h2>
                         
                         <div className="space-y-4">
-                            {/* Input Nomor WA diletakkan paling atas untuk trigger awal */}
                             <div>
                                 <label className="block text-xs font-semibold text-teal-400 mb-1">NO. WHATSAPP (WAJIB)</label>
                                 <input 
@@ -250,7 +243,6 @@ export default function CheckoutLaundry() {
                         </div>
                     </div>
 
-                    {/* Estimasi Pengerjaan & Pembayaran tetap sama */}
                     <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-xl">
                         <h2 className="text-xl font-bold mb-4 text-teal-400">📅 Estimasi Pengerjaan</h2>
                         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -288,7 +280,7 @@ export default function CheckoutLaundry() {
                     <h2 className="text-xl font-bold mb-4 text-teal-400">📝 Rincian Cucian</h2>
                     <div className="flex-grow overflow-y-auto max-h-64 space-y-3 pr-1 border-b border-gray-700/50 pb-4">
                         {keranjang.map(item => (
-                            <div key={item.id} className="flex justify-between text-sm">
+                            <div key={item.cartItemId || item.id} className="flex justify-between text-sm">
                                 <div>
                                     <p className="font-semibold text-white">{item.nama}</p>
                                     <p className="text-xs text-gray-400">Rp{item.harga.toLocaleString('id-ID')} x {item.qty}</p>
@@ -323,4 +315,3 @@ export default function CheckoutLaundry() {
         </div>
     );
 }
-

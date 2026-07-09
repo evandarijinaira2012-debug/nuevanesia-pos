@@ -53,7 +53,6 @@ export default function CheckoutPenjualan() {
         }
     }, []);
 
-    // ... [Logika Pencarian Pelanggan Sama Seperti Sewa] ...
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -105,7 +104,6 @@ export default function CheckoutPenjualan() {
         setPencarianPelanggan('');
     };
 
-    // --- PERHITUNGAN KHUSUS PENJUALAN ---
     const totalKotor = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
     const nominalDiskonManual = jenisDiskonManual === 'persen' ? (totalKotor * diskonManual) / 100 : Number(diskonManual) || 0;
     const totalBiayaAkhir = Math.max(0, totalKotor - nominalDiskonManual);
@@ -152,24 +150,30 @@ export default function CheckoutPenjualan() {
                 transaksi_id: tx.id,
                 produk_id: item.id,
                 nama_barang: item.nama,
-                jumlah: item.qty
+                jumlah: item.qty,
+                produk_variasi_id: item.produk_variasi_id || null // PENTING: Untuk Variasi
             }));
 
             await supabase.from('transaksi_detail').insert(rincianInsert);
 
-            // Potong Stok
+            // Potong Stok secara akurat (Cek apakah barang itu punya variasi atau tidak)
             for (const item of keranjang) {
-                const { data: pData } = await supabase.from('produk').select('stok').eq('id', item.id).single();
-                if (pData) {
-                    await supabase.from('produk').update({ stok: Math.max(0, pData.stok - item.qty) }).eq('id', item.id);
+                if (item.produk_variasi_id) {
+                    const { data: vData } = await supabase.from('produk_variasi').select('stok').eq('id', item.produk_variasi_id).single();
+                    if (vData) {
+                        await supabase.from('produk_variasi').update({ stok: Math.max(0, vData.stok - item.qty) }).eq('id', item.produk_variasi_id);
+                    }
+                } else {
+                    const { data: pData } = await supabase.from('produk').select('stok').eq('id', item.id).single();
+                    if (pData) {
+                        await supabase.from('produk').update({ stok: Math.max(0, pData.stok - item.qty) }).eq('id', item.id);
+                    }
                 }
             }
 
-            // --- KODE BARU: Siapkan Data untuk Struk ---
             const dataUntukStruk = {
                 transaksiData: {
                     jenis_transaksi: 'Penjualan',
-                    // Gunakan tanggal hari ini (opsional untuk struk penjualan)
                     tanggal_mulai: new Date().toLocaleDateString('id-ID'), 
                     total_biaya: totalBiayaAkhir,
                     status_pembayaran: statusPembayaran,
@@ -190,7 +194,6 @@ export default function CheckoutPenjualan() {
                 window.open('/cetak-struk', '_blank'); // Buka Tab Print
                 window.localStorage.removeItem('nuevanesia-checkout-data');
             }
-            // --- AKHIR KODE BARU ---
 
             toast.success('Penjualan Berhasil!');
             router.push('/');
@@ -274,7 +277,7 @@ export default function CheckoutPenjualan() {
                     <h2 className="text-xl font-bold mb-4 text-teal-400">📝 Rincian Belanja</h2>
                     <div className="flex-grow overflow-y-auto max-h-64 space-y-3 pr-1 border-b border-gray-700/50 pb-4">
                         {keranjang.map(item => (
-                            <div key={item.id} className="flex justify-between text-sm">
+                            <div key={item.cartItemId || item.id} className="flex justify-between text-sm">
                                 <div>
                                     <p className="font-semibold text-white">{item.nama}</p>
                                     <p className="text-xs text-gray-400">Rp{item.harga.toLocaleString('id-ID')} x {item.qty}</p>
@@ -309,4 +312,3 @@ export default function CheckoutPenjualan() {
         </div>
     );
 }
-

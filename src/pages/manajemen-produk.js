@@ -4,7 +4,7 @@ import Head from 'next/head';
 import toast, { Toaster } from 'react-hot-toast';
 import Link from 'next/link';
 
-// Komponen Ikon
+// --- Komponen Ikon ---
 const IconPlus = () => (
   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
 );
@@ -27,28 +27,28 @@ const ManajemenProduk = () => {
   const [kategori, setKategori] = useState('');
   const [description, setDescription] = useState('');
   const [handling_notes, setHandlingNotes] = useState('');
-  
-  // State Baru Sesuai Database
   const [jenis_layanan, setJenisLayanan] = useState('Sewa');
   const [harga_diskon, setHargaDiskon] = useState('');
-  const [variasi, setVariasi] = useState('');
-
-  // State pendukung untuk input kategori manual
   const [isKategoriBaru, setIsKategoriBaru] = useState(false);
-
   const [produkUntukDiedit, setProdukUntukDiedit] = useState(null);
-  
-  // State Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [kategoriFilter, setKategoriFilter] = useState('Semua');
   const [layananFilter, setLayananFilter] = useState('Semua');
+
+  // --- STATE BARU UNTUK VARIASI DINAMIS ---
+  const [variasiList, setVariasiList] = useState([]);
 
   useEffect(() => {
     fetchProduk();
   }, []);
 
   async function fetchProduk() {
-    const { data, error } = await supabase.from('produk').select('*').order('id', { ascending: false });
+    // Pastikan kita juga menarik data relasi variasinya
+    const { data, error } = await supabase
+        .from('produk')
+        .select('*, produk_variasi(*)')
+        .order('id', { ascending: false });
+        
     if (error) {
       console.error('Error fetching produk:', error);
     } else {
@@ -66,59 +66,103 @@ const ManajemenProduk = () => {
     setHandlingNotes('');
     setJenisLayanan('Sewa');
     setHargaDiskon('');
-    setVariasi('');
+    setVariasiList([]); // Reset daftar variasi
     setIsKategoriBaru(false);
     setProdukUntukDiedit(null);
+  };
+
+  // --- FUNGSI UNTUK MENGELOLA BARIS VARIASI ---
+  const tambahBarisVariasi = () => {
+    setVariasiList([...variasiList, { nama_variasi: '', harga: '', stok: '' }]);
+  };
+
+  const hapusBarisVariasi = (index) => {
+    const listBaru = [...variasiList];
+    listBaru.splice(index, 1);
+    setVariasiList(listBaru);
+  };
+
+  const handleUbahVariasi = (index, field, value) => {
+    const listBaru = [...variasiList];
+    listBaru[index][field] = value;
+    setVariasiList(listBaru);
   };
 
   const handleSimpan = async (e) => {
     e.preventDefault();
     if (!nama || !harga || !stok || !kategori || !jenis_layanan) {
-      toast.error('Nama, harga, stok, kategori, dan layanan harus diisi.');
+      toast.error('Nama, harga, stok, kategori, dan layanan utama harus diisi.');
       return;
     }
 
-    const toastId = toast.loading('Menyimpan produk...');
+    const toastId = toast.loading('Menyimpan produk dan variasinya...');
     
     const dataToSave = {
       nama,
-      harga,
-      stok,
+      harga: Number(harga),
+      stok: Number(stok),
       url_gambar,
       kategori: kategori.trim(),
       description,
       handling_notes,
       jenis_layanan,
-      harga_diskon: harga_diskon || null,
-      variasi: variasi || null,
+      harga_diskon: harga_diskon ? Number(harga_diskon) : null,
       seo_title: nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
     };
 
-    if (produkUntukDiedit) {
-      const { error } = await supabase
-        .from('produk')
-        .update(dataToSave)
-        .eq('id', produkUntukDiedit.id);
+    let produkIdTerproses = null;
 
-      if (error) {
-        toast.error('Gagal memperbarui produk.', { id: toastId });
-      } else {
-        toast.success('Produk berhasil diperbarui!', { id: toastId });
-      }
-    } else {
-      const { error } = await supabase
-        .from('produk')
-        .insert([dataToSave]);
-      
-      if (error) {
-        toast.error('Gagal menambahkan produk baru.', { id: toastId });
-      } else {
-        toast.success('Produk berhasil ditambahkan!', { id: toastId });
-      }
+    try {
+        if (produkUntukDiedit) {
+            // PROSES EDIT PRODUK UTAMA
+            produkIdTerproses = produkUntukDiedit.id;
+            const { error: errorUpdate } = await supabase.from('produk').update(dataToSave).eq('id', produkIdTerproses);
+            if (errorUpdate) throw errorUpdate;
+
+            // MANAJEMEN VARIASI SAAT EDIT
+            // 1. Hapus variasi yang dihapus oleh user di form
+            const variasiIdsToKeep = variasiList.filter(v => v.id).map(v => v.id);
+            if (variasiIdsToKeep.length > 0) {
+                const { data: dbVariasi } = await supabase.from('produk_variasi').select('id').eq('produk_id', produkIdTerproses);
+                const idsToDelete = dbVariasi.map(v => v.id).filter(id => !variasiIdsToKeep.includes(id));
+                
+                if (idsToDelete.length > 0) {
+                    await supabase.from('produk_variasi').delete().in('id', idsToDelete);
+                }
+            } else {
+                await supabase.from('produk_variasi').delete().eq('produk_id', produkIdTerproses);
+            }
+        } else {
+            // PROSES INSERT PRODUK BARU
+            const { data, error: errorInsert } = await supabase.from('produk').insert([dataToSave]).select();
+            if (errorInsert) throw errorInsert;
+            produkIdTerproses = data[0].id;
+        }
+
+        // PROSES SIMPAN/UPDATE DATA VARIASI
+        if (variasiList.length > 0) {
+            const dataVariasiToSave = variasiList.map(v => {
+                const payload = {
+                    produk_id: produkIdTerproses,
+                    nama_variasi: v.nama_variasi,
+                    harga: Number(v.harga),
+                    stok: jenis_layanan === 'Laundry' ? null : Number(v.stok)
+                };
+                if (v.id) payload.id = v.id; // Sertakan ID jika ini adalah variasi yang sudah ada (untuk update)
+                return payload;
+            });
+
+            const { error: errorVariasi } = await supabase.from('produk_variasi').upsert(dataVariasiToSave);
+            if (errorVariasi) throw errorVariasi;
+        }
+
+        toast.success(produkUntukDiedit ? 'Produk berhasil diperbarui!' : 'Produk berhasil ditambahkan!', { id: toastId });
+        resetForm();
+        fetchProduk();
+    } catch (error) {
+        console.error(error);
+        toast.error('Gagal memproses data. Cek koneksi atau inputan.', { id: toastId });
     }
-
-    resetForm();
-    fetchProduk();
   };
 
   const handleEdit = (produk) => {
@@ -132,18 +176,16 @@ const ManajemenProduk = () => {
     setHandlingNotes(produk.handling_notes || '');
     setJenisLayanan(produk.jenis_layanan || 'Sewa');
     setHargaDiskon(produk.harga_diskon || '');
-    setVariasi(produk.variasi || '');
-    setIsKategoriBaru(false); // Menggunakan kategori yang sudah ada saat edit
+    setIsKategoriBaru(false);
+    
+    // Muat data variasi yang ada ke dalam form
+    setVariasiList(produk.produk_variasi || []);
   };
 
   const handleDelete = async (produkId) => {
-    const konfirmasi = window.confirm('Apakah Anda yakin ingin menghapus produk ini?');
+    const konfirmasi = window.confirm('Apakah Anda yakin ingin menghapus produk ini? Semua variasi terkait juga akan terhapus.');
     if (konfirmasi) {
-      const { error } = await supabase
-        .from('produk')
-        .delete()
-        .eq('id', produkId);
-
+      const { error } = await supabase.from('produk').delete().eq('id', produkId);
       if (error) {
         toast.error('Gagal menghapus produk.');
       } else {
@@ -153,7 +195,6 @@ const ManajemenProduk = () => {
     }
   };
 
-  // 🔎 Ekstraksi Kategori & Layanan Unik untuk Filter dan Dropdown Form
   const kategoriUnik = ['Semua', ...new Set(produk.map((item) => item.kategori).filter(Boolean))];
   const daftarKategoriForm = [...new Set(produk.map((item) => item.kategori).filter(Boolean))];
   const layananUnik = ['Semua', 'Sewa', 'Penjualan', 'Laundry'];
@@ -242,39 +283,89 @@ const ManajemenProduk = () => {
                               </div>
                             </div>
 
-                            <div className="flex gap-4">
-                              <div className="w-1/2">
-                                  <label className="block text-gray-400 mb-2">Stok</label>
-                                  <input
-                                    type="number"
-                                    value={stok}
-                                    onChange={(e) => setStok(e.target.value)}
-                                    placeholder="Stok"
-                                    required
-                                    className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-                                  />
-                              </div>
-                              <div className="w-1/2">
-                                  <label className="block text-gray-400 mb-2">Variasi (Opsional)</label>
-                                  <input
-                                    type="text"
-                                    value={variasi}
-                                    onChange={(e) => setVariasi(e.target.value)}
-                                    placeholder="Contoh: XL, Merah"
-                                    className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
-                                  />
-                              </div>
+                            <div>
+                                <label className="block text-gray-400 mb-2">Stok Utama</label>
+                                <input
+                                  type="number"
+                                  value={stok}
+                                  onChange={(e) => setStok(e.target.value)}
+                                  placeholder="Stok"
+                                  required
+                                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                                />
                             </div>
 
-                            {/* --- PILIH KATEGORI (DROPDOWN + MANUAL INPUT) --- */}
-                            <div>
+                            {/* --- AREA VARIASI DINAMIS --- */}
+                            <div className="mt-6 border-t border-gray-700 pt-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="block text-teal-400 font-bold">Variasi Produk (Opsional)</label>
+                                    <button 
+                                        type="button" 
+                                        onClick={tambahBarisVariasi} 
+                                        className="text-xs bg-teal-600/20 text-teal-300 px-3 py-1.5 rounded-lg border border-teal-500/30 hover:bg-teal-600/40 transition-colors flex items-center"
+                                    >
+                                        + Tambah Variasi
+                                    </button>
+                                </div>
+
+                                {variasiList.length === 0 && (
+                                    <p className="text-sm text-gray-500 italic mb-4">Belum ada variasi. Klik tombol tambah di atas.</p>
+                                )}
+
+                                <div className="space-y-3">
+                                    {variasiList.map((variasi, index) => (
+                                        <div key={index} className="flex gap-2 items-center bg-gray-900 p-3 rounded-lg border border-gray-700 relative">
+                                            <div className="flex-grow space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={variasi.nama_variasi}
+                                                    onChange={(e) => handleUbahVariasi(index, 'nama_variasi', e.target.value)}
+                                                    placeholder="Nama (mis: Carrier 45L)"
+                                                    required
+                                                    className="w-full p-2 text-sm bg-gray-800 rounded border border-gray-600 text-white focus:ring-1 focus:ring-teal-500 outline-none"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="number"
+                                                        value={variasi.harga}
+                                                        onChange={(e) => handleUbahVariasi(index, 'harga', e.target.value)}
+                                                        placeholder="Harga"
+                                                        required
+                                                        className="w-full p-2 text-sm bg-gray-800 rounded border border-gray-600 text-white focus:ring-1 focus:ring-teal-500 outline-none"
+                                                    />
+                                                    {jenis_layanan !== 'Laundry' && (
+                                                        <input
+                                                            type="number"
+                                                            value={variasi.stok}
+                                                            onChange={(e) => handleUbahVariasi(index, 'stok', e.target.value)}
+                                                            placeholder="Stok"
+                                                            required
+                                                            className="w-full p-2 text-sm bg-gray-800 rounded border border-gray-600 text-white focus:ring-1 focus:ring-teal-500 outline-none"
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => hapusBarisVariasi(index)}
+                                                className="text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded h-full"
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* --- AKHIR AREA VARIASI --- */}
+
+                            <div className="border-t border-gray-700 pt-6">
                                 <label className="block text-gray-400 mb-2">Kategori</label>
                                 <select
                                   value={isKategoriBaru ? 'KategoriBaru' : kategori}
                                   onChange={(e) => {
                                     if (e.target.value === 'KategoriBaru') {
                                       setIsKategoriBaru(true);
-                                      setKategori(''); // Kosongkan agar user bisa isi manual
+                                      setKategori('');
                                     } else {
                                       setIsKategoriBaru(false);
                                       setKategori(e.target.value);
@@ -290,7 +381,6 @@ const ManajemenProduk = () => {
                                   <option value="KategoriBaru" className="text-teal-400 font-semibold">✏️ + Tambah Kategori Baru...</option>
                                 </select>
 
-                                {/* Input text manual ini hanya muncul jika memilih 'Tambah Kategori Baru...' */}
                                 {isKategoriBaru && (
                                   <input
                                     type="text"
@@ -413,8 +503,8 @@ const ManajemenProduk = () => {
                                 <tr className="bg-gray-700/50">
                                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Nama Produk</th>
                                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Layanan</th>
-                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Harga</th>
-                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Stok</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Harga Utama</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Info Tambahan</th>
                                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
@@ -422,11 +512,10 @@ const ManajemenProduk = () => {
                                 {produkTerfilter.length > 0 ? (
                                 produkTerfilter.map((item) => (
                                     <tr key={item.id} className="hover:bg-gray-700/50 transition-colors">
-                                      <td className="px-4 py-4 text-sm font-medium text-white max-w-[200px] truncate">
+                                      <td className="px-4 py-4 text-sm font-medium text-white max-w-[200px]">
                                         {item.nama}
                                         <div className="flex gap-2 mt-1">
                                           <span className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">{item.kategori}</span>
-                                          {item.variasi && <span className="text-[10px] text-teal-400 font-mono">({item.variasi})</span>}
                                         </div>
                                       </td>
                                       <td className="px-4 py-4 whitespace-nowrap text-sm">
@@ -444,7 +533,13 @@ const ManajemenProduk = () => {
                                             <span className="block text-xs text-red-400 line-through mt-1">Rp{item.harga_diskon.toLocaleString('id-ID')}</span>
                                         )}
                                       </td>
-                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">{item.stok}</td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">
+                                        {item.produk_variasi && item.produk_variasi.length > 0 ? (
+                                            <span className="text-teal-400 font-semibold">{item.produk_variasi.length} Variasi</span>
+                                        ) : (
+                                            <span>Stok: {item.stok}</span>
+                                        )}
+                                      </td>
                                       <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-center space-x-3">
                                           <button onClick={() => handleEdit(item)} className="text-yellow-500 hover:text-yellow-400 p-1 bg-yellow-500/10 rounded">

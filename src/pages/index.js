@@ -48,10 +48,7 @@ import ProductPopup from '../components/ProductPopup';
 export default function Home() {
     const [produk, setProduk] = useState([]);
     const [keranjang, setKeranjang] = useState([]);
-    
-    // --- STATE BARU UNTUK JENIS LAYANAN ---
     const [jenisLayananTerpilih, setJenisLayananTerpilih] = useState('Sewa');
-    
     const [kategoriTerpilih, setKategoriTerpilih] = useState('Semua');
     const [semuaKategori, setSemuaKategori] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -60,7 +57,6 @@ export default function Home() {
     const [justAddedProductId, setJustAddedProductId] = useState(null);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    // Menghitung total sementara (Subtotal tanpa hitungan hari/laundry dulu)
     const hitungSubtotal = () => {
         return keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
     };
@@ -82,7 +78,8 @@ export default function Home() {
 
     useEffect(() => {
         async function fetchProduk() {
-            const { data, error } = await supabase.from('produk').select('*');
+            // PERUBAHAN: Memanggil produk beserta relasi produk_variasi
+            const { data, error } = await supabase.from('produk').select('*, produk_variasi(*)');
             if (error) {
                 console.error('Error fetching produk:', error);
             } else {
@@ -107,7 +104,6 @@ export default function Home() {
                     const parsed = JSON.parse(saved);
                     if (parsed && Array.isArray(parsed.keranjang)) {
                         setKeranjang(parsed.keranjang);
-                        // Otomatis pindah tab ke layanan barang yang sudah ada di keranjang
                         if (parsed.keranjang.length > 0) {
                             const layananKeranjang = parsed.keranjang[0].jenis_layanan || 'Sewa';
                             setJenisLayananTerpilih(layananKeranjang);
@@ -120,9 +116,10 @@ export default function Home() {
         }
     }, []);
 
-    const tambahKeKeranjang = (item) => {
-        // --- LOGIKA PENCEGAH KERANJANG CAMPURAN ---
+    // PERUBAHAN UTAMA: Fungsi ini sekarang menerima argumen ke-2 yaitu variasi
+    const tambahKeKeranjang = (item, variasi = null) => {
         const itemLayanan = item.jenis_layanan || 'Sewa';
+        
         if (keranjang.length > 0) {
             const layananDiKeranjang = keranjang[0].jenis_layanan || 'Sewa';
             if (itemLayanan !== layananDiKeranjang) {
@@ -131,53 +128,58 @@ export default function Home() {
             }
         }
         
-        let newKeranjang;
-        const itemSudahAda = keranjang.find((i) => i.id === item.id);
+        // Membuat Unique ID untuk keranjang agar variasi yang berbeda tidak menumpuk
+        const cartItemId = variasi ? `${item.id}-${variasi.id}` : item.id;
         
-        // Memastikan parameter jenis_layanan masuk ke keranjang
-        const itemToSave = { ...item, jenis_layanan: itemLayanan };
+        // Override nama dan harga jika ada variasi yang dipilih
+        const namaTampil = variasi ? `${item.nama} - ${variasi.nama_variasi}` : item.nama;
+        const hargaTampil = variasi ? variasi.harga : item.harga;
+
+        const itemToSave = { 
+            ...item, 
+            cartItemId: cartItemId, 
+            nama: namaTampil, 
+            harga: hargaTampil,
+            jenis_layanan: itemLayanan,
+            produk_variasi_id: variasi ? variasi.id : null 
+        };
+
+        const itemSudahAda = keranjang.find((i) => i.cartItemId === cartItemId);
+        let newKeranjang;
 
         if (itemSudahAda) {
             newKeranjang = keranjang.map((i) =>
-                i.id === item.id ? { ...i, qty: i.qty + 1 } : i
+                i.cartItemId === cartItemId ? { ...i, qty: i.qty + 1 } : i
             );
         } else {
             newKeranjang = [...keranjang, { ...itemToSave, qty: 1 }];
         }
+        
         setKeranjang(newKeranjang);
-
-        if (typeof window !== 'undefined') {
-            try {
-                const savedRaw = localStorage.getItem('nuevanesia-checkout-data');
-                const saved = savedRaw ? JSON.parse(savedRaw) : {};
-                saved.keranjang = newKeranjang;
-                saved.jenisTransaksi = itemLayanan; // Simpan jenis transaksi ke lokal
-                localStorage.setItem('nuevanesia-checkout-data', JSON.stringify(saved));
-                toast.success('Produk berhasil ditambahkan.');
-            } catch (err) {
-                console.error('Gagal sinkron keranjang', err);
-            }
-        }
+        updateLocalStorage(newKeranjang);
+        toast.success(`${namaTampil} berhasil ditambahkan.`);
 
         setJustAddedProductId(item.id);
         setTimeout(() => setJustAddedProductId(null), 1000);
     };
 
-    const kurangDariKeranjang = (itemId) => {
-        const item = keranjang.find((i) => i.id === itemId);
+    // PERUBAHAN: menggunakan cartItemId, bukan item.id
+    const kurangDariKeranjang = (cartItemId) => {
+        const item = keranjang.find((i) => i.cartItemId === cartItemId);
         if (item.qty === 1) {
-            hapusItem(itemId);
+            hapusItem(cartItemId);
         } else {
             const newKeranjang = keranjang.map((i) =>
-                i.id === itemId ? { ...i, qty: i.qty - 1 } : i
+                i.cartItemId === cartItemId ? { ...i, qty: i.qty - 1 } : i
             );
             setKeranjang(newKeranjang);
             updateLocalStorage(newKeranjang);
         }
     };
 
-    const hapusItem = (itemId) => {
-        const newKeranjang = keranjang.filter((i) => i.id !== itemId);
+    // PERUBAHAN: menggunakan cartItemId, bukan item.id
+    const hapusItem = (cartItemId) => {
+        const newKeranjang = keranjang.filter((i) => i.cartItemId !== cartItemId);
         setKeranjang(newKeranjang);
         updateLocalStorage(newKeranjang);
     };
@@ -204,19 +206,12 @@ export default function Home() {
         router.push('/checkout');
     };
 
-    // --- LOGIKA FILTER BARU ---
     const produkTerfilter = produk.filter(item => {
-        // 1. Filter berdasarkan Layanan (Sewa/Penjualan/Laundry)
-        // Jika database belum diupdate, anggap produk lama adalah 'Sewa'
         const jenisLayananProduk = item.jenis_layanan || 'Sewa'; 
         if (jenisLayananProduk !== jenisLayananTerpilih) return false;
-
-        // 2. Filter Pencarian Teks
         if (searchQuery.trim() !== '') {
             return item.nama.toLowerCase().includes(searchQuery.toLowerCase());
         }
-        
-        // 3. Filter Kategori
         return kategoriTerpilih === 'Semua' || item.kategori === kategoriTerpilih;
     });
 
@@ -242,7 +237,6 @@ export default function Home() {
                     <p className="text-sm font-light text-blue-400 mt-2">Produce by GodByte</p>
                 </div>
 
-                {/* --- MENU JENIS LAYANAN BARU --- */}
                 <div className="mb-6">
                     <h2 className="text-xs font-bold mb-3 text-gray-500 uppercase tracking-widest">Jenis Transaksi</h2>
                     <div className="flex flex-col space-y-2">
@@ -251,7 +245,7 @@ export default function Home() {
                                 key={layanan}
                                 onClick={() => {
                                     setJenisLayananTerpilih(layanan);
-                                    setKategoriTerpilih('Semua'); // Reset kategori saat ganti layanan
+                                    setKategoriTerpilih('Semua');
                                 }}
                                 className={`p-3 rounded-lg text-left font-semibold transition-all duration-200 flex items-center ${
                                     jenisLayananTerpilih === layanan
@@ -269,7 +263,6 @@ export default function Home() {
                 </div>
                 
                 <div className="w-full h-px bg-gray-800 mb-6"></div>
-                {/* --- AKHIR MENU JENIS LAYANAN --- */}
 
                 <div className="flex-grow lg:h-[40vh] overflow-y-auto scrollbar-hide">
                     <h2 className="text-xs font-bold mb-3 text-gray-500 uppercase tracking-widest">Kategori ({jenisLayananTerpilih})</h2>
@@ -325,7 +318,13 @@ export default function Home() {
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                     {produkTerfilter.length > 0 ? (
                         produkTerfilter.map(item => {
+                            const hasVariasi = item.produk_variasi && item.produk_variasi.length > 0;
+                            // Jika ada variasi, ketersediaan stok akan dinilai dari variasi yang dipilih di dalam popup
+                            const isOutOfStock = !hasVariasi && item.stok <= 0 && jenisLayananTerpilih !== 'Laundry';
+                            
+                            // Cek jika setidaknya ada versi produk ini di dalam keranjang
                             const isInCart = keranjang.some(cartItem => cartItem.id === item.id);
+
                             return (
                                 <div 
                                     key={item.id} 
@@ -338,25 +337,46 @@ export default function Home() {
                                     <div className="p-4 flex flex-col flex-grow">
                                         <p className="text-xs font-semibold text-gray-500 mb-1 uppercase">{item.kategori}</p>
                                         <h3 className="font-bold text-lg text-white mb-1 leading-tight">{item.nama}</h3>
-                                        {/* Ubah teks "/ Hari" agar dinamis */}
                                         <p className="text-sm text-teal-400 font-semibold mb-2">
-                                            Rp{item.harga.toLocaleString('id-ID')} 
+                                            {hasVariasi ? 'Mulai dari ' : ''}Rp{item.harga.toLocaleString('id-ID')} 
                                             {jenisLayananTerpilih === 'Sewa' && ' / Hari'}
                                         </p>
-                                        <p className={`text-xs mt-auto mb-3 font-semibold ${item.stok > 10 ? 'text-green-400' : item.stok > 0 ? 'text-yellow-400' : 'text-red-500'}`}>
-                                            Stok: {item.stok}
-                                        </p>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); tambahKeKeranjang(item); }}
-                                            disabled={item.stok === 0}
-                                            className={`font-semibold p-2.5 rounded-lg w-full transition-all duration-200 flex items-center justify-center text-sm disabled:cursor-not-allowed ${
-                                                isInCart 
-                                                ? 'bg-green-600/20 text-green-300 border border-green-600/30' 
-                                                : 'bg-teal-600 text-white hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500'
-                                            }`}
-                                        >
-                                            {isInCart ? 'Ditambahkan ✔' : <><IconPlus /> Tambah</>}
-                                        </button>
+                                        
+                                        {/* BUNGKUSAN BARU (mt-auto) AGAR ELEMEN SELALU RATA BAWAH */}
+                                        <div className="mt-auto w-full pt-2">
+                                            {!hasVariasi && jenisLayananTerpilih !== 'Laundry' && (
+                                                <p className={`text-xs mb-3 font-semibold ${item.stok > 10 ? 'text-green-400' : item.stok > 0 ? 'text-yellow-400' : 'text-red-500'}`}>
+                                                    Stok: {item.stok}
+                                                </p>
+                                            )}
+                                            {hasVariasi && (
+                                                <p className="text-xs mb-3 font-semibold text-blue-400">
+                                                    Tersedia {item.produk_variasi.length} Variasi
+                                                </p>
+                                            )}
+                                            
+                                            {/* LOGIKA TOMBOL BARU */}
+                                            <button
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    if (hasVariasi) {
+                                                        openProductPopup(item); // Buka popup jika ada variasi
+                                                    } else {
+                                                        tambahKeKeranjang(item); // Langsung tambah jika tidak ada variasi
+                                                    }
+                                                }}
+                                                disabled={isOutOfStock}
+                                                className={`font-semibold p-2.5 rounded-lg w-full transition-all duration-200 flex items-center justify-center text-sm disabled:cursor-not-allowed ${
+                                                    hasVariasi 
+                                                    ? 'bg-blue-600/20 text-blue-300 border border-blue-600/30 hover:bg-blue-600/40'
+                                                    : isInCart 
+                                                    ? 'bg-green-600/20 text-green-300 border border-green-600/30' 
+                                                    : 'bg-teal-600 text-white hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500'
+                                                }`}
+                                            >
+                                                {hasVariasi ? 'Pilih Variasi' : (isInCart ? 'Ditambahkan ✔' : <><IconPlus /> Tambah</>)}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -389,17 +409,19 @@ export default function Home() {
                                 <p className="text-sm">Keranjang Anda kosong.</p>
                             </div>
                         ) : (
+                            // PERUBAHAN: menggunakan cartItemId sebagai key
                             keranjang.map(item => (
-                                <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-700/50 last:border-b-0">
+                                <div key={item.cartItemId} className="flex justify-between items-center py-3 border-b border-gray-700/50 last:border-b-0">
                                     <div className="pr-2">
                                         <p className="font-medium text-white text-sm leading-tight mb-1">{item.nama}</p>
                                         <p className="text-xs text-teal-400 font-semibold">Rp{item.harga.toLocaleString('id-ID')} <span className="text-gray-500 font-normal">x {item.qty}</span></p>
                                     </div>
                                     <div className="flex items-center space-x-2 bg-gray-900 rounded-lg p-1 border border-gray-700">
-                                        <button onClick={() => kurangDariKeranjang(item.id)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 flex items-center justify-center">-</button>
+                                        {/* PERUBAHAN: passing cartItemId untuk tombol kurang & hapus */}
+                                        <button onClick={() => kurangDariKeranjang(item.cartItemId)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 flex items-center justify-center">-</button>
                                         <span className="font-bold text-gray-200 text-sm w-5 text-center">{item.qty}</span>
                                         <button onClick={() => tambahKeKeranjang(item)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 flex items-center justify-center">+</button>
-                                        <button onClick={() => hapusItem(item.id)} className="text-gray-500 hover:text-red-500 ml-1 p-1">
+                                        <button onClick={() => hapusItem(item.cartItemId)} className="text-gray-500 hover:text-red-500 ml-1 p-1">
                                             <IconTrash />
                                         </button>
                                     </div>
@@ -429,7 +451,16 @@ export default function Home() {
                 </div>
             </div>
 
-            <ProductPopup product={selectedProduct} onClose={closeProductPopup} />
+            {/* PERUBAHAN: Memasukkan onAddToCart ke dalam prop popup */}
+            <ProductPopup 
+                product={selectedProduct} 
+                onClose={closeProductPopup} 
+                jenisLayananTerpilih={jenisLayananTerpilih}
+                onAddToCart={(product, variasi) => {
+                    tambahKeKeranjang(product, variasi);
+                    closeProductPopup();
+                }}
+            />
         </div>
     );
 }

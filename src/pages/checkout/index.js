@@ -19,8 +19,8 @@ export default function CheckoutRouter() {
         if (savedData) {
             try {
                 const parsed = JSON.parse(savedData);
-                // Kita cek tipe transaksi, jika tidak ada kita default ke 'Sewa'
-                const tipe = parsed.jenisTransaksi || parsed.jenis_transaksi || 'Sewa';
+                // PERBAIKAN: Kita cek dari keranjang item pertama untuk mengetahui jenis layanannya
+                const tipe = parsed.jenisTransaksi || parsed.jenis_transaksi || (parsed.keranjang && parsed.keranjang.length > 0 ? parsed.keranjang[0].jenis_layanan : 'Sewa');
                 console.log("[Router] Jenis transaksi terdeteksi:", tipe);
                 setJenisTransaksi(tipe);
             } catch (error) {
@@ -35,7 +35,7 @@ export default function CheckoutRouter() {
         }
     }, [router]);
 
-    // Jika jenis transaksi belum ditentukan, tampilkan status (tidak blank lagi)
+    // Jika jenis transaksi belum ditentukan, tampilkan status
     if (!jenisTransaksi) {
         return (
             <div className="min-h-screen bg-gray-900 text-gray-400 flex items-center justify-center font-sans text-sm tracking-wide">

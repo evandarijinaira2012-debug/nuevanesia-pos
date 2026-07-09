@@ -86,9 +86,7 @@ export default function CheckoutSewa() {
                     }
                     window.localStorage.removeItem('nuevanesia-just-merged');
                 }
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) {}
         } catch (error) {
             console.error('Gagal membaca checkout data:', error);
             router.replace('/');
@@ -210,7 +208,7 @@ export default function CheckoutSewa() {
     };
 
     const hapusItem = (itemId) => {
-        const updatedKeranjang = keranjang.filter((item) => item.id !== itemId);
+        const updatedKeranjang = keranjang.filter((item) => item.cartItemId !== itemId && item.id !== itemId);
         updateKeranjang(updatedKeranjang);
         if (updatedKeranjang.length === 0) {
             router.push('/');
@@ -219,13 +217,13 @@ export default function CheckoutSewa() {
 
     const tambahQty = (itemId) => {
         const updatedKeranjang = keranjang.map((item) =>
-            item.id === itemId ? { ...item, qty: item.qty + 1 } : item
+            (item.cartItemId === itemId || item.id === itemId) ? { ...item, qty: item.qty + 1 } : item
         );
         updateKeranjang(updatedKeranjang);
     };
 
     const kurangQty = (itemId) => {
-        const item = keranjang.find((item) => item.id === itemId);
+        const item = keranjang.find((item) => item.cartItemId === itemId || item.id === itemId);
         if (!item) return;
 
         if (item.qty <= 1) {
@@ -234,7 +232,7 @@ export default function CheckoutSewa() {
         }
 
         const updatedKeranjang = keranjang.map((item) =>
-            item.id === itemId ? { ...item, qty: item.qty - 1 } : item
+            (item.cartItemId === itemId || item.id === itemId) ? { ...item, qty: item.qty - 1 } : item
         );
         updateKeranjang(updatedKeranjang);
     };
@@ -354,7 +352,6 @@ export default function CheckoutSewa() {
             return;
         }
 
-        // --- KODE BARU: Penentuan Variabel Pembayaran & Validasi ---
         const totalBiayaAkhir = hitungTotalAkhir();
         const finalJumlahTerbayar = statusPembayaran === 'Lunas' ? totalBiayaAkhir : jumlahTerbayar;
         const finalStatus = statusPembayaran === 'Lunas' ? 'Lunas' : 'DP';
@@ -370,7 +367,6 @@ export default function CheckoutSewa() {
                 return;
             }
         }
-        // --- AKHIR KODE BARU ---
 
         const toastId = toast.loading('Menyimpan transaksi...');
 
@@ -449,10 +445,8 @@ export default function CheckoutSewa() {
                 jenis_pembayaran: metodePembayaran,
                 catatan: catatan,
                 diskon_manual: nilaiDiskonManual,
-                // --- KODE BARU: Masukkan Status dan Jumlah Terbayar ---
                 status_pembayaran: finalStatus,
                 jumlah_terbayar: finalJumlahTerbayar
-                // --- AKHIR KODE BARU ---
             }])
             .select();
 
@@ -464,7 +458,7 @@ export default function CheckoutSewa() {
 
         const transaksiId = transaksiData[0].id;
 
-        // 4. Simpan ke tabel Log Pembayaran (KODE BARU)
+        // 4. Simpan ke tabel Log Pembayaran
         if (finalJumlahTerbayar > 0) {
             const { error: logError } = await supabase
                 .from('log_pembayaran')
@@ -474,20 +468,15 @@ export default function CheckoutSewa() {
                     jenis_pembayaran: metodePembayaran,
                     tipe: tipeLog
                 }]);
-
-            if (logError) {
-                console.error('Error menyimpan log pembayaran:', logError);
-                // Kita tidak return error agar transaksi tetap berjalan, namun idealnya dicatat
-            }
         }
-        // --- AKHIR KODE BARU ---
 
-        // 5. Simpan ke tabel Transaksi Detail
+        // 5. Simpan ke tabel Transaksi Detail (Ditambahkan produk_variasi_id)
         const itemsToInsert = keranjang.map((item) => ({
             transaksi_id: transaksiId,
             produk_id: item.id,
             nama_barang: item.nama,
             jumlah: item.qty,
+            produk_variasi_id: item.produk_variasi_id || null // PENTING: Untuk Variasi
         }));
 
         const { error: detailError } = await supabase
@@ -500,14 +489,23 @@ export default function CheckoutSewa() {
             return;
         }
 
-        // 6. Potong Stok Produk
+        // 6. Potong Stok Produk & Variasi secara akurat
         await Promise.all(
-            keranjang.map((item) =>
-                supabase
-                    .from('produk')
-                    .update({ stok: item.stok - item.qty })
-                    .eq('id', item.id)
-            )
+            keranjang.map(async (item) => {
+                if (item.produk_variasi_id) {
+                    // Cek stok variasi saat ini
+                    const { data: vData } = await supabase.from('produk_variasi').select('stok').eq('id', item.produk_variasi_id).single();
+                    if (vData) {
+                        return supabase.from('produk_variasi').update({ stok: Math.max(0, vData.stok - item.qty) }).eq('id', item.produk_variasi_id);
+                    }
+                } else {
+                    // Cek stok produk utama jika bukan variasi
+                    const { data: pData } = await supabase.from('produk').select('stok').eq('id', item.id).single();
+                    if (pData) {
+                        return supabase.from('produk').update({ stok: Math.max(0, pData.stok - item.qty) }).eq('id', item.id);
+                    }
+                }
+            })
         );
 
         // 7. Siapkan Data untuk Struk
@@ -530,10 +528,8 @@ export default function CheckoutSewa() {
             total: totalBiayaAkhir,
             metodePembayaran,
             catatan,
-            // --- KODE BARU: Kirim data pembayaran ke struk ---
             statusPembayaran: finalStatus,
             jumlahTerbayar: finalJumlahTerbayar
-            // --- AKHIR KODE BARU ---
         };
 
         if (typeof window !== 'undefined') {
@@ -555,12 +551,12 @@ export default function CheckoutSewa() {
         <div className="min-h-screen bg-gray-900 text-gray-200 p-6">
             <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#24252A', color: '#e2e8f0', border: '1px solid #2C2E33' } }} />
             <Head>
-                <title>Checkout - Nuevanesia POS</title>
+                <title>Checkout Sewa - Nuevanesia POS</title>
             </Head>
             <div className="max-w-6xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-white">Checkout</h1>
+                        <h1 className="text-3xl font-bold text-white">Checkout Sewa</h1>
                         <p className="text-gray-400 mt-1">Periksa kembali detail pelanggan dan barang sebelum menyimpan transaksi.</p>
                     </div>
                     <button
@@ -689,11 +685,11 @@ export default function CheckoutSewa() {
                     </div>
                     <div className="space-y-3">
                         {keranjang.map((item) => (
-                            <div key={item.id} className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-900 p-4 rounded-3xl border border-gray-700 items-center">
+                            <div key={item.cartItemId || item.id} className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-900 p-4 rounded-3xl border border-gray-700 items-center">
                                 <div className="flex items-center gap-3">
                                     <img src={item.url_gambar || '/images/placeholder.png'} alt={item.nama} className="w-12 h-12 object-cover rounded" />
                                     <div>
-                                        <p className="text-gray-300 text-sm">{item.nama}</p>
+                                        <p className="text-gray-300 text-sm font-semibold">{item.nama}</p>
                                         <p className="text-gray-400 text-xs mt-1">Rp{Number(item.harga).toLocaleString('id-ID')} / unit</p>
                                     </div>
                                 </div>
@@ -701,7 +697,7 @@ export default function CheckoutSewa() {
                                     <div className="flex items-center gap-2 justify-end">
                                         <button
                                             type="button"
-                                            onClick={() => kurangQty(item.id)}
+                                            onClick={() => kurangQty(item.cartItemId || item.id)}
                                             className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-700 text-white hover:bg-gray-600"
                                         >
                                             -
@@ -709,7 +705,7 @@ export default function CheckoutSewa() {
                                         <span className="text-white font-semibold text-lg">{item.qty}</span>
                                         <button
                                             type="button"
-                                            onClick={() => tambahQty(item.id)}
+                                            onClick={() => tambahQty(item.cartItemId || item.id)}
                                             className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-700 text-white hover:bg-gray-600"
                                         >
                                             +
@@ -718,7 +714,7 @@ export default function CheckoutSewa() {
                                     <p className="text-gray-300 text-sm mt-3">Total: <span className="font-semibold text-white">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span></p>
                                     <button
                                         type="button"
-                                        onClick={() => hapusItem(item.id)}
+                                        onClick={() => hapusItem(item.cartItemId || item.id)}
                                         className="mt-3 text-xs text-red-400 hover:text-red-300"
                                     >
                                         Hapus Produk
@@ -842,10 +838,8 @@ export default function CheckoutSewa() {
                         </div>
                     </div>
 
-                    {/* --- KODE BARU: Opsi Pembayaran (Lunas/DP) --- */}
                     <div className="mt-6 bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
                         <h2 className="text-2xl font-semibold text-teal-400 mb-4">Status Pembayaran</h2>
-                        
                         <div className="flex gap-3 mb-4">
                             <button
                                 type="button"
@@ -887,8 +881,6 @@ export default function CheckoutSewa() {
                             </div>
                         )}
                     </div>
-                    {/* --- AKHIR KODE BARU --- */}
-
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -927,4 +919,3 @@ export default function CheckoutSewa() {
         </div>
     );
 }
-
