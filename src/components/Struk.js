@@ -5,6 +5,7 @@ const Struk = ({ transaksiData }) => {
     return <div>Data transaksi tidak ditemukan.</div>;
   }
 
+  // Tambahkan penangkapan statusPembayaran dan jumlahTerbayar dari transaksiData
   const { 
     pelanggan, 
     keranjang, 
@@ -14,8 +15,10 @@ const Struk = ({ transaksiData }) => {
     metodePembayaran, 
     catatan, 
     durasi, 
-    diskonOtomatis = 0, // Beri default value 0 jika null/undefined
-    diskonManual = 0    // Beri default value 0 jika null/undefined
+    diskonOtomatis = 0, 
+    diskonManual = 0,
+    statusPembayaran, // Ditambahkan
+    jumlahTerbayar    // Ditambahkan
   } = transaksiData;
 
   const formatDate = (dateString) => {
@@ -31,26 +34,35 @@ const Struk = ({ transaksiData }) => {
     const formattedTime = now.toLocaleTimeString('id-ID', timeOptions);
     return `${formattedDate}, Jam ${formattedTime}`;
   };
+
+  // Fungsi baru khusus untuk format tanggal DP sesuai permintaan (tgl/bulan/thn - jam)
+  const formatTglDP = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} - ${hours}:${minutes}`;
+  };
   
   const hitungSubTotal = () => {
     return keranjang.reduce((total, item) => total + (item.harga * item.qty), 0);
   };
 
-  // Menghitung total diskon gabungan untuk mempermudah pengecekan
   const totalDiskon = Number(diskonOtomatis) + Number(diskonManual);
 
   return (
     <div className="print-struk">
       <div className="header">
-  <img src="/nuevanesialogo.png" alt="nuevanesialogo" className="logo-struk" />
-    <div className="alamat-toko">
-    <p style={{ marginTop: '5px', fontSize: '14px' }}><strong>---SEWA---</strong></p>
-    <p></p>
-    <p>Jl Sarirasa V Blok 4 No 114 Bandung</p>
-    <p>Tlp. 08180.208.9909</p>
-  </div>
-  <hr className="divider" />
-</div>
+        <img src="/nuevanesialogo.png" alt="nuevanesialogo" className="logo-struk" />
+        <div className="alamat-toko">
+          <p>Jl Sarirasa V Blok 4 No 114 Bandung</p>
+          <p>Tlp. 08180.208.9909</p>
+          <p style={{ marginTop: '5px', fontSize: '14px' }}><strong>---SEWA---</strong></p>
+        </div>
+        <hr className="divider" />
+      </div>
 
       <div className="details-with-center-date">
         <p>Tgl Order: {formatDateTime()}</p>
@@ -61,14 +73,13 @@ const Struk = ({ transaksiData }) => {
         <p>Tanggal Ambil: {formatDate(tanggalMulai)}</p>
         <p>Tanggal Kembali: {formatDate(tanggalSelesai)}</p>
         <hr className="divider" />
-      <p style={{ textAlign: 'left', fontSize: '9px' }}>
-      <strong>CATATAN:</strong>
-      <br />
-      • Keterlambatan pengembalian akan otomatis memperpanjang durasi sewa.
-      <br />
-      • Mohon informasikan admin apabila terdapat kerusakan barang.
-      </p>
-        
+        <p style={{ textAlign: 'left', fontSize: '9px' }}>
+          <strong>CATATAN:</strong>
+          <br />
+          • Keterlambatan pengembalian akan otomatis memperpanjang durasi sewa.
+          <br />
+          • Mohon informasikan admin apabila terdapat kerusakan barang.
+        </p>
         <hr className="divider" />
       </div>
       
@@ -95,7 +106,6 @@ const Struk = ({ transaksiData }) => {
           <span>Rp{hitungSubTotal().toLocaleString('id-ID')}</span>
         </div>
         
-        {/* Menampilkan Diskon Otomatis */}
         {Number(diskonOtomatis) > 0 && (
           <div className="summary-row diskon">
             <span>Diskon:</span>
@@ -103,7 +113,6 @@ const Struk = ({ transaksiData }) => {
           </div>
         )}
         
-        {/* Menampilkan Diskon Manual / Promo */}
         {Number(diskonManual) > 0 && (
           <div className="summary-row diskon">
             <span>Diskon/Promo Khusus:</span>
@@ -115,6 +124,26 @@ const Struk = ({ transaksiData }) => {
           <span>TOTAL:</span>
           <span>Rp{total.toLocaleString('id-ID')}</span>
         </div>
+
+        {/* --- BLOK PENAMBAHAN INFORMASI DP --- */}
+        {statusPembayaran === 'DP' && (
+          <div className="dp-section">
+            <div className="summary-row dp-row">
+              <span>DP:</span>
+              <span>Rp{Number(jumlahTerbayar).toLocaleString('id-ID')}</span>
+            </div>
+            <div className="summary-row date-row">
+              <span>Tgl DP:</span>
+              <span>{formatTglDP()}</span>
+            </div>
+            <div className="summary-row total-row">
+              <span>SISA TAGIHAN:</span>
+              <span>Rp{(total - jumlahTerbayar).toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        )}
+        {/* --- AKHIR BLOK DP --- */}
+
         <hr className="divider" />
       </div>
       
@@ -148,9 +177,9 @@ const Struk = ({ transaksiData }) => {
           margin-bottom: 5px;
         }
         .logo-struk {
-          max-width: 38mm; /* Mengecilkan lebar logo dari 45mm menjadi 38mm agar proporsional */
+          max-width: 38mm; 
           height: auto;
-          margin: 0 auto 8px auto; /* Memberikan spasi bawah sebesar 8px agar tidak terlalu mepet dengan alamat */
+          margin: 0 auto 8px auto; 
           display: block;
         }
         .details-with-center-date {
@@ -215,6 +244,18 @@ const Struk = ({ transaksiData }) => {
           font-weight: bold;
           font-size: 13px;
           margin-top: 4px;
+        }
+        .dp-section {
+          margin-top: 4px;
+          padding-top: 4px;
+          border-top: 1px dotted #ccc;
+        }
+        .dp-row {
+          font-weight: bold;
+        }
+        .date-row {
+          font-size: 10px;
+          color: #555;
         }
         .note {
           text-align: left;
