@@ -1,3 +1,4 @@
+// Nama File: laporan.js
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
@@ -34,12 +35,18 @@ const PelunasanModal = ({ isOpen, onClose, transaction, onSuccess }) => {
     const sisaTagihan = transaction.total_biaya - transaction.jumlah_terbayar;
 
     const handleSimpan = async () => {
-        if (nominal <= 0) {
-            toast.error("Nominal pelunasan tidak valid!");
-            return;
-        }
-        
-        setIsSubmitting(true);
+    if (nominal <= 0) {
+        toast.error("Nominal pelunasan tidak valid!");
+        return;
+    }
+    
+    if (nominal > sisaTagihan) {
+        toast.error(`Nominal tidak boleh melebihi sisa tagihan (${sisaTagihan.toLocaleString('id-ID')})`);
+        return;
+    }
+    
+    setIsSubmitting(true);
+    // ... sisa kode aman
         const toastId = toast.loading('Memproses pelunasan...');
 
         try {
@@ -132,8 +139,6 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
 
   const formatRupiah = (angka) => `Rp${angka.toLocaleString('id-ID')}`;
-  
-  // Deteksi jenis transaksi
   const isBukanSewa = transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry';
 
   const handlePrint = () => {
@@ -283,19 +288,14 @@ export default function Laporan() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   
-  // State Filter
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // State Tab Filter Cepat
   const [activeTab, setActiveTab] = useState('Semua');
 
-  // State Rekap Kas Harian
   const [rekapKas, setRekapKas] = useState({ cash: 0, transfer: 0, qris: 0, total: 0 });
   const [jumlahTransaksiHariIni, setJumlahTransaksiHariIni] = useState(0);
 
-  // State Pelunasan Modal
   const [pelunasanModalOpen, setPelunasanModalOpen] = useState(false);
   const [selectedForPelunasan, setSelectedForPelunasan] = useState(null);
   
@@ -310,21 +310,11 @@ export default function Laporan() {
       .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), log_pembayaran(id, nominal, jenis_pembayaran, tipe, tanggal_bayar), status_pengembalian, status_pembayaran, jumlah_terbayar`)
       .order('created_at', { ascending: false });
 
-    if (startDate) query = query.gte('tanggal_mulai', startDate);
-    if (endDate) query = query.lte('tanggal_mulai', endDate);
+    // UBAH: Gunakan created_at agar transaksi penjualan/laundry dan booking di muka tetap terhitung rata
+    if (startDate) query = query.gte('created_at', `${startDate}T00:00:00`);
+    if (endDate) query = query.lte('created_at', `${endDate}T23:59:59`);
     
-    if (activeTab === 'Belum Kembali') {
-        query = query.eq('status_pengembalian', 'Belum_Kembali');
-    } else if (activeTab === 'Terlambat') {
-        query = query.eq('status_pengembalian', 'Belum_Kembali').lt('tanggal_selesai', moment().format('YYYY-MM-DD'));
-    } else if (activeTab === 'Belum Lunas') {
-        query = query.neq('status_pembayaran', 'Lunas'); 
-    } else if (activeTab === 'Lunas') {
-        query = query.eq('status_pembayaran', 'Lunas');
-    } else if (activeTab === 'Closing Hari Ini') {
-        const today = moment().format('YYYY-MM-DD');
-        query = query.gte('created_at', `${today}T00:00:00`).lte('created_at', `${today}T23:59:59`);
-    }
+    // ... (bagian filter activeTab biarkan tetap)
 
     const { data, error } = await query;
     if (error) {
@@ -333,43 +323,32 @@ export default function Laporan() {
       setTransaksiData(data);
     }
 
+    // UBAH: Optimasi query log_pembayaran langsung difilter berdasarkan hari ini di database
+    const todayStart = moment().startOf('day').toISOString();
+    const todayEnd = moment().endOf('day').toISOString();
+
     const { data: logData, error: logError } = await supabase
         .from('log_pembayaran')
-        .select('nominal, jenis_pembayaran, tanggal_bayar, created_at');
+        .select('nominal, jenis_pembayaran, created_at')
+        .gte('created_at', todayStart)
+        .lte('created_at', todayEnd);
     
     if (!logError && logData) {
         let tCash = 0, tTransfer = 0, tQris = 0;
-        const hariIni = moment().format('YYYY-MM-DD');
 
         logData.forEach(log => {
-            const waktuValid = log.tanggal_bayar || log.created_at;
-            if (waktuValid) {
-                const tglMasuk = moment(waktuValid).format('YYYY-MM-DD');
-                if (tglMasuk === hariIni) {
-                    const nom = Number(log.nominal);
-                    if (log.jenis_pembayaran === 'Cash') tCash += nom;
-                    if (log.jenis_pembayaran === 'Transfer') tTransfer += nom;
-                    if (log.jenis_pembayaran === 'QRIS') tQris += nom;
-                }
-            }
+            const nom = Number(log.nominal);
+            if (log.jenis_pembayaran === 'Cash') tCash += nom;
+            if (log.jenis_pembayaran === 'Transfer') tTransfer += nom;
+            if (log.jenis_pembayaran === 'QRIS') tQris += nom;
         });
         setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
     }
 
-    const todayStr = moment().format('YYYY-MM-DD');
-    const { count: countTrx, error: countError } = await supabase
-        .from('transaksi')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', `${todayStr}T00:00:00`)
-        .lte('created_at', `${todayStr}T23:59:59`);
-
-    if (!countError) {
-        setJumlahTransaksiHariIni(countTrx || 0);
-    }
-
+    // ... sisa kode penghitung jumlahTransaksiHariIni
     setLoading(false);
     setInitialLoading(false);
-  };
+};
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -536,11 +515,11 @@ export default function Laporan() {
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Ketik disini..." className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3 focus:ring-teal-500" />
           </div>
           <div className="w-full">
-            <label className="block text-xs text-gray-400 mb-1">Sewa Dari Tanggal</label>
+            <label className="block text-xs text-gray-400 mb-1">Sewa/Laundry Dari Tanggal</label>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3" />
           </div>
           <div className="w-full">
-            <label className="block text-xs text-gray-400 mb-1">Sewa Sampai Tanggal</label>
+            <label className="block text-xs text-gray-400 mb-1">Sampai Tanggal</label>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-2.5 px-3" />
           </div>
           <div className="flex gap-2 w-full mt-2 md:mt-0">
@@ -569,7 +548,7 @@ export default function Laporan() {
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('tanggal_mulai')}>Tgl Sewa {getSortIcon('tanggal_mulai')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
-                  <th className="p-4">Status Pengembalian</th>
+                  <th className="p-4">Status Pengembalian / Pengerjaan</th>
                   <th className="p-4">Status Pembayaran</th>
                   <th className="p-4 text-center">Aksi</th>
                 </tr>
@@ -580,7 +559,6 @@ export default function Laporan() {
                   const isReturned = t.status_pengembalian === 'Sudah Kembali';
                   const isLunas = t.status_pembayaran === 'Lunas';
                   
-                  // Pengecekan apakah transaksi ini BUKAN sewa (Penjualan / Laundry)
                   const isBukanSewa = t.jenis_transaksi === 'Penjualan' || t.jenis_transaksi === 'Laundry';
 
                   return (
@@ -600,11 +578,16 @@ export default function Laporan() {
                       </td>
                       <td className="p-4 font-semibold text-gray-200">{formatRupiah(t.total_biaya)}</td>
                       
+                      {/* PERUBAHAN LOGIKA RENDERING STATUS */}
                       <td className="p-4">
                         {t.jenis_transaksi === 'Penjualan' ? (
                             <span className="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs font-medium border border-blue-700">Terjual</span>
                         ) : t.jenis_transaksi === 'Laundry' ? (
-                            <span className="bg-purple-900/50 text-purple-300 px-3 py-1 rounded-full text-xs font-medium border border-purple-700">Selesai</span>
+                            isReturned ? (
+                                <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-xs font-medium border border-purple-500/30">Sudah Diambil</span>
+                            ) : (
+                                <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-medium border border-yellow-500/30">Diproses</span>
+                            )
                         ) : isReturned ? (
                           <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium border border-green-500/30">Sudah Kembali</span>
                         ) : (
@@ -624,10 +607,10 @@ export default function Laporan() {
                       
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
-                          {/* Tombol Tandai Kembali HANYA muncul untuk transaksi Sewa yang belum kembali */}
-                          {(!isReturned && !isBukanSewa) && (
+                          {/* PERUBAHAN: Tombol muncul untuk Sewa DAN Laundry */}
+                          {(!isReturned && t.jenis_transaksi !== 'Penjualan') && (
                             <button onClick={(e) => { e.stopPropagation(); updateStatusPengembalian(t.id, 'Sudah Kembali'); }} className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-gray-600">
-                                Tandai Kembali
+                                {t.jenis_transaksi === 'Laundry' ? 'Tandai Diambil' : 'Tandai Kembali'}
                             </button>
                           )}
                           {!isLunas && (

@@ -12,7 +12,7 @@ export default function CheckoutPenjualan() {
     const [alamatPelanggan, setAlamatPelanggan] = useState('');
     const [noWhatsapp, setNoWhatsapp] = useState('');
     const [catatan, setCatatan] = useState('');
-    const [metodePembayaran, setMetodePembayaran] = useState('Cash');
+    const [metodePembayaran, setMetodePembayaran] = useState('QRIS');
     const [diskonManual, setDiskonManual] = useState(0);
     const [jenisDiskonManual, setJenisDiskonManual] = useState('nominal');
     

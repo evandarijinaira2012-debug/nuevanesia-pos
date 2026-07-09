@@ -15,7 +15,7 @@ export default function CheckoutSewa() {
     const [noWhatsapp, setNoWhatsapp] = useState('');
     const [jaminan, setJaminan] = useState('');
     const [catatan, setCatatan] = useState('');
-    const [metodePembayaran, setMetodePembayaran] = useState('Cash');
+    const [metodePembayaran, setMetodePembayaran] = useState('QRIS');
     const [diskonOtomatisAktif, setDiskonOtomatisAktif] = useState(true);
     const [diskon, setDiskon] = useState(0);
     const [diskonManual, setDiskonManual] = useState(0);

@@ -1,3 +1,4 @@
+// Nama File: CheckoutLaundry.js
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabaseClient'; 
 import Head from 'next/head';
@@ -22,15 +23,13 @@ export default function CheckoutLaundry() {
     const [tanggalMulai, setTanggalMulai] = useState(new Date().toISOString().split('T')[0]);
     const [tanggalSelesai, setTanggalSelesai] = useState(''); 
 
-    const [metodePembayaran, setMetodePembayaran] = useState('Cash');
+    const [metodePembayaran, setMetodePembayaran] = useState('QRIS');
     const [diskonManual, setDiskonManual] = useState(0);
     const [jenisDiskonManual, setJenisDiskonManual] = useState('nominal');
     
-    // State Pembayaran
     const [statusPembayaran, setStatusPembayaran] = useState('Lunas');
     const [jumlahTerbayar, setJumlahTerbayar] = useState('');
 
-    // Cek Sesi Autentikasi
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
@@ -38,7 +37,6 @@ export default function CheckoutLaundry() {
         });
     }, [router]);
 
-    // Ambil Keranjang
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('nuevanesia-checkout-data');
@@ -113,35 +111,68 @@ export default function CheckoutLaundry() {
                 currentPelangganId = newPelanggan.id;
             }
 
-            const finalJumlahTerbayar = statusPembayaran === 'Lunas' ? totalBiayaAkhir : (Number(jumlahTerbayar) || 0);
+            // LOGIKA PEMBAYARAN DIPERBARUI
+            let finalJumlahTerbayar = 0;
+            let finalStatusPembayaran = 'Belum Lunas';
+
+            if (statusPembayaran === 'Lunas') {
+                finalJumlahTerbayar = totalBiayaAkhir;
+                finalStatusPembayaran = 'Lunas';
+            } else if (statusPembayaran === 'DP') {
+                finalJumlahTerbayar = Number(jumlahTerbayar) || 0;
+                finalStatusPembayaran = 'DP';
+            } else if (statusPembayaran === 'Bayar Nanti') {
+                finalJumlahTerbayar = 0;
+                finalStatusPembayaran = 'Belum Lunas';
+            }
             
+            // ... (KODE SEBELUMNYA: Proses insert ke tabel transaksi)
             const { data: tx, error: errTx } = await supabase
                 .from('transaksi')
                 .insert([{
                     pelanggan_id: currentPelangganId,
-                    jenis_transaksi: 'Laundry', // Penanda nota Laundry
-                    tanggal_mulai: tanggalMulai, // Tanggal Masuk
-                    tanggal_selesai: tanggalSelesai, // Estimasi Diambil
+                    jenis_transaksi: 'Laundry',
+                    tanggal_mulai: tanggalMulai,
+                    tanggal_selesai: tanggalSelesai,
                     total_biaya: totalBiayaAkhir,
                     jenis_pembayaran: metodePembayaran,
                     catatan: catatan,
                     diskon_manual: diskonManual,
                     jenis_diskon_manual: jenisDiskonManual,
-                    status_pembayaran: statusPembayaran,
+                    status_pembayaran: finalStatusPembayaran,
                     jumlah_terbayar: finalJumlahTerbayar,
-                    status_pengembalian: 'Diproses' // Menandakan cucian masih dikerjakan
+                    status_pengembalian: 'Proses Cuci'
                 }])
                 .select()
                 .single();
 
             if (errTx) throw new Error('Gagal buat transaksi: ' + errTx.message);
 
+            // ===================================================================
+            // 🔥 PERBAIKAN LOGIKA: Catat Pembayaran Awal (DP/Lunas) ke Log Pembayaran
+            // ===================================================================
+            if (finalJumlahTerbayar > 0) {
+                const { error: errLog } = await supabase
+                    .from('log_pembayaran')
+                    .insert([{
+                        transaksi_id: tx.id,
+                        nominal: finalJumlahTerbayar,
+                        jenis_pembayaran: metodePembayaran,
+                        tipe: statusPembayaran === 'Lunas' ? 'Lunas' : 'DP',
+                        tanggal_bayar: new Date().toISOString() 
+                    }]);
+
+                if (errLog) throw new Error('Gagal mencatat riwayat uang masuk awal: ' + errLog.message);
+            }
+            // ===================================================================
+
+            // ... (KODE SELANJUTNYA: Proses insert ke tabel transaksi_detail)
             const rincianInsert = keranjang.map(item => ({
                 transaksi_id: tx.id,
                 produk_id: item.id,
                 nama_barang: item.nama,
                 jumlah: item.qty,
-                produk_variasi_id: item.produk_variasi_id || null // PENTING: Untuk Variasi
+                produk_variasi_id: item.produk_variasi_id || null
             }));
 
             await supabase.from('transaksi_detail').insert(rincianInsert);
@@ -152,7 +183,7 @@ export default function CheckoutLaundry() {
                     tanggal_mulai: tanggalMulai,
                     tanggal_selesai: tanggalSelesai,
                     total_biaya: totalBiayaAkhir,
-                    status_pembayaran: statusPembayaran,
+                    status_pembayaran: finalStatusPembayaran,
                     jumlah_terbayar: finalJumlahTerbayar,
                     jenis_pembayaran: metodePembayaran,
                     catatan: catatan
@@ -167,7 +198,7 @@ export default function CheckoutLaundry() {
 
             if (typeof window !== 'undefined') {
                 window.localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(dataUntukStruk));
-                window.open('/cetak-struk', '_blank'); // Buka Tab Print
+                window.open('/cetak-struk', '_blank');
                 window.localStorage.removeItem('nuevanesia-checkout-data');
             }
 
@@ -178,11 +209,13 @@ export default function CheckoutLaundry() {
         }
     };
 
+    // LOGIKA VALIDASI DIPERBARUI
     const missingRequirements = [];
     if (!noWhatsapp) missingRequirements.push('No. WhatsApp');
     if (!namaPelanggan) missingRequirements.push('Nama Pelanggan');
     if (!tanggalSelesai) missingRequirements.push('Estimasi Selesai');
-    if (statusPembayaran === 'DP' && !jumlahTerbayar) missingRequirements.push('Nominal DP');
+    // Hanya minta nominal jika memilih DP
+    if (statusPembayaran === 'DP' && (!jumlahTerbayar || jumlahTerbayar <= 0)) missingRequirements.push('Nominal DP');
     
     const isSaveDisabled = missingRequirements.length > 0;
 
@@ -197,7 +230,7 @@ export default function CheckoutLaundry() {
                 {/* KOLOM KIRI */}
                 <div className="space-y-6">
                     <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-xl">
-                        <h2 className="text-xl font-bold mb-4 text-teal-400 flex items-center">🧼 Data Pelanggan</h2>
+                        <h2 className="text-xl font-bold mb-4 text-teal-400 flex items-center">Data Pelanggan</h2>
                         
                         <div className="space-y-4">
                             <div>
@@ -259,19 +292,32 @@ export default function CheckoutLaundry() {
                     
                     <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-xl">
                         <h2 className="text-xl font-bold mb-4 text-teal-400">💳 Pembayaran</h2>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                            <button onClick={() => setStatusPembayaran('Lunas')} className={`p-3 rounded-xl font-bold ${statusPembayaran === 'Lunas' ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-400'}`}>LUNAS</button>
-                            <button onClick={() => setStatusPembayaran('DP')} className={`p-3 rounded-xl font-bold ${statusPembayaran === 'DP' ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-400'}`}>BELUM LUNAS / DP</button>
+                        
+                        {/* UI PEMBAYARAN DIPERBARUI */}
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+                            <button onClick={() => setStatusPembayaran('Lunas')} className={`p-2 rounded-xl text-sm font-bold transition-colors ${statusPembayaran === 'Lunas' ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>LUNAS</button>
+                            <button onClick={() => setStatusPembayaran('DP')} className={`p-2 rounded-xl text-sm font-bold transition-colors ${statusPembayaran === 'DP' ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>DP</button>
+                            <button onClick={() => setStatusPembayaran('Bayar Nanti')} className={`p-2 rounded-xl text-sm font-bold transition-colors ${statusPembayaran === 'Bayar Nanti' ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>BAYAR NANTI</button>
                         </div>
+                        
                         {statusPembayaran === 'DP' && (
-                            <input type="number" value={jumlahTerbayar} onChange={(e) => setJumlahTerbayar(e.target.value)} placeholder="Nominal DP yang dibayar..." className="w-full p-3 mb-4 bg-gray-900 border-2 border-teal-600/50 rounded-xl text-white" />
+                            <div className="mb-4">
+                                <label className="block text-xs font-semibold text-gray-400 mb-1">Masukan Nominal DP (Rp)</label>
+                                <input type="number" value={jumlahTerbayar} onChange={(e) => setJumlahTerbayar(e.target.value)} placeholder="Contoh: 15000" className="w-full p-3 bg-gray-900 border-2 border-teal-600/50 rounded-xl text-white" />
+                            </div>
                         )}
-                        <select value={metodePembayaran} onChange={(e) => setMetodePembayaran(e.target.value)} className="w-full p-3 mb-4 bg-gray-900 border border-gray-700 rounded-xl text-white">
-                            <option value="Cash">Tunai / Cash</option>
-                            <option value="Transfer Bank">Transfer Bank</option>
-                            <option value="QRIS">QRIS</option>
-                        </select>
-                        <textarea value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catatan kondisi barang saat diterima (misal: ada sobek di ujung tas)..." className="w-full p-3 bg-gray-900 border border-gray-700 rounded-xl text-white h-20 resize-none" />
+                        {statusPembayaran !== 'Bayar Nanti' && (
+                            <select 
+                                value={metodePembayaran} 
+                                onChange={(e) => setMetodePembayaran(e.target.value)} 
+                                className="w-full p-3 mb-4 bg-gray-900 border border-gray-700 rounded-xl text-white"
+                            >
+                                <option value="QRIS">QRIS</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Transfer Bank">Transfer Bank</option>
+                            </select>
+                        )}
+                        <textarea value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catat : seri, warna, kapasitas barang..." className="w-full p-3 bg-gray-900 border border-gray-700 rounded-xl text-white h-20 resize-none" />
                     </div>
                 </div>
 
