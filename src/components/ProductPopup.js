@@ -6,7 +6,6 @@ import { renderTextWithBreaks } from '../utils/textUtils';
 const ProductPopup = ({ product, onClose, onAddToCart, jenisLayananTerpilih }) => {
   if (!product) return null;
 
-  // Logika cerdas kita: Cek apakah layanan ini Laundry untuk menyembunyikan stok
   const isLaundry = jenisLayananTerpilih === 'Laundry';
 
   return (

@@ -314,7 +314,23 @@ export default function Laporan() {
     if (startDate) query = query.gte('created_at', `${startDate}T00:00:00`);
     if (endDate) query = query.lte('created_at', `${endDate}T23:59:59`);
     
-    // ... (bagian filter activeTab biarkan tetap)
+  // Menyiapkan variabel tanggal hari ini untuk keperluan filter
+    const hariIni = moment().format('YYYY-MM-DD');
+    const awalHariIni = moment().startOf('day').toISOString();
+    const akhirHariIni = moment().endOf('day').toISOString();
+
+    // Logika untuk masing-masing tombol filter
+    if (activeTab === 'Belum Kembali') {
+      query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null');
+    } else if (activeTab === 'Terlambat') {
+      query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null').lt('tanggal_selesai', hariIni);
+    } else if (activeTab === 'Belum Lunas') {
+      query = query.neq('status_pembayaran', 'Lunas');
+    } else if (activeTab === 'Lunas') {
+      query = query.eq('status_pembayaran', 'Lunas');
+    } else if (activeTab === 'Closing Hari Ini') {
+      query = query.gte('created_at', awalHariIni).lte('created_at', akhirHariIni);
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -345,7 +361,17 @@ export default function Laporan() {
         setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
     }
 
-    // ... sisa kode penghitung jumlahTransaksiHariIni
+    // Menghitung jumlah transaksi yang dibuat hari ini
+    const { count: countTransaksi, error: errorCount } = await supabase
+        .from('transaksi')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', todayStart)
+        .lte('created_at', todayEnd);
+
+    if (!errorCount) {
+        setJumlahTransaksiHariIni(countTransaksi || 0);
+    }
+
     setLoading(false);
     setInitialLoading(false);
 };
@@ -547,7 +573,9 @@ export default function Laporan() {
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('created_at')}>Tgl Order {getSortIcon('created_at')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('tanggal_mulai')}>Tgl Sewa {getSortIcon('tanggal_mulai')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
-                  <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
+                  <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('jumlah_terbayar')}>Uang Masuk {getSortIcon('jumlah_terbayar')}</th>
+<th className="p-4">Sisa Pembayaran</th>
+<th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
                   <th className="p-4">Status Pengembalian / Pengerjaan</th>
                   <th className="p-4">Status Pembayaran</th>
                   <th className="p-4 text-center">Aksi</th>
@@ -555,7 +583,7 @@ export default function Laporan() {
               </thead>
               <tbody className="text-sm">
                 {sortedTransaksi.map(t => {
-                  const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
+                  const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && (t.status_pengembalian === 'Belum_Kembali' || t.status_pengembalian === null);
                   const isReturned = t.status_pengembalian === 'Sudah Kembali';
                   const isLunas = t.status_pembayaran === 'Lunas';
                   
@@ -567,7 +595,15 @@ export default function Laporan() {
                       
                       <td className="p-4 text-gray-300">
                         {isBukanSewa || !t.tanggal_mulai ? (
-                            <span className="italic text-gray-500">- {t.jenis_transaksi || 'Langsung'} -</span>
+                            t.jenis_transaksi === 'Penjualan' ? (
+                                <span className="bg-red-900/50 text-red-300 px-3 py-1 rounded-full text-xs font-bold border border-red-700">
+                                    Penjualan
+                                </span>
+                            ) : (
+                                <span className="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs font-bold border border-blue-700">
+                                    {t.jenis_transaksi || 'Langsung'}
+                                </span>
+                            )
                         ) : (
                             `${moment(t.tanggal_mulai).format('DD MMM')} - ${moment(t.tanggal_selesai).format('DD MMM')}`
                         )}
@@ -576,7 +612,15 @@ export default function Laporan() {
                         {t.pelanggan?.nama || 'Anonim'}
                         <p className="text-xs text-gray-500 mt-0.5">{t.pelanggan?.no_whatsapp}</p>
                       </td>
-                      <td className="p-4 font-semibold text-gray-200">{formatRupiah(t.total_biaya)}</td>
+                      <td className="p-4 text-green-400 font-medium">
+  {formatRupiah(t.jumlah_terbayar || 0)}
+</td>
+<td className="p-4 text-red-400 font-medium">
+  {formatRupiah(t.total_biaya - (t.jumlah_terbayar || 0))}
+</td>
+<td className="p-4 font-semibold text-gray-200">
+  {formatRupiah(t.total_biaya)}
+</td>
                       
                       {/* PERUBAHAN LOGIKA RENDERING STATUS */}
                       <td className="p-4">

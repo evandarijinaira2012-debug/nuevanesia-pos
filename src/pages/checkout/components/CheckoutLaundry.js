@@ -158,7 +158,7 @@ export default function CheckoutLaundry() {
                         transaksi_id: tx.id,
                         nominal: finalJumlahTerbayar,
                         jenis_pembayaran: metodePembayaran,
-                        tipe: statusPembayaran === 'Lunas' ? 'Lunas' : 'DP',
+                        tipe: statusPembayaran === 'Lunas' ? 'Lunas Langsung' : 'DP',
                         tanggal_bayar: new Date().toISOString() 
                     }]);
 
