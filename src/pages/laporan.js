@@ -574,8 +574,8 @@ export default function Laporan() {
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('tanggal_mulai')}>Tgl Sewa {getSortIcon('tanggal_mulai')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('jumlah_terbayar')}>Uang Masuk {getSortIcon('jumlah_terbayar')}</th>
-<th className="p-4">Sisa Pembayaran</th>
-<th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
+                  <th className="p-4">Sisa Pembayaran</th>
+                  <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('total_biaya')}>Total Biaya {getSortIcon('total_biaya')}</th>
                   <th className="p-4">Status Pengembalian / Pengerjaan</th>
                   <th className="p-4">Status Pembayaran</th>
                   <th className="p-4 text-center">Aksi</th>
@@ -613,14 +613,14 @@ export default function Laporan() {
                         <p className="text-xs text-gray-500 mt-0.5">{t.pelanggan?.no_whatsapp}</p>
                       </td>
                       <td className="p-4 text-green-400 font-medium">
-  {formatRupiah(t.jumlah_terbayar || 0)}
-</td>
-<td className="p-4 text-red-400 font-medium">
-  {formatRupiah(t.total_biaya - (t.jumlah_terbayar || 0))}
-</td>
-<td className="p-4 font-semibold text-gray-200">
-  {formatRupiah(t.total_biaya)}
-</td>
+                        {formatRupiah(t.jumlah_terbayar || 0)}
+                      </td>
+                      <td className="p-4 text-red-400 font-medium">
+                        {formatRupiah(t.total_biaya - (t.jumlah_terbayar || 0))}
+                      </td>
+                      <td className="p-4 font-semibold text-gray-200">
+                        {formatRupiah(t.total_biaya)}
+                      </td>
                       
                       {/* PERUBAHAN LOGIKA RENDERING STATUS */}
                       <td className="p-4">
