@@ -145,6 +145,24 @@ export default function CheckoutPenjualan() {
 
             if (errTx) throw new Error('Gagal buat transaksi: ' + errTx.message);
 
+            // ===================================================================
+            // 🔥 PERBAIKAN LOGIKA: Catat Pembayaran Penjualan ke Log Pembayaran
+            // ===================================================================
+            if (finalJumlahTerbayar > 0) {
+                const { error: errLog } = await supabase
+                    .from('log_pembayaran')
+                    .insert([{
+                        transaksi_id: tx.id,
+                        nominal: finalJumlahTerbayar,
+                        jenis_pembayaran: metodePembayaran,
+                        tipe: statusPembayaran === 'Lunas' ? 'Lunas Langsung' : 'DP',
+                        tanggal_bayar: new Date().toISOString() 
+                    }]);
+
+                if (errLog) throw new Error('Gagal mencatat riwayat uang masuk: ' + errLog.message);
+            }
+            // ===================================================================
+
             // Simpan Rincian
             const rincianInsert = keranjang.map(item => ({
                 transaksi_id: tx.id,
