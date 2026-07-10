@@ -93,6 +93,23 @@ export default function CheckoutSewa() {
         }
     }, [router]);
 
+    // --- FITUR BARU: Auto-Save ke LocalStorage setiap ada perubahan input ---
+    useEffect(() => {
+        if (keranjang.length > 0 && typeof window !== 'undefined') {
+            window.localStorage.setItem('nuevanesia-checkout-data', JSON.stringify({
+                keranjang,
+                tanggalMulai,
+                tanggalSelesai,
+                namaPelanggan,
+                alamatPelanggan,
+                noWhatsapp,
+                jaminan,
+                catatan
+            }));
+        }
+    }, [keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan]);
+    // ------------------------------------------------------------------------
+
     const handleNoWhatsappChange = (value) => {
         setNoWhatsapp(value);
         if (!value.trim()) {
@@ -172,6 +189,59 @@ export default function CheckoutSewa() {
             }
         };
     }, [noWhatsapp]);
+
+    // --- FITUR BARU: Fungsi Simpan Pelanggan Mandiri ---
+    const handleSimpanPelangganDb = async () => {
+        if (!noWhatsapp || !namaPelanggan || !alamatPelanggan || !jaminan) {
+            toast.error('Mohon lengkapi No. WhatsApp, Nama, Alamat, dan Jaminan sebelum menyimpan pelanggan.');
+            return;
+        }
+
+        const toastId = toast.loading('Menyimpan data pelanggan...');
+        try {
+            const { data: existing, error: fetchError } = await supabase
+                .from('pelanggan')
+                .select('id')
+                .eq('no_whatsapp', noWhatsapp)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                throw fetchError;
+            }
+
+            if (existing) {
+                const { error: updateError } = await supabase
+                    .from('pelanggan')
+                    .update({
+                        nama: namaPelanggan,
+                        alamat: alamatPelanggan,
+                        jaminan: jaminan,
+                    })
+                    .eq('id', existing.id);
+                
+                if (updateError) throw updateError;
+                toast.success('Data pelanggan berhasil diperbarui!', { id: toastId });
+            } else {
+                const { error: insertError } = await supabase
+                    .from('pelanggan')
+                    .insert([{
+                        no_whatsapp: noWhatsapp,
+                        nama: namaPelanggan,
+                        alamat: alamatPelanggan,
+                        jaminan: jaminan,
+                    }]);
+                
+                if (insertError) throw insertError;
+                toast.success('Pelanggan baru berhasil ditambahkan!', { id: toastId });
+                setPelangganBaru(false);
+                setPelangganDitemukan(true);
+            }
+        } catch (error) {
+            console.error('Error menyimpan pelanggan:', error);
+            toast.error('Terjadi kesalahan saat menyimpan data pelanggan.', { id: toastId });
+        }
+    };
+    // ----------------------------------------------------
 
     const saveCheckoutData = (
         updatedKeranjang = keranjang, 
@@ -638,6 +708,18 @@ export default function CheckoutSewa() {
                                     placeholder="Catatan tambahan untuk transaksi"
                                 />
                             </div>
+                            {/* --- FITUR BARU: TOMBOL SIMPAN PELANGGAN DI BAWAH CATATAN --- */}
+                            <button
+                                type="button"
+                                onClick={handleSimpanPelangganDb}
+                                className="w-full mt-4 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-3 rounded-xl transition-colors border border-teal-500 shadow-md"
+                            >
+                                Simpan Data Pelanggan Terlebih Dahulu
+                            </button>
+                            <p className="text-xs text-gray-400 text-center mt-1">
+                                *Simpan pelanggan ini jika ingin keluar halaman untuk tambah barang lagi.
+                            </p>
+                            {/* ------------------------------------------------------------- */}
                         </div>
                     </div>
 
