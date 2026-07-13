@@ -11,6 +11,7 @@ const IconSearch = () => <svg className="w-5 h-5 absolute left-4 top-1/2 transfo
 const IconPlus = () => <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>;
 const IconTrash = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1H9a1 1 0 00-1 1v3m3 0h6"></path></svg>;
 const IconTool = () => <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>;
+const IconBell = () => <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>;
 
 // --- Ikon Kategori ---
 const IconTent = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M11 14l4 6h6l-9 -16l-9 16h6l4 -6" /></svg>;
@@ -43,6 +44,7 @@ const CATEGORY_ICONS = {
     'Lain-lain': <IconOther />,
 };
 
+import TombolNotifOrderWeb from '../components/TombolNotifOrderWeb';
 import ProductPopup from '../components/ProductPopup';
 
 export default function Home() {
@@ -286,6 +288,7 @@ export default function Home() {
                 </div>
                 
                 <div className="space-y-3 mt-8">
+                    <TombolNotifOrderWeb session={session} />
                     <button onClick={() => window.open('/manajemen-produk', '_blank')} className="flex items-center justify-center bg-gray-700 text-gray-300 p-3 rounded-lg hover:bg-yellow-500/30 hover:text-white transition-colors duration-200 w-full font-semibold text-sm">
                         <IconTool /> Manajemen Produk
                     </button>
