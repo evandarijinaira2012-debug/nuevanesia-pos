@@ -1,27 +1,222 @@
+// Nama File: pages/orderweb.js (atau letak file orderweb milikmu)
 import React, { useState, useEffect } from 'react';
-// SESUAIKAN JALUR IMPORT SUPABASE DI BAWAH INI DENGAN PROJECT-MU:
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/supabaseClient'; // Sesuaikan letak folder utils kamu
+import Head from 'next/head';
+import moment from 'moment';
+import 'moment/locale/id';
+import toast, { Toaster } from 'react-hot-toast';
 
+// --- KOMPONEN IKON ---
+const IconCheck = () => (
+    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+);
+const IconClock = () => (
+    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+);
+
+// --- MODAL RINCIAN TRANSAKSI (Diambil dari laporan.js) ---
+const TransactionModal = ({ isOpen, onClose, transaction }) => {
+  if (!isOpen || !transaction) return null;
+
+  const formatRupiah = (angka) => `Rp${angka?.toLocaleString('id-ID')}`;
+  const isBukanSewa = transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto border border-gray-700">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-teal-400">Rincian Order Web</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-3xl">&times;</button>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="border-b border-gray-700 pb-2 flex justify-between items-center">
+            <div>
+              <p className="text-sm text-gray-400">ID Transaksi:</p>
+              <p className="font-semibold text-gray-200 text-xs mt-1">{transaction.id}</p>
+            </div>
+            <span className="bg-yellow-900/50 text-yellow-300 px-3 py-1 rounded-lg text-xs font-bold border border-yellow-700">
+                Menunggu Validasi
+            </span>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Nama Pelanggan:</p>
+            <p className="font-semibold text-gray-200">{transaction.pelanggan?.nama || 'Anonim'}</p>
+          </div>
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">Nomor WhatsApp:</p>
+            <p className="font-semibold text-gray-200">{transaction.pelanggan?.no_whatsapp || '-'}</p>
+          </div>
+          
+          <div className="border-b border-gray-700 pb-2">
+            <p className="text-sm text-gray-400">{isBukanSewa ? 'Tanggal Transaksi:' : 'Tanggal Sewa:'}</p>
+            {isBukanSewa || !transaction.tanggal_mulai ? (
+                <p className="font-semibold text-gray-200">{moment(transaction.created_at).format('DD MMM YYYY, HH:mm')}</p>
+            ) : (
+                <p className="font-semibold text-gray-200">{moment(transaction.tanggal_mulai).format('DD MMM YYYY')} s/d {moment(transaction.tanggal_selesai).format('DD MMM YYYY')}</p>
+            )}
+          </div>
+
+          {transaction.transaksi_detail && transaction.transaksi_detail.length > 0 && (
+            <div className="border-b border-gray-700 pb-4 mt-2">
+              <h4 className="text-sm font-bold text-gray-400 mb-2">Item Dipesan:</h4>
+              <ul className="space-y-1">
+                {transaction.transaksi_detail.map((item, index) => (
+                  <li key={item.id || index} className="flex justify-between text-sm text-gray-300">
+                    <span>{item.nama_barang} (x{item.jumlah})</span>
+                    <span>{formatRupiah(item.jumlah * (item.produk?.harga || 0))}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <div className="border-t border-gray-700 pt-4 mt-4">
+            <div className="flex justify-between font-bold text-xl mt-2 border-t border-gray-700 pt-2">
+                <span className="text-teal-400">Total Biaya:</span>
+                <span className="text-red-400">{formatRupiah(transaction.total_biaya)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MODAL VALIDASI (Desain disesuaikan dengan Tailwind) ---
+const ValidasiModal = ({ isOpen, onClose, transaction, onSuccess }) => {
+    const [metodePembayaran, setMetodePembayaran] = useState('Transfer');
+    const [nominalBayar, setNominalBayar] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (transaction) {
+            setNominalBayar(transaction.total_biaya);
+            setMetodePembayaran(transaction.jenis_pembayaran || 'Transfer');
+        }
+    }, [transaction]);
+
+    if (!isOpen || !transaction) return null;
+
+    const handleValidasiSubmit = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        const toastId = toast.loading('Memproses validasi...');
+        const nominalFix = Number(nominalBayar);
+
+        try {
+            const isLunas = nominalFix >= transaction.total_biaya;
+            const statusBayar = isLunas ? 'Lunas' : 'DP';
+            const tipeLog = isLunas ? 'Pelunasan' : 'DP';
+
+            // Update status order
+            const { error: trxError } = await supabase
+                .from('transaksi')
+                .update({
+                    status_validasi: 'Valid',
+                    jumlah_terbayar: nominalFix,
+                    status_pembayaran: statusBayar,
+                    jenis_pembayaran: metodePembayaran
+                })
+                .eq('id', transaction.id);
+
+            if (trxError) throw trxError;
+
+            // Masukkan uang masuk ke Log Pembayaran
+            if (nominalFix > 0) {
+                const { error: logError } = await supabase.from('log_pembayaran').insert({
+                    transaksi_id: transaction.id,
+                    nominal: nominalFix,
+                    jenis_pembayaran: metodePembayaran,
+                    tipe: tipeLog
+                });
+                if (logError) console.error('Gagal mencatat log:', logError.message);
+            }
+
+            toast.success('Berhasil divalidasi ke kasir!', { id: toastId });
+            onSuccess();
+            onClose();
+        } catch (error) {
+            console.error('Error updating order:', error.message);
+            toast.error('Gagal memvalidasi pesanan.', { id: toastId });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
+            <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-teal-700/50">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-teal-400">Validasi Pembayaran</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                
+                <form onSubmit={handleValidasiSubmit} className="space-y-4 mb-6">
+                    <div className="bg-gray-900 p-4 rounded-xl border border-gray-700">
+                        <p className="text-sm text-gray-400">Total Tagihan</p>
+                        <p className="text-xl font-bold text-red-400">Rp{transaction.total_biaya?.toLocaleString('id-ID')}</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">Metode Pembayaran</label>
+                        <select 
+                            value={metodePembayaran} 
+                            onChange={(e) => setMetodePembayaran(e.target.value)}
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-3 px-3 focus:ring-teal-500"
+                        >
+                            <option value="Transfer">Transfer Bank</option>
+                            <option value="QRIS">QRIS</option>
+                            <option value="Cash">Tunai / Cash</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">Uang Diterima (DP/Lunas)</label>
+                        <input 
+                            type="number" 
+                            value={nominalBayar}
+                            onChange={(e) => setNominalBayar(e.target.value)}
+                            required
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-3 px-3 focus:ring-teal-500"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full bg-teal-600 text-white p-3 rounded-xl font-bold hover:bg-teal-500 transition-colors disabled:opacity-50 mt-4"
+                    >
+                        {isSubmitting ? 'MEMPROSES...' : 'SIMPAN & VALIDASI'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// --- HALAMAN UTAMA ORDER WEB ---
 export default function OrderWeb() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // State untuk Modal Validasi
-  const [showModal, setShowModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [nominalBayar, setNominalBayar] = useState(0);
-  const [metodePembayaran, setMetodePembayaran] = useState('Transfer');
+  // State Modal Rincian
+  const [rincianModalOpen, setRincianModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  // Mengambil data pesanan yang berstatus "Menunggu"
+  // State Modal Validasi
+  const [validasiModalOpen, setValidasiModalOpen] = useState(false);
+  const [selectedForValidasi, setSelectedForValidasi] = useState(null);
+
   const fetchWaitingOrders = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('transaksi')
-        // Kita juga menarik data pelanggan untuk menampilkan namanya
         .select(`
           *,
-          pelanggan (nama, no_whatsapp)
+          pelanggan (nama, no_whatsapp),
+          transaksi_detail (id, nama_barang, jumlah, produk(harga, nama))
         `)
         .eq('status_validasi', 'Menunggu')
         .order('created_at', { ascending: false });
@@ -30,7 +225,7 @@ export default function OrderWeb() {
       setOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error.message);
-      alert('Gagal mengambil data order web.');
+      toast.error('Gagal mengambil data order web.');
     } finally {
       setLoading(false);
     }
@@ -40,193 +235,131 @@ export default function OrderWeb() {
     fetchWaitingOrders();
   }, []);
 
-  // Membuka modal validasi dan menyiapkan data awal
-  const openValidasiModal = (order) => {
-    setSelectedOrder(order);
-    setNominalBayar(order.total_biaya); // Default nominal diset sama dengan total biaya
-    setMetodePembayaran(order.jenis_pembayaran || 'Transfer');
-    setShowModal(true);
-  };
-
-  // Menutup modal
-  const closeModal = () => {
-    setShowModal(false);
-    setSelectedOrder(null);
-  };
-
-  // --- TAMBAHAN: Proses Batal dan Hapus Permanen ---
   const handleBatalOrder = async (orderId) => {
-    const confirmDelete = window.confirm('Apakah Anda yakin ingin membatalkan dan menghapus orderan ini secara permanen?');
+    const confirmDelete = window.confirm('Yakin ingin membatalkan dan menghapus orderan ini permanen?');
     if (!confirmDelete) return;
 
+    const toastId = toast.loading('Membatalkan pesanan...');
     try {
-      // 1. Hapus isi keranjang (transaksi_detail) terlebih dahulu agar tidak ada data yang tertinggal
       await supabase.from('transaksi_detail').delete().eq('transaksi_id', orderId);
-
-      // 2. Hapus data transaksi utama
       const { error } = await supabase.from('transaksi').delete().eq('id', orderId);
 
       if (error) throw error;
 
-      alert('Orderan batal dan telah dihapus permanen dari sistem.');
-      fetchWaitingOrders(); // Refresh tampilan tabel
+      toast.success('Orderan batal dihapus permanen.', { id: toastId });
+      fetchWaitingOrders(); 
     } catch (error) {
       console.error('Error deleting order:', error.message);
-      alert('Gagal membatalkan orderan.');
+      toast.error('Gagal membatalkan orderan.', { id: toastId });
     }
   };
-  // ------------------------------------------------
 
-  // Proses Update Data ke Supabase
-  const handleValidasiSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedOrder) return;
-
-    // Konversi input ke angka agar aman saat dimasukkan ke database
-    const nominalFix = Number(nominalBayar);
-
-    try {
-      // 1. Tentukan status pembayaran apakah Lunas atau DP
-      const isLunas = nominalFix >= selectedOrder.total_biaya;
-      const statusBayar = isLunas ? 'Lunas' : 'DP';
-      
-      // Gunakan kata 'Pelunasan' untuk log karena database menolak kata 'Lunas'
-      const tipeLog = isLunas ? 'Pelunasan' : 'DP';
-
-      // 2. Update status order menjadi Valid
-      const { error: trxError } = await supabase
-        .from('transaksi')
-        .update({
-          status_validasi: 'Valid',
-          jumlah_terbayar: nominalFix,
-          status_pembayaran: statusBayar,
-          jenis_pembayaran: metodePembayaran
-        })
-        .eq('id', selectedOrder.id);
-
-      if (trxError) throw trxError;
-
-      // 3. Masukkan uang masuk ke Log Pembayaran agar terbaca di Widget Laporan.js
-      if (nominalFix > 0) {
-        const { error: logError } = await supabase.from('log_pembayaran').insert({
-          transaksi_id: selectedOrder.id,
-          nominal: nominalFix,
-          jenis_pembayaran: metodePembayaran,
-          tipe: tipeLog
-        });
-        
-        // Memunculkan peringatan di console log jika uang gagal masuk ke widget
-        if (logError) console.error('Gagal mencatat log uang masuk:', logError.message);
-      }
-
-      alert('Berhasil! Pembayaran divalidasi dan masuk ke sistem kasir.');
-      closeModal();
-      fetchWaitingOrders();
-    } catch (error) {
-      console.error('Error updating order:', error.message);
-      alert('Gagal memvalidasi pesanan.');
-    }
-  };
+  const formatRupiah = (angka) => `Rp${angka?.toLocaleString('id-ID')}`;
+  const totalPotensiPendapatan = orders.reduce((sum, order) => sum + (order.total_biaya || 0), 0);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h2>Daftar Order Web (Menunggu Pembayaran)</h2>
-      <p>Data di bawah ini belum masuk ke Laporan Harian (Closing) sebelum divalidasi.</p>
-      <hr style={{ marginBottom: '20px' }} />
-
-      {loading ? (
-        <p>Memuat data orderan web...</p>
-      ) : orders.length === 0 ? (
-        <p>Belum ada orderan baru dari web.</p>
-      ) : (
-        <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead style={{ backgroundColor: '#f0f0f0' }}>
-            <tr>
-              <th>Tgl Order</th>
-              <th>Nama Pelanggan</th>
-              <th>Jenis Layanan</th>
-              <th>Total Biaya</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr key={order.id}>
-                <td>{new Date(order.created_at).toLocaleString('id-ID')}</td>
-                <td>{order.pelanggan?.nama || 'Tanpa Nama'} <br/> <small>{order.pelanggan?.no_whatsapp}</small></td>
-                <td>{order.jenis_transaksi}</td>
-                <td style={{ color: 'red', fontWeight: 'bold' }}>
-                  Rp {order.total_biaya?.toLocaleString('id-ID')}
-                </td>
-                
-                {/* --- BAGIAN TOMBOL AKSI YANG BARU --- */}
-                <td style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    onClick={() => openValidasiModal(order)}
-                    style={{ backgroundColor: '#28a745', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Validasi Pembayaran
-                  </button>
-                  <button 
-                    onClick={() => handleBatalOrder(order.id)}
-                    style={{ backgroundColor: '#dc3545', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Batalkan
-                  </button>
-                </td>
-                {/* ------------------------------------- */}
-                
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* MODAL VALIDASI PEMBAYARAN */}
-      {showModal && selectedOrder && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', 
-          justifyContent: 'center', alignItems: 'center'
-        }}>
-          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '400px' }}>
-            <h3>Validasi Pembayaran</h3>
-            <p>Order: <strong>{selectedOrder.jenis_transaksi}</strong> - {selectedOrder.pelanggan?.nama}</p>
-            <p>Total Tagihan: <strong>Rp {selectedOrder.total_biaya?.toLocaleString('id-ID')}</strong></p>
-            
-            <form onSubmit={handleValidasiSubmit}>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Uang Diterima (DP / Lunas)</label>
-                <input 
-                  type="number" 
-                  value={nominalBayar}
-                  onChange={(e) => setNominalBayar(e.target.value)}
-                  style={{ width: '100%', padding: '8px' }}
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Metode Pembayaran</label>
-                <select 
-                  value={metodePembayaran}
-                  onChange={(e) => setMetodePembayaran(e.target.value)}
-                  style={{ width: '100%', padding: '8px' }}
-                >
-                  <option value="Transfer">Transfer Bank</option>
-                  <option value="QRIS">QRIS</option>
-                  <option value="Cash">Tunai / Cash</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" onClick={closeModal} style={{ padding: '8px 12px', cursor: 'pointer' }}>Batal</button>
-                <button type="submit" style={{ backgroundColor: '#28a745', color: 'white', padding: '8px 12px', border: 'none', cursor: 'pointer' }}>Simpan & Validasi</button>
-              </div>
-            </form>
-          </div>
+    <div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
+      <Toaster position="top-center" toastOptions={{ style: { background: '#24252A', color: '#e2e8f0', border: '1px solid #2C2E33' } }} />
+      <Head><title>Order Web (Menunggu)</title></Head>
+      
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-teal-400">Order Web (Menunggu Pembayaran)</h1>
+        <p className="text-gray-400 mt-2">Data ini belum masuk ke Laporan Harian sebelum divalidasi.</p>
+      </div>
+      
+      {/* --- WIDGET STATISTIK --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden flex items-center justify-between">
+            <div>
+                <p className="text-gray-400 text-sm font-medium mb-1">Total Order Menunggu</p>
+                <h3 className="text-3xl font-bold text-yellow-400">{orders.length} <span className="text-sm font-normal text-gray-500">Transaksi</span></h3>
+            </div>
+            <div className="bg-yellow-900/50 p-4 rounded-full"><IconClock /></div>
         </div>
-      )}
+        
+        <div className="bg-gradient-to-br from-teal-600 to-teal-800 p-5 rounded-2xl border border-teal-500 shadow-lg relative overflow-hidden flex items-center justify-between">
+            <div>
+                <p className="text-teal-100 text-sm font-medium mb-1">Potensi Pendapatan</p>
+                <h3 className="text-2xl font-bold text-white">{formatRupiah(totalPotensiPendapatan)}</h3>
+            </div>
+            <div className="bg-teal-900/50 p-4 rounded-full"><IconCheck /></div>
+        </div>
+      </div>
+
+      {/* --- TABEL DATA --- */}
+      <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
+        {loading ? (
+            <div className="flex justify-center py-8"><svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
+        ) : orders.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left table-auto whitespace-nowrap">
+              <thead className="bg-gray-900/50 text-sm">
+                <tr>
+                  <th className="p-4">Tgl Order</th>
+                  <th className="p-4">Pelanggan (Klik untuk detail)</th>
+                  <th className="p-4">Jenis Layanan</th>
+                  <th className="p-4">Total Biaya</th>
+                  <th className="p-4 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {orders.map((order) => (
+                  <tr key={order.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                    <td className="p-4 text-gray-400 font-medium">{moment(order.created_at).format('DD/MM/YY HH:mm')}</td>
+                    
+                    {/* KLIK NAMA UNTUK MUNCULKAN RINCIAN */}
+                    <td className="p-4 cursor-pointer hover:underline text-teal-400 font-medium" 
+                        onClick={() => { setSelectedTransaction(order); setRincianModalOpen(true); }}>
+                      {order.pelanggan?.nama || 'Anonim'}
+                      <p className="text-xs text-gray-500 mt-0.5">{order.pelanggan?.no_whatsapp}</p>
+                    </td>
+                    
+                    <td className="p-4">
+                        <span className="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs font-bold border border-blue-700">
+                            {order.jenis_transaksi}
+                        </span>
+                    </td>
+                    
+                    <td className="p-4 font-semibold text-red-400">
+                      {formatRupiah(order.total_biaya)}
+                    </td>
+                    
+                    <td className="p-4 text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button 
+                            onClick={() => { setSelectedForValidasi(order); setValidasiModalOpen(true); }} 
+                            className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-teal-900/50">
+                            Validasi
+                        </button>
+                        <button 
+                            onClick={() => handleBatalOrder(order.id)} 
+                            className="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-red-900/50">
+                            Batalkan
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-400 text-center py-8">Belum ada orderan baru dari web.</p>
+        )}
+      </div>
+
+      {/* --- RENDER MODAL --- */}
+      <TransactionModal 
+        isOpen={rincianModalOpen} 
+        onClose={() => setRincianModalOpen(false)} 
+        transaction={selectedTransaction} 
+      />
+      <ValidasiModal 
+        isOpen={validasiModalOpen} 
+        onClose={() => setValidasiModalOpen(false)} 
+        transaction={selectedForValidasi} 
+        onSuccess={fetchWaitingOrders} 
+      />
     </div>
   );
 }
