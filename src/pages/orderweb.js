@@ -54,6 +54,29 @@ export default function OrderWeb() {
     setSelectedOrder(null);
   };
 
+  // --- TAMBAHAN: Proses Batal dan Hapus Permanen ---
+  const handleBatalOrder = async (orderId) => {
+    const confirmDelete = window.confirm('Apakah Anda yakin ingin membatalkan dan menghapus orderan ini secara permanen?');
+    if (!confirmDelete) return;
+
+    try {
+      // 1. Hapus isi keranjang (transaksi_detail) terlebih dahulu agar tidak ada data yang tertinggal
+      await supabase.from('transaksi_detail').delete().eq('transaksi_id', orderId);
+
+      // 2. Hapus data transaksi utama
+      const { error } = await supabase.from('transaksi').delete().eq('id', orderId);
+
+      if (error) throw error;
+
+      alert('Orderan batal dan telah dihapus permanen dari sistem.');
+      fetchWaitingOrders(); // Refresh tampilan tabel
+    } catch (error) {
+      console.error('Error deleting order:', error.message);
+      alert('Gagal membatalkan orderan.');
+    }
+  };
+  // ------------------------------------------------
+
   // Proses Update Data ke Supabase
   const handleValidasiSubmit = async (e) => {
     e.preventDefault();
@@ -135,14 +158,24 @@ export default function OrderWeb() {
                 <td style={{ color: 'red', fontWeight: 'bold' }}>
                   Rp {order.total_biaya?.toLocaleString('id-ID')}
                 </td>
-                <td>
+                
+                {/* --- BAGIAN TOMBOL AKSI YANG BARU --- */}
+                <td style={{ display: 'flex', gap: '8px' }}>
                   <button 
                     onClick={() => openValidasiModal(order)}
-                    style={{ backgroundColor: '#0070f3', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    style={{ backgroundColor: '#28a745', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                   >
                     Validasi Pembayaran
                   </button>
+                  <button 
+                    onClick={() => handleBatalOrder(order.id)}
+                    style={{ backgroundColor: '#dc3545', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Batalkan
+                  </button>
                 </td>
+                {/* ------------------------------------- */}
+                
               </tr>
             ))}
           </tbody>
