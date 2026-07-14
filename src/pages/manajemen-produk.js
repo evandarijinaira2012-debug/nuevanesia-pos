@@ -37,6 +37,7 @@ const ManajemenProduk = () => {
 
   // --- STATE BARU UNTUK VARIASI DINAMIS ---
   const [variasiList, setVariasiList] = useState([]);
+  const [gambarList, setGambarList] = useState([]);
 
   useEffect(() => {
     fetchProduk();
@@ -46,7 +47,7 @@ const ManajemenProduk = () => {
     // Pastikan kita juga menarik data relasi variasinya
     const { data, error } = await supabase
         .from('produk')
-        .select('*, produk_variasi(*)')
+        .select('*, produk_variasi(*), produk_gambar(*)')
         .order('id', { ascending: false });
         
     if (error) {
@@ -67,6 +68,7 @@ const ManajemenProduk = () => {
     setJenisLayanan('Sewa');
     setHargaDiskon('');
     setVariasiList([]); // Reset daftar variasi
+    setGambarList([]);
     setIsKategoriBaru(false);
     setProdukUntukDiedit(null);
   };
@@ -74,6 +76,23 @@ const ManajemenProduk = () => {
   // --- FUNGSI UNTUK MENGELOLA BARIS VARIASI ---
   const tambahBarisVariasi = () => {
     setVariasiList([...variasiList, { nama_variasi: '', harga: '', stok: '' }]);
+  };
+
+  // --- FUNGSI UNTUK MENGELOLA BARIS GAMBAR TAMBAHAN ---
+  const tambahBarisGambar = () => {
+    setGambarList([...gambarList, { gambar_url: '' }]);
+  };
+
+  const hapusBarisGambar = (index) => {
+    const listBaru = [...gambarList];
+    listBaru.splice(index, 1);
+    setGambarList(listBaru);
+  };
+
+  const handleUbahGambar = (index, value) => {
+    const listBaru = [...gambarList];
+    listBaru[index].gambar_url = value;
+    setGambarList(listBaru);
   };
 
   const hapusBarisVariasi = (index) => {
@@ -133,6 +152,21 @@ const ManajemenProduk = () => {
                 await supabase.from('produk_variasi').delete().eq('produk_id', produkIdTerproses);
             }
         } else {
+
+            // MANAJEMEN GAMBAR SAAT EDIT
+            // 1. Hapus gambar yang dihapus oleh user di form
+            const gambarIdsToKeep = gambarList.filter(g => g.id).map(g => g.id);
+            if (gambarIdsToKeep.length > 0) {
+                const { data: dbGambar } = await supabase.from('produk_gambar').select('id').eq('produk_id', produkIdTerproses);
+                const idsToDelete = dbGambar.map(g => g.id).filter(id => !gambarIdsToKeep.includes(id));
+                
+                if (idsToDelete.length > 0) {
+                    await supabase.from('produk_gambar').delete().in('id', idsToDelete);
+                }
+            } else {
+                await supabase.from('produk_gambar').delete().eq('produk_id', produkIdTerproses);
+            }
+
             // PROSES INSERT PRODUK BARU
             const { data, error: errorInsert } = await supabase.from('produk').insert([dataToSave]).select();
             if (errorInsert) throw errorInsert;
@@ -155,7 +189,34 @@ const ManajemenProduk = () => {
             const { error: errorVariasi } = await supabase.from('produk_variasi').upsert(dataVariasiToSave);
             if (errorVariasi) throw errorVariasi;
         }
+        // PROSES SIMPAN/UPDATE DATA GAMBAR TAMBAHAN
+        if (gambarList.length > 0) {
+            const dataGambarToSave = gambarList.map(g => {
+                const payload = {
+                    produk_id: produkIdTerproses,
+                    gambar_url: g.gambar_url
+                };
+                if (g.id) payload.id = g.id; // Sertakan ID jika ini adalah gambar lama (untuk update)
+                return payload;
+            });
 
+            const { error: errorGambar } = await supabase.from('produk_gambar').upsert(dataGambarToSave);
+            if (errorGambar) throw errorGambar;
+        }
+// PROSES SIMPAN/UPDATE DATA GAMBAR TAMBAHAN
+        if (gambarList.length > 0) {
+            const dataGambarToSave = gambarList.map(g => {
+                const payload = {
+                    produk_id: produkIdTerproses,
+                    gambar_url: g.gambar_url
+                };
+                if (g.id) payload.id = g.id; // Sertakan ID jika ini adalah gambar lama (untuk update)
+                return payload;
+            });
+
+            const { error: errorGambar } = await supabase.from('produk_gambar').upsert(dataGambarToSave);
+            if (errorGambar) throw errorGambar;
+        }
         toast.success(produkUntukDiedit ? 'Produk berhasil diperbarui!' : 'Produk berhasil ditambahkan!', { id: toastId });
         resetForm();
         fetchProduk();
@@ -171,6 +232,8 @@ const ManajemenProduk = () => {
     setHarga(produk.harga);
     setStok(produk.stok);
     setUrlGambar(produk.url_gambar || '');
+    setVariasiList(produk.produk_variasi || []);
+    setGambarList(produk.produk_gambar || []);
     setKategori(produk.kategori);
     setDescription(produk.description || '');
     setHandlingNotes(produk.handling_notes || '');
@@ -403,7 +466,48 @@ const ManajemenProduk = () => {
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                 />
                             </div>
-                            
+                            {/* --- AREA GAMBAR TAMBAHAN DINAMIS --- */}
+                            <div className="mt-4 border-t border-gray-700 pt-4">
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="block text-teal-400 font-bold">Gambar Galeri / Tambahan (Opsional)</label>
+                                    <button 
+                                        type="button" 
+                                        onClick={tambahBarisGambar} 
+                                        className="text-xs bg-teal-600/20 text-teal-300 px-3 py-1.5 rounded-lg border border-teal-500/30 hover:bg-teal-600/40 transition-colors flex items-center"
+                                    >
+                                        + Tambah Gambar
+                                    </button>
+                                </div>
+
+                                {gambarList.length === 0 && (
+                                    <p className="text-sm text-gray-500 italic mb-4">Belum ada gambar tambahan. Klik tombol tambah di atas.</p>
+                                )}
+
+                                <div className="space-y-3">
+                                    {gambarList.map((gambar, index) => (
+                                        <div key={index} className="flex gap-2 items-center bg-gray-900 p-3 rounded-lg border border-gray-700 relative">
+                                            <div className="flex-grow">
+                                                <input
+                                                    type="text"
+                                                    value={gambar.gambar_url}
+                                                    onChange={(e) => handleUbahGambar(index, e.target.value)}
+                                                    placeholder="URL gambar tambahan (misal dari imgur/drive)"
+                                                    required
+                                                    className="w-full p-2 text-sm bg-gray-800 rounded border border-gray-600 text-white focus:ring-1 focus:ring-teal-500 outline-none"
+                                                />
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => hapusBarisGambar(index)}
+                                                className="text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded h-full"
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* --- AKHIR AREA GAMBAR TAMBAHAN --- */}
                             <div>
                                 <label className="block text-gray-400 mb-2">Deskripsi Produk</label>
                                 <textarea
