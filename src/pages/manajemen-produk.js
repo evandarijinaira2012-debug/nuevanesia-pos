@@ -19,8 +19,10 @@ const IconChevronLeft = () => (
 );
 
 const ManajemenProduk = () => {
+
   const [produk, setProduk] = useState([]);
   const [nama, setNama] = useState('');
+  const [slug, setSlug] = useState('');
   const [harga, setHarga] = useState('');
   const [stok, setStok] = useState('');
   const [url_gambar, setUrlGambar] = useState('');
@@ -34,10 +36,28 @@ const ManajemenProduk = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [kategoriFilter, setKategoriFilter] = useState('Semua');
   const [layananFilter, setLayananFilter] = useState('Semua');
-
-  // --- STATE BARU UNTUK VARIASI DINAMIS ---
   const [variasiList, setVariasiList] = useState([]);
   const [gambarList, setGambarList] = useState([]);
+  const [slugStatus, setSlugStatus] = useState('');
+  const generateSlug = (text) => {
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-');
+  };
+
+  const cekSlugUnik = async (slugToCheck, currentProdukId) => {
+    if (!slugToCheck) return true;
+    let query = supabase.from('produk').select('id').eq('slug', slugToCheck);
+    if (currentProdukId) {
+      query = query.neq('id', currentProdukId);
+    }
+    const { data } = await query.single();
+    return !data; 
+  };
 
   useEffect(() => {
     fetchProduk();
@@ -59,6 +79,7 @@ const ManajemenProduk = () => {
 
   const resetForm = () => {
     setNama('');
+    setSlug('');
     setHarga('');
     setStok('');
     setUrlGambar('');
@@ -109,6 +130,11 @@ const ManajemenProduk = () => {
 
   const handleSimpan = async (e) => {
     e.preventDefault();
+    const isStillUnique = await cekSlugUnik(slug, produkUntukDiedit?.id);
+    if (!isStillUnique) {
+        toast.error('Gagal simpan: Slug sudah digunakan orang lain.');
+        return; 
+    }
     if (!nama || !harga || !stok || !kategori || !jenis_layanan) {
       toast.error('Nama, harga, stok, kategori, dan layanan utama harus diisi.');
       return;
@@ -118,6 +144,7 @@ const ManajemenProduk = () => {
     
     const dataToSave = {
       nama,
+      slug, // <--- TAMBAHKAN INI
       harga: Number(harga),
       stok: Number(stok),
       url_gambar,
@@ -126,7 +153,7 @@ const ManajemenProduk = () => {
       handling_notes,
       jenis_layanan,
       harga_diskon: harga_diskon ? Number(harga_diskon) : null,
-      seo_title: nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+      seo_title: slug // Kita pakai slug saja untuk seo_title agar konsisten
     };
 
     let produkIdTerproses = null;
@@ -229,6 +256,7 @@ const ManajemenProduk = () => {
   const handleEdit = (produk) => {
     setProdukUntukDiedit(produk);
     setNama(produk.nama);
+    setSlug(produk.slug || '');
     setHarga(produk.harga);
     setStok(produk.stok);
     setUrlGambar(produk.url_gambar || '');
@@ -315,11 +343,44 @@ const ManajemenProduk = () => {
                                 <input
                                   type="text"
                                   value={nama}
-                                  onChange={(e) => setNama(e.target.value)}
+                                  onChange={(e) => {
+                                      setNama(e.target.value);
+                                      setSlug(generateSlug(e.target.value));
+                                  }}
                                   placeholder="Nama Produk"
                                   required
                                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-400 mb-2">Slug (URL)</label>
+                                <input
+                                  type="text"
+                                  value={slug}
+                                  onChange={async (e) => {
+                                      const value = e.target.value;
+                                      setSlug(value);
+                                      clearTimeout(window.slugTimer);
+                                      window.slugTimer = setTimeout(async () => {
+                                        if (value) {
+                                          const isUnique = await cekSlugUnik(value, produkUntukDiedit?.id);
+                                          setSlugStatus(isUnique ? '✅ Slug tersedia' : '❌ Slug sudah digunakan');
+                                        } else {
+                                          setSlugStatus('');
+                                        }
+                                      }, 500);
+                                  }}
+                                  placeholder="slug-produk-anda"
+                                  required
+                                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-white"
+                                />
+                                {/* Pesan Status */}
+                                {slugStatus && (
+                                  <p className={`text-xs mt-1 ${slugStatus.includes('✅') ? 'text-green-400' : 'text-red-400'}`}>
+                                    {slugStatus}
+                                  </p>
+                                )}
                             </div>
 
                             <div className="flex gap-4">
