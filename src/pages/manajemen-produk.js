@@ -160,15 +160,20 @@ const ManajemenProduk = () => {
     }
 
     const toastId = toast.loading('Menyimpan produk dan variasinya...');
-    let spesifikasiObj = null;
+    // =====================================
+    // KODE BARU: FORMAT ARRAY SPESIFIKASI
+    // =====================================
+    let spesifikasiArray = null;
     if (spesifikasiList.length > 0) {
-        spesifikasiObj = {};
-        spesifikasiList.forEach(item => {
-            if (item.key && item.value) { 
-                spesifikasiObj[item.key.trim()] = item.value;
-            }
-        });
-        if (Object.keys(spesifikasiObj).length === 0) spesifikasiObj = null;
+        // Filter agar baris yang kosong tidak ikut tersimpan
+        spesifikasiArray = spesifikasiList
+            .filter(item => item.key && item.value)
+            .map(item => ({
+                label: item.key.trim(),
+                nilai: item.value
+            }));
+            
+        if (spesifikasiArray.length === 0) spesifikasiArray = null;
     }
 
     const dataToSave = {
@@ -183,7 +188,7 @@ const ManajemenProduk = () => {
       jenis_layanan,
       harga_diskon: harga_diskon ? Number(harga_diskon) : null,
       seo_title: slug,
-      spesifikasi: spesifikasiObj // <--- TAMBAHAN UNTUK DATABASE
+      spesifikasi: spesifikasiArray // <--- UBAH NAMA VARIABEL DI SINI
     };
 
     let produkIdTerproses = null;
@@ -246,20 +251,7 @@ const ManajemenProduk = () => {
             const { error: errorVariasi } = await supabase.from('produk_variasi').upsert(dataVariasiToSave);
             if (errorVariasi) throw errorVariasi;
         }
-        // PROSES SIMPAN/UPDATE DATA GAMBAR TAMBAHAN
-        if (gambarList.length > 0) {
-            const dataGambarToSave = gambarList.map(g => {
-                const payload = {
-                    produk_id: produkIdTerproses,
-                    gambar_url: g.gambar_url
-                };
-                if (g.id) payload.id = g.id; // Sertakan ID jika ini adalah gambar lama (untuk update)
-                return payload;
-            });
-
-            const { error: errorGambar } = await supabase.from('produk_gambar').upsert(dataGambarToSave);
-            if (errorGambar) throw errorGambar;
-        }
+        
 // PROSES SIMPAN/UPDATE DATA GAMBAR TAMBAHAN
         if (gambarList.length > 0) {
             const dataGambarToSave = gambarList.map(g => {
@@ -299,16 +291,20 @@ const ManajemenProduk = () => {
     setHargaDiskon(produk.harga_diskon || '');
     setIsKategoriBaru(false);
     
-    // Muat data variasi yang ada ke dalam form
     setVariasiList(produk.produk_variasi || []);
-
-    // --- TAMBAHKAN KODE INI DI SINI ---
-    if (produk.spesifikasi && typeof produk.spesifikasi === 'object') {
-        const arrSpesifikasi = Object.entries(produk.spesifikasi).map(([k, v]) => ({ key: k, value: v }));
-        setSpesifikasiList(arrSpesifikasi);
-    } else {
-        setSpesifikasiList([]);
-    }
+      if (produk.spesifikasi) {
+          if (Array.isArray(produk.spesifikasi)) {
+              // Jika formatnya sudah Array (Baru)
+              const arrSpesifikasi = produk.spesifikasi.map(item => ({ key: item.label, value: item.nilai }));
+              setSpesifikasiList(arrSpesifikasi);
+          } else if (typeof produk.spesifikasi === 'object') {
+              // Jika formatnya masih Objek (Lama/Legacy)
+              const arrSpesifikasi = Object.entries(produk.spesifikasi).map(([k, v]) => ({ key: k, value: v }));
+              setSpesifikasiList(arrSpesifikasi);
+          }
+      } else {
+          setSpesifikasiList([]);
+      }
   };
 
   const handleDelete = async (produkId) => {
