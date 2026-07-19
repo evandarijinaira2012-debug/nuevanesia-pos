@@ -39,6 +39,7 @@ const ManajemenProduk = () => {
   const [variasiList, setVariasiList] = useState([]);
   const [gambarList, setGambarList] = useState([]);
   const [slugStatus, setSlugStatus] = useState('');
+  const [spesifikasiList, setSpesifikasiList] = useState([]);
   const generateSlug = (text) => {
     return text
       .toString()
@@ -92,6 +93,7 @@ const ManajemenProduk = () => {
     setGambarList([]);
     setIsKategoriBaru(false);
     setProdukUntukDiedit(null);
+    setSpesifikasiList([]);
   };
 
   // --- FUNGSI UNTUK MENGELOLA BARIS VARIASI ---
@@ -128,6 +130,23 @@ const ManajemenProduk = () => {
     setVariasiList(listBaru);
   };
 
+  // --- FUNGSI UNTUK MENGELOLA BARIS SPESIFIKASI ---
+  const tambahBarisSpesifikasi = () => {
+    setSpesifikasiList([...spesifikasiList, { key: '', value: '' }]);
+  };
+
+  const hapusBarisSpesifikasi = (index) => {
+    const listBaru = [...spesifikasiList];
+    listBaru.splice(index, 1);
+    setSpesifikasiList(listBaru);
+  };
+
+  const handleUbahSpesifikasi = (index, field, value) => {
+    const listBaru = [...spesifikasiList];
+    listBaru[index][field] = value;
+    setSpesifikasiList(listBaru);
+  };
+
   const handleSimpan = async (e) => {
     e.preventDefault();
     const isStillUnique = await cekSlugUnik(slug, produkUntukDiedit?.id);
@@ -141,10 +160,20 @@ const ManajemenProduk = () => {
     }
 
     const toastId = toast.loading('Menyimpan produk dan variasinya...');
-    
+    let spesifikasiObj = null;
+    if (spesifikasiList.length > 0) {
+        spesifikasiObj = {};
+        spesifikasiList.forEach(item => {
+            if (item.key && item.value) { 
+                spesifikasiObj[item.key.trim()] = item.value;
+            }
+        });
+        if (Object.keys(spesifikasiObj).length === 0) spesifikasiObj = null;
+    }
+
     const dataToSave = {
       nama,
-      slug, // <--- TAMBAHKAN INI
+      slug, 
       harga: Number(harga),
       stok: Number(stok),
       url_gambar,
@@ -153,7 +182,8 @@ const ManajemenProduk = () => {
       handling_notes,
       jenis_layanan,
       harga_diskon: harga_diskon ? Number(harga_diskon) : null,
-      seo_title: slug // Kita pakai slug saja untuk seo_title agar konsisten
+      seo_title: slug,
+      spesifikasi: spesifikasiObj // <--- TAMBAHAN UNTUK DATABASE
     };
 
     let produkIdTerproses = null;
@@ -271,6 +301,14 @@ const ManajemenProduk = () => {
     
     // Muat data variasi yang ada ke dalam form
     setVariasiList(produk.produk_variasi || []);
+
+    // --- TAMBAHKAN KODE INI DI SINI ---
+    if (produk.spesifikasi && typeof produk.spesifikasi === 'object') {
+        const arrSpesifikasi = Object.entries(produk.spesifikasi).map(([k, v]) => ({ key: k, value: v }));
+        setSpesifikasiList(arrSpesifikasi);
+    } else {
+        setSpesifikasiList([]);
+    }
   };
 
   const handleDelete = async (produkId) => {
@@ -480,8 +518,56 @@ const ManajemenProduk = () => {
                                     ))}
                                 </div>
                             </div>
-                            {/* --- AKHIR AREA VARIASI --- */}
+                            {/* --- AREA SPESIFIKASI DINAMIS --- */}
+                            <div className="mt-6 border-t border-gray-700 pt-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="block text-blue-400 font-bold">Spesifikasi Detail (Opsional)</label>
+                                    <button 
+                                        type="button" 
+                                        onClick={tambahBarisSpesifikasi} 
+                                        className="text-xs bg-blue-600/20 text-blue-300 px-3 py-1.5 rounded-lg border border-blue-500/30 hover:bg-blue-600/40 transition-colors flex items-center"
+                                    >
+                                        + Tambah Spesifikasi
+                                    </button>
+                                </div>
 
+                                {spesifikasiList.length === 0 && (
+                                    <p className="text-sm text-gray-500 italic mb-4">Misal: Material, Berat, Dimensi. Klik tambah di atas.</p>
+                                )}
+
+                                <div className="space-y-3">
+                                    {spesifikasiList.map((spec, index) => (
+                                        <div key={index} className="flex gap-2 items-center bg-gray-900 p-3 rounded-lg border border-gray-700 relative">
+                                            <div className="flex-grow flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={spec.key}
+                                                    onChange={(e) => handleUbahSpesifikasi(index, 'key', e.target.value)}
+                                                    placeholder="Nama (mis: Material)"
+                                                    required
+                                                    className="w-1/3 p-2 text-sm bg-gray-800 rounded border border-gray-600 text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={spec.value}
+                                                    onChange={(e) => handleUbahSpesifikasi(index, 'value', e.target.value)}
+                                                    placeholder="Isi (mis: Polyester 100%)"
+                                                    required
+                                                    className="w-2/3 p-2 text-sm bg-gray-800 rounded border border-gray-600 text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => hapusBarisSpesifikasi(index)}
+                                                className="text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded h-full"
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* --- AKHIR AREA SPESIFIKASI --- */}
                             <div className="border-t border-gray-700 pt-6">
                                 <label className="block text-gray-400 mb-2">Kategori</label>
                                 <select
