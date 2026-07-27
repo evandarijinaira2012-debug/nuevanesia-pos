@@ -134,8 +134,15 @@ export default function Home() {
         const cartItemId = variasi ? `${item.id}-${variasi.id}` : item.id;
         
         // Override nama dan harga jika ada variasi yang dipilih
+        // Override nama dan harga jika ada variasi atau diskon produk
         const namaTampil = variasi ? `${item.nama} - ${variasi.nama_variasi}` : item.nama;
-        const hargaTampil = variasi ? variasi.harga : item.harga;
+        
+        let hargaTampil = item.harga;
+        if (variasi) {
+            hargaTampil = variasi.harga;
+        } else if (item.harga_diskon && item.harga_diskon > 0 && item.harga_diskon < item.harga) {
+            hargaTampil = item.harga_diskon;
+        }
 
         const itemToSave = { 
             ...item, 
@@ -340,9 +347,23 @@ export default function Home() {
                                     <div className="p-4 flex flex-col flex-grow">
                                         <p className="text-xs font-semibold text-gray-500 mb-1 uppercase">{item.kategori}</p>
                                         <h3 className="font-bold text-lg text-white mb-1 leading-tight">{item.nama}</h3>
-                                        <p className="text-sm text-teal-400 font-semibold mb-2">
-                                            {hasVariasi ? 'Mulai dari ' : ''}Rp{item.harga.toLocaleString('id-ID')} 
-                                            {jenisLayananTerpilih === 'Sewa' && ' / Hari'}
+                                        <p className="text-sm font-semibold mb-2">
+                                            {hasVariasi ? 'Mulai dari ' : ''}
+                                            {item.harga_diskon && item.harga_diskon < item.harga ? (
+                                                <>
+                                                    <span className="line-through text-gray-500 text-xs mr-1">
+                                                        Rp{item.harga.toLocaleString('id-ID')}
+                                                    </span>
+                                                    <span className="text-red-400 font-bold">
+                                                        Rp{item.harga_diskon.toLocaleString('id-ID')}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="text-teal-400">
+                                                    Rp{item.harga.toLocaleString('id-ID')}
+                                                </span>
+                                            )}
+                                            {jenisLayananTerpilih === 'Sewa' && <span className="text-gray-400 text-xs ml-1">/ Hari</span>}
                                         </p>
                                         
                                         {/* BUNGKUSAN BARU (mt-auto) AGAR ELEMEN SELALU RATA BAWAH */}
