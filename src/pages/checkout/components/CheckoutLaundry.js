@@ -175,7 +175,9 @@ export default function CheckoutLaundry() {
                 produk_id: item.id,
                 nama_barang: item.nama,
                 jumlah: item.qty,
-                produk_variasi_id: item.produk_variasi_id || null
+                produk_variasi_id: item.produk_variasi_id || null,
+                variasi_terpilih: item.variasi_terpilih || item.variasi || null, // <--- TAMBAHKAN INI
+                harga_satuan: item.harga // <--- TAMBAHKAN INI
             }));
 
             await supabase.from('transaksi_detail').insert(rincianInsert);

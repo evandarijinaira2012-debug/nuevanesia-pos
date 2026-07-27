@@ -150,8 +150,8 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
       },
       keranjang: transaction.transaksi_detail ? transaction.transaksi_detail.map(item => ({
         id: item.id,
-        nama: item.nama_barang,
-        harga: item.produk?.harga || 0,
+        nama: item.variasi_terpilih ? `${item.nama_barang} (${item.variasi_terpilih})` : item.nama_barang,
+        harga: item.harga_satuan || item.produk?.harga || 0, // Mengambil harga statis yang tersimpan
         qty: item.jumlah
       })) : [],
       tanggalMulai: transaction.tanggal_mulai,
@@ -227,9 +227,17 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
               <h4 className="text-sm font-bold text-gray-400 mb-2">Item Transaksi:</h4>
               <ul className="space-y-1">
                 {transaction.transaksi_detail.map((item, index) => (
-                  <li key={item.id || index} className="flex justify-between text-sm text-gray-300">
-                    <span>{item.nama_barang} (x{item.jumlah})</span>
-                    <span>{formatRupiah(item.jumlah * (item.produk?.harga || 0))}</span>
+                  <li key={item.id || index} className="flex justify-between items-start gap-4 text-sm text-gray-300">
+                    <div className="flex-1">
+                      <span className="block font-medium">
+                        {item.nama_barang} 
+                        {item.variasi_terpilih && <span className="text-gray-500 text-xs ml-1 font-normal">({item.variasi_terpilih})</span>}
+                      </span>
+                      <span className="text-teal-500/80 text-xs mt-0.5 inline-block">Jumlah: {item.jumlah}x @ {formatRupiah(item.harga_satuan || 0)}</span>
+                    </div>
+                    <span className="font-semibold whitespace-nowrap text-gray-200">
+                      {formatRupiah(item.jumlah * (item.harga_satuan || 0))}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -310,7 +318,7 @@ export default function Laporan() {
 
     let query = supabase
       .from('transaksi')
-      .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), log_pembayaran(id, nominal, jenis_pembayaran, tipe, tanggal_bayar), status_pengembalian, status_pembayaran, jumlah_terbayar`)
+      .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, variasi_terpilih, jumlah, harga_satuan, produk(harga, nama)), log_pembayaran(id, nominal, jenis_pembayaran, tipe, tanggal_bayar), status_pengembalian, status_pembayaran, jumlah_terbayar`)
       .order('created_at', { ascending: false });
 
     // UBAH: Gunakan created_at agar transaksi penjualan/laundry dan booking di muka tetap terhitung rata

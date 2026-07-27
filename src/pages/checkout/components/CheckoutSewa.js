@@ -551,9 +551,10 @@ export default function CheckoutSewa() {
             produk_id: item.id,
             nama_barang: item.nama,
             jumlah: item.qty,
-            produk_variasi_id: item.produk_variasi_id || null // PENTING: Untuk Variasi
+            produk_variasi_id: item.produk_variasi_id || null,
+            variasi_terpilih: item.variasi_terpilih || item.variasi || null,
+            harga_satuan: item.harga // <-- MENGUNCI HARGA SAAT TRANSAKSI TERJADI
         }));
-
         const { error: detailError } = await supabase
             .from('transaksi_detail')
             .insert(itemsToInsert);
