@@ -85,12 +85,19 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
             <div className="border-b border-gray-700 pb-4 mt-2">
               <h4 className="text-sm font-bold text-gray-400 mb-2">Item Dipesan:</h4>
               <ul className="space-y-1">
-                {transaction.transaksi_detail.map((item, index) => (
-                  <li key={item.id || index} className="flex justify-between text-sm text-gray-300">
-                    <span>{item.nama_barang} (x{item.jumlah})</span>
-                    <span>{formatRupiah(item.jumlah * (item.produk?.harga || 0))}</span>
-                  </li>
-                ))}
+                {transaction.transaksi_detail.map((item, index) => {
+                  const hargaFinal = item.harga_satuan !== undefined && item.harga_satuan !== null ? item.harga_satuan : (item.produk?.harga || 0);
+                  return (
+                    <li key={item.id || index} className="flex justify-between text-sm text-gray-300">
+                      <span>
+                        {item.nama_barang} 
+                        {item.variasi_terpilih && <span className="text-gray-500 text-xs ml-1">({item.variasi_terpilih})</span>}
+                        <span className="text-teal-500/80 ml-1">(x{item.jumlah})</span>
+                      </span>
+                      <span>{formatRupiah(item.jumlah * hargaFinal)}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -240,7 +247,7 @@ export default function OrderWeb() {
         .select(`
           *,
           pelanggan (nama, no_whatsapp),
-          transaksi_detail (id, nama_barang, jumlah, produk(harga, nama))
+          transaksi_detail (id, nama_barang, jumlah, variasi_terpilih, harga_satuan, produk(harga, nama))
         `)
         .eq('status_validasi', 'Menunggu')
         .order('created_at', { ascending: false });
