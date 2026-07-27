@@ -299,6 +299,9 @@ export default function Laporan() {
   const [pelunasanModalOpen, setPelunasanModalOpen] = useState(false);
   const [selectedForPelunasan, setSelectedForPelunasan] = useState(null);
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50; 
+  
   const [initialLoading, setInitialLoading] = useState(true);
   const router = useRouter();
 
@@ -421,6 +424,12 @@ export default function Laporan() {
     return sortableItems;
   }, [filteredTransaksi, sortConfig]);
 
+// --- TAMBAHAN STEP 4: Otomatis Reset ke Halaman 1 saat Filter/Pencarian Berubah ---
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, startDate, endDate]);
+  // ---------------------------------------------------------------------------------
+
   const handleSort = (field) => {
     let direction = 'asc';
     if (sortConfig.field === field && sortConfig.direction === 'desc') direction = 'asc';
@@ -430,6 +439,14 @@ export default function Laporan() {
 
   const getSortIcon = (field) => sortConfig.field === field ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
   const formatRupiah = (angka) => `Rp${angka.toLocaleString('id-ID')}`;
+
+  // --- TAMBAHAN STEP 2: Logika Memotong Data (Slicing) ---
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  // Kita potong sortedTransaksi, dan simpan di currentItems
+  const currentItems = sortedTransaksi.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedTransaksi.length / itemsPerPage);
+  // -------------------------------------------------------
 
   const updateStatusPengembalian = async (transactionId, status) => {
     setLoading(true);
@@ -567,8 +584,9 @@ export default function Laporan() {
         {loading && !initialLoading ? (
             <div className="flex justify-center py-8"><svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
         ) : sortedTransaksi.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left table-auto whitespace-nowrap">
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left table-auto whitespace-nowrap">
               <thead className="bg-gray-900/50 text-sm">
                 <tr>
                   <th className="p-4 cursor-pointer hover:text-teal-400" onClick={() => handleSort('created_at')}>Tgl Order {getSortIcon('created_at')}</th>
@@ -583,7 +601,8 @@ export default function Laporan() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {sortedTransaksi.map(t => {
+                {/* UBAH: dari sortedTransaksi menjadi currentItems */}
+                {currentItems.map(t => {
                   const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && (t.status_pengembalian === 'Belum_Kembali' || t.status_pengembalian === null);
                   const isReturned = t.status_pengembalian === 'Sudah Kembali';
                   const isLunas = t.status_pembayaran === 'Lunas';
@@ -671,6 +690,37 @@ export default function Laporan() {
               </tbody>
             </table>
           </div>
+
+          {/* --- TAMBAHAN STEP 3: UI Navigasi Pagination --- */}
+          {totalPages > 1 && (
+            <div className="flex flex-col md:flex-row justify-between items-center mt-6 border-t border-gray-700 pt-6 gap-4">
+              <p className="text-sm text-gray-400">
+                Menampilkan <span className="font-bold text-gray-200">{indexOfFirstItem + 1}</span> hingga <span className="font-bold text-gray-200">{Math.min(indexOfLastItem, sortedTransaksi.length)}</span> dari <span className="font-bold text-teal-400">{sortedTransaksi.length}</span> data
+              </p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2.5 text-sm font-medium bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-gray-600"
+                >
+                  Sebelumnya
+                </button>
+                <div className="flex items-center px-4 bg-gray-900 rounded-lg text-sm text-teal-400 font-bold border border-gray-700 shadow-inner">
+                  {currentPage} / {totalPages}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2.5 text-sm font-medium bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-gray-600"
+                >
+                  Selanjutnya
+                </button>
+              </div>
+            </div>
+          )}
+          {/* ----------------------------------------------- */}
+          </>
+
         ) : (
           <p className="text-gray-400 text-center py-8">Tidak ada data transaksi yang ditemukan.</p>
         )}

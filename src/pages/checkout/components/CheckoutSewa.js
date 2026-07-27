@@ -27,6 +27,7 @@ export default function CheckoutSewa() {
     // State Pembayaran
     const [statusPembayaran, setStatusPembayaran] = useState('Lunas');
     const [jumlahTerbayar, setJumlahTerbayar] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false); // SAKLAR BARU UNTUK LOADING
     
     const noWhatsappTimeoutRef = useRef(null);
 
@@ -407,6 +408,8 @@ export default function CheckoutSewa() {
     };
 
     const handleSimpanPembayaran = async () => {
+        if (isSubmitting) return;
+
         if (!namaPelanggan || !alamatPelanggan || !noWhatsapp || !jaminan) {
             toast.error('Mohon lengkapi semua data pelanggan!');
             return;
@@ -438,8 +441,10 @@ export default function CheckoutSewa() {
             }
         }
 
+        setIsSubmitting(true); // NYALAKAN SAKLAR (KUNCI TOMBOL)
         const toastId = toast.loading('Menyimpan transaksi...');
-
+        
+        try {
         // 1. Simpan/Update Pelanggan
         let pelangganId;
         const { data: existingPelanggan, error: fetchError } = await supabase
@@ -611,392 +616,245 @@ export default function CheckoutSewa() {
         resetCheckoutState();
         toast.success('Data sewa berhasil disimpan! Checkout siap untuk order berikutnya.', { id: toastId });
         router.push('/');
+        
+        } finally {
+            setIsSubmitting(false); // MATIKAN SAKLAR (BUKA KUNCI TOMBOL) APAPUN YANG TERJADI
+        }
     };
 
     if (!session) {
         return null;
     }
 
-    return (
-        <div className="min-h-screen bg-gray-900 text-gray-200 p-6">
+   return (
+        <div className="min-h-screen bg-gray-900 text-gray-100 p-4 sm:p-6 font-sans selection:bg-teal-500 selection:text-white">
             <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#24252A', color: '#e2e8f0', border: '1px solid #2C2E33' } }} />
-            <Head>
-                <title>Checkout Sewa - Nuevanesia POS</title>
-            </Head>
-            <div className="max-w-6xl mx-auto space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-white">Checkout Sewa</h1>
-                        <p className="text-gray-400 mt-1">Periksa kembali detail pelanggan dan barang sebelum menyimpan transaksi.</p>
+            <Head><title>Checkout Sewa - POS</title></Head>
+            
+            <div className="max-w-6xl mx-auto mb-8 flex justify-between items-end">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-wide">Checkout Sewa</h1>
+                    <p className="text-gray-400 text-sm mt-2">Lengkapi data penyewa, jaminan, dan durasi sewa.</p>
+                </div>
+                <button
+                    onClick={() => {
+                        saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
+                        router.push('/');
+                    }}
+                    className="hidden sm:block bg-gray-800 border border-gray-700 px-5 py-2 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+                >
+                    Kembali Tambah Barang
+                </button>
+            </div>
+
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* ============================================================== */}
+                {/* KOLOM KIRI (60%): DATA PENYEWA, DURASI, & BARANG */}
+                {/* ============================================================== */}
+                <div className="lg:col-span-7 space-y-8">
+                    
+                    {/* 1. DATA PELANGGAN & JAMINAN */}
+                    <div className="bg-gray-800 p-6 sm:p-8 rounded-3xl border border-gray-700 shadow-xl">
+                        <h2 className="text-xl font-bold mb-6 text-teal-400 flex items-center">👤 Data Penyewa & Jaminan</h2>
+                        
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-400 mb-2 uppercase tracking-wider">NO. WHATSAPP (WAJIB)</label>
+                                    <input 
+                                        type="number" 
+                                        value={noWhatsapp} 
+                                        onChange={(e) => handleNoWhatsappChange(e.target.value)} 
+                                        placeholder="Contoh: 081234..." 
+                                        className="w-full p-4 bg-gray-900 border-2 border-teal-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
+                                    />
+                                    {loadingPelanggan && <p className="text-xs text-gray-400 mt-2">Mencari data...</p>}
+                                    {!loadingPelanggan && pelangganDitemukan && <p className="text-xs text-green-400 mt-2 font-bold">✓ Data otomatis terisi.</p>}
+                                    {!loadingPelanggan && pelangganBaru && (
+                                        <div className="mt-2 flex items-center justify-between">
+                                            <p className="text-xs text-yellow-500 font-medium">⚠️ Nomor baru.</p>
+                                            <button type="button" onClick={handleGunakanDataBaru} className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg">Gunakan</button>
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-400 mb-2 uppercase tracking-wider">NAMA (WAJIB)</label>
+                                    <input type="text" value={namaPelanggan} onChange={(e) => setNamaPelanggan(e.target.value)} placeholder="Nama lengkap..." className="w-full p-4 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-400 mb-2 uppercase tracking-wider">JAMINAN (WAJIB)</label>
+                                    <input type="text" value={jaminan} onChange={(e) => setJaminan(e.target.value)} placeholder="KTP / SIM / STNK / Motor..." className="w-full p-4 bg-gray-900 border-2 border-teal-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-400 mb-2 uppercase tracking-wider">ALAMAT (WAJIB)</label>
+                                    <input type="text" value={alamatPelanggan} onChange={(e) => setAlamatPelanggan(e.target.value)} placeholder="Alamat domisili..." className="w-full p-4 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                </div>
+                            </div>
+
+                            <button type="button" onClick={handleSimpanPelangganDb} className="w-full py-3 bg-gray-900 hover:bg-gray-700 border border-teal-600/50 text-teal-400 text-sm font-bold rounded-xl transition-colors">
+                                Simpan / Update Data Pelanggan (Tanpa Transaksi)
+                            </button>
+                        </div>
                     </div>
-                    <button
-                        onClick={() => {
-                            saveCheckoutData(keranjang, tanggalMulai, tanggalSelesai, namaPelanggan, alamatPelanggan, noWhatsapp, jaminan, catatan);
-                            router.push('/');
-                        }}
-                        className="bg-gray-700 px-5 py-3 rounded-lg text-white hover:bg-gray-600 transition-colors"
-                    >
-                        Kembali ke Halaman Utama
-                    </button>
+
+                    {/* 2. TANGGAL SEWA */}
+                    <div className="bg-gray-800 p-6 sm:p-8 rounded-3xl border border-gray-700 shadow-xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-teal-400">📅 Tanggal Sewa</h2>
+                            <div className="bg-teal-900/30 text-teal-400 border border-teal-500/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-inner">
+                                {hitungDurasiHari()} Malam
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-semibold text-teal-400 mb-2 uppercase tracking-wider">TANGGAL AMBIL</label>
+                                <input type="date" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} className="w-full p-4 bg-gray-900 border-2 border-teal-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-teal-400 mb-2 uppercase tracking-wider">TANGGAL KEMBALI</label>
+                                <input type="date" value={tanggalSelesai} onChange={(e) => setTanggalSelesai(e.target.value)} className="w-full p-4 bg-gray-900 border-2 border-teal-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. BARANG DISEWA */}
+                    <div className="bg-gray-800 p-6 sm:p-8 rounded-3xl border border-gray-700 shadow-xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-teal-400">📝 Rincian Barang</h2>
+                            <button type="button" onClick={handleTambahProdukManual} className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl transition-colors">
+                                + Tambah Barang
+                            </button>
+                        </div>
+                        <div className="space-y-4 pr-2 mb-6 max-h-96 overflow-y-auto">
+                            {keranjang.map((item) => (
+                                <div key={item.cartItemId || item.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-900/50 p-4 rounded-2xl border border-gray-700/50 gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <img src={item.url_gambar || '/images/placeholder.png'} alt={item.nama} className="w-14 h-14 object-cover rounded-xl border border-gray-700" />
+                                        <div>
+                                            <p className="font-bold text-white text-base leading-tight">{item.nama}</p>
+                                            <p className="text-xs text-gray-400 mt-1">Rp{Number(item.harga).toLocaleString('id-ID')} / malam</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-6">
+                                        <div className="flex items-center gap-3 bg-gray-800 rounded-xl p-1 border border-gray-700">
+                                            <button type="button" onClick={() => kurangQty(item.cartItemId || item.id)} className="w-8 h-8 rounded-lg bg-gray-700 text-white hover:bg-gray-600 flex items-center justify-center font-bold">-</button>
+                                            <span className="text-white font-bold w-4 text-center">{item.qty}</span>
+                                            <button type="button" onClick={() => tambahQty(item.cartItemId || item.id)} className="w-8 h-8 rounded-lg bg-gray-700 text-white hover:bg-gray-600 flex items-center justify-center font-bold">+</button>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-teal-400 text-lg">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</p>
+                                            <button type="button" onClick={() => hapusItem(item.cartItemId || item.id)} className="text-xs text-red-400 hover:text-red-300 font-medium">Hapus</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="border-t border-gray-700 pt-6">
+                            <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Catatan Transaksi</label>
+                            <textarea value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Contoh: tenda warna merah, tas ditaruh terpisah..." className="w-full p-4 bg-gray-900 border border-gray-700 rounded-2xl text-white h-24 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                        </div>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
-                        <h2 className="text-2xl font-semibold text-teal-400 mb-4">Detail Pelanggan</h2>
-                        <div className="grid grid-cols-1 gap-4">
+                {/* ============================================================== */}
+                {/* KOLOM KANAN (40%): SLIP TAGIHAN & DISKON (STICKY) */}
+                {/* ============================================================== */}
+                <div className="lg:col-span-5 bg-gray-800 p-6 sm:p-8 rounded-3xl border border-gray-700 shadow-2xl flex flex-col sticky top-6">
+                    <h2 className="text-lg font-black text-white uppercase tracking-wider mb-6 border-b border-gray-700 pb-4">Tagihan Sewa</h2>
+                    
+                    {/* 1. RINGKASAN BIAYA & DISKON */}
+                    <div className="space-y-4 text-sm mb-6">
+                        <div className="flex justify-between items-center text-gray-400">
+                            <span>Subtotal ({hitungDurasiHari()} Malam)</span>
+                            <span className="font-medium">Rp{(hitungSubtotalPerMalam() * hitungDurasiHari()).toLocaleString('id-ID')}</span>
+                        </div>
+                        
+                        {/* DISKON OTOMATIS */}
+                        <div className="flex justify-between items-center bg-gray-900/50 p-3 rounded-xl border border-gray-700">
                             <div>
-                                <label className="block text-sm text-gray-400 mb-2">No. WhatsApp</label>
-                                <input
-                                    type="text"
-                                    value={noWhatsapp}
-                                    onChange={(e) => handleNoWhatsappChange(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                    placeholder="+62..."
-                                />
-                                {loadingPelanggan && <p className="text-sm text-teal-300 mt-2">Mencari data pelanggan...</p>}
-                                {!loadingPelanggan && pelangganDitemukan && <p className="text-sm text-green-300 mt-2">Pelanggan ditemukan, nama dan alamat terisi otomatis.</p>}
-                                {!loadingPelanggan && pelangganBaru && (
-                                    <div className="mt-2 space-y-2">
-                                        <p className="text-sm text-yellow-300">Nomor belum terdaftar, ini pelanggan baru.</p>
-                                        <button
-                                            type="button"
-                                            onClick={handleGunakanDataBaru}
-                                            className="text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg"
-                                        >
-                                            Gunakan Data Baru
-                                        </button>
-                                    </div>
+                                <p className="text-xs font-semibold text-gray-300 uppercase">Promo Hari ke-3 (50%)</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {diskonOtomatisAktif && hitungDurasiHari() >= 3 && (
+                                    <span className="text-red-400 font-bold">-Rp{diskon.toLocaleString('id-ID')}</span>
                                 )}
+                                <button type="button" onClick={() => setDiskonOtomatisAktif(!diskonOtomatisAktif)} className={`text-xs px-2 py-1 rounded font-bold ${diskonOtomatisAktif ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
+                                    {diskonOtomatisAktif ? 'ON' : 'OFF'}
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Nama Pelanggan</label>
-                                <input
-                                    type="text"
-                                    value={namaPelanggan}
-                                    onChange={(e) => setNamaPelanggan(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                    placeholder="Nama Lengkap"
-                                />
+                        </div>
+
+                        {/* DISKON MANUAL */}
+                        <div className="pt-2 flex flex-col gap-2">
+                            <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Diskon Tambahan</span>
+                            <div className="flex space-x-2">
+                                <input type="number" value={diskonManual} onChange={(e) => setDiskonManual(Math.max(0, Number(e.target.value)))} placeholder="0" className="w-full p-3 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                <select value={jenisDiskonManual} onChange={(e) => setJenisDiskonManual(e.target.value)} className="bg-gray-900 border border-gray-700 rounded-xl text-white px-4 focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">
+                                    <option value="nominal">Rp</option>
+                                    <option value="persentase">%</option>
+                                </select>
                             </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Alamat</label>
-                                <input
-                                    type="text"
-                                    value={alamatPelanggan}
-                                    onChange={(e) => setAlamatPelanggan(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                    placeholder="Alamat Lengkap"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Jaminan</label>
-                                <input
-                                    type="text"
-                                    value={jaminan}
-                                    onChange={(e) => setJaminan(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                    placeholder="KTP/SIM/Lainnya"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Catatan</label>
-                                <textarea
-                                    rows="4"
-                                    value={catatan}
-                                    onChange={(e) => setCatatan(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                    placeholder="Catatan tambahan untuk transaksi"
-                                />
-                            </div>
-                            {/* --- FITUR BARU: TOMBOL SIMPAN PELANGGAN DI BAWAH CATATAN --- */}
-                            <button
-                                type="button"
-                                onClick={handleSimpanPelangganDb}
-                                className="w-full mt-4 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-3 rounded-xl transition-colors border border-teal-500 shadow-md"
-                            >
-                                Simpan Data Pelanggan Terlebih Dahulu
-                            </button>
-                            <p className="text-xs text-gray-400 text-center mt-1">
-                                *Simpan pelanggan ini jika ingin keluar halaman untuk tambah barang lagi.
-                            </p>
-                            {/* ------------------------------------------------------------- */}
+                        </div>
+
+                        <div className="flex justify-between items-end border-t border-gray-700 pt-6 mt-4">
+                            <span className="text-lg font-bold text-gray-300 uppercase">Total Akhir</span>
+                            <span className="text-4xl font-black text-teal-400">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</span>
                         </div>
                     </div>
 
-                    <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
-                        <h2 className="text-2xl font-semibold text-teal-400 mb-4">Tanggal Sewa</h2>
-                        <div className="grid grid-cols-1 gap-4">
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Tanggal Ambil Barang</label>
-                                <input
-                                    type="date"
-                                    value={tanggalMulai}
-                                    onChange={(e) => setTanggalMulai(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Tanggal Kembali Barang</label>
-                                <input
-                                    type="date"
-                                    value={tanggalSelesai}
-                                    onChange={(e) => setTanggalSelesai(e.target.value)}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-2">Durasi Sewa</label>
-                                <div className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
-                                    <span className="font-semibold">{hitungDurasiHari()} Malam</span>
-                                </div>
-                            </div>
+                    {/* 2. PEMBAYARAN & METODE (MENGGUNAKAN TOMBOL WARNA) */}
+                    <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 mb-8 mt-2">
+                        <label className="block text-xs font-bold text-teal-400 mb-4 uppercase tracking-wider">Status Pembayaran</label>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <button onClick={() => { setStatusPembayaran('Lunas'); setJumlahTerbayar(hitungTotalAkhir()); }} className={`p-3 rounded-xl font-bold transition-all ${statusPembayaran === 'Lunas' ? 'bg-teal-600 text-white shadow-md' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'}`}>LUNAS</button>
+                            <button onClick={() => { setStatusPembayaran('DP'); setJumlahTerbayar(''); }} className={`p-3 rounded-xl font-bold transition-all ${statusPembayaran === 'DP' ? 'bg-teal-600 text-white shadow-md' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'}`}>DP (SEBAGIAN)</button>
                         </div>
-                    </div>
-                </div>
-
-                <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-semibold text-teal-400">Barang yang Disewa</h2>
-                        <button
-                            type="button"
-                            onClick={handleTambahProdukManual}
-                            className="text-sm bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded-lg"
-                        >
-                            Tambah Produk
-                        </button>
-                    </div>
-                    <div className="space-y-3">
-                        {keranjang.map((item) => (
-                            <div key={item.cartItemId || item.id} className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-900 p-4 rounded-3xl border border-gray-700 items-center">
-                                <div className="flex items-center gap-3">
-                                    <img src={item.url_gambar || '/images/placeholder.png'} alt={item.nama} className="w-12 h-12 object-cover rounded" />
-                                    <div>
-                                        <p className="text-gray-300 text-sm font-semibold">{item.nama}</p>
-                                        <p className="text-gray-400 text-xs mt-1">Rp{Number(item.harga).toLocaleString('id-ID')} / unit</p>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end justify-between">
-                                    <div className="flex items-center gap-2 justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => kurangQty(item.cartItemId || item.id)}
-                                            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-700 text-white hover:bg-gray-600"
-                                        >
-                                            -
-                                        </button>
-                                        <span className="text-white font-semibold text-lg">{item.qty}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => tambahQty(item.cartItemId || item.id)}
-                                            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-700 text-white hover:bg-gray-600"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
-                                    <p className="text-gray-300 text-sm mt-3">Total: <span className="font-semibold text-white">Rp{(item.harga * item.qty).toLocaleString('id-ID')}</span></p>
-                                    <button
-                                        type="button"
-                                        onClick={() => hapusItem(item.cartItemId || item.id)}
-                                        className="mt-3 text-xs text-red-400 hover:text-red-300"
-                                    >
-                                        Hapus Produk
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
-                    <h2 className="text-2xl font-semibold text-teal-400 mb-4">Diskon</h2>
-                    <div className="grid grid-cols-1 gap-4">
-                        <div className="flex items-center justify-between">
-                            <label className="text-sm text-gray-400">Diskon Otomatis (50% hari ke-3+)</label>
-                            <button
-                                type="button"
-                                onClick={() => setDiskonOtomatisAktif(!diskonOtomatisAktif)}
-                                className={`px-3 py-1 rounded-lg text-sm font-semibold transition-colors ${diskonOtomatisAktif ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}
-                            >
-                                {diskonOtomatisAktif ? 'Aktif' : 'Nonaktif'}
-                            </button>
-                        </div>
-                        {diskonOtomatisAktif && hitungDurasiHari() >= 3 && (
-                            <div className="bg-gray-900 p-3 rounded-lg border border-gray-600">
-                                <p className="text-sm text-yellow-300">Diskon Otomatis: -Rp{diskon.toLocaleString('id-ID')}</p>
+                        
+                        {statusPembayaran === 'DP' && (
+                            <div className="mb-4">
+                                <label className="block text-xs font-medium text-gray-400 mb-2">Nominal DP (Rp)</label>
+                                <input type="number" value={jumlahTerbayar} onChange={(e) => setJumlahTerbayar(Number(e.target.value))} placeholder="Contoh: 50000" className="w-full p-4 bg-gray-800 border-2 border-teal-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                {jumlahTerbayar > 0 && jumlahTerbayar < hitungTotalAkhir() && (
+                                    <p className="text-xs text-yellow-500 mt-2 font-medium">Sisa Tagihan: Rp{(hitungTotalAkhir() - jumlahTerbayar).toLocaleString('id-ID')}</p>
+                                )}
                             </div>
                         )}
                         
-                        <div className="border-t border-gray-600 pt-4 mt-4">
-                            <label className="block text-sm text-gray-400 mb-2">Diskon Manual</label>
-                            <div className="flex gap-2 mb-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setJenisDiskonManual('nominal')}
-                                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${jenisDiskonManual === 'nominal' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-300'}`}
-                                >
-                                    Nominal (Rp)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setJenisDiskonManual('persentase')}
-                                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${jenisDiskonManual === 'persentase' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-300'}`}
-                                >
-                                    Persentase (%)
-                                </button>
-                            </div>
-                            <input
-                                type="number"
-                                value={diskonManual}
-                                onChange={(e) => setDiskonManual(Math.max(0, Number(e.target.value)))}
-                                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                placeholder={jenisDiskonManual === 'nominal' ? 'Masukkan nominal diskon' : 'Masukkan persentase diskon'}
-                            />
-                            {diskonManual > 0 && (
-                                <div className="bg-gray-900 p-3 rounded-lg border border-gray-600 mt-2">
-                                    <p className="text-sm text-red-300">
-                                        Diskon Manual: -Rp{
-                                            jenisDiskonManual === 'nominal' 
-                                                ? diskonManual.toLocaleString('id-ID')
-                                                : ((diskonManual / 100) * (hitungSubtotalPerMalam() * hitungDurasiHari() - diskon)).toLocaleString('id-ID')
-                                        }
-                                    </p>
-                                </div>
-                            )}
+                        <label className="block text-xs font-bold text-teal-400 mb-4 mt-6 uppercase tracking-wider">Metode Pembayaran</label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {/* Tombol QRIS - BIRU */}
+                            <button type="button" onClick={() => setMetodePembayaran('QRIS')} className={`p-3 rounded-xl font-bold text-sm transition-all border ${metodePembayaran === 'QRIS' ? 'bg-blue-600 text-white border-blue-500 shadow-md' : 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700 hover:text-blue-400'}`}>QRIS</button>
+                            
+                            {/* Tombol CASH - HIJAU */}
+                            <button type="button" onClick={() => setMetodePembayaran('Cash')} className={`p-3 rounded-xl font-bold text-sm transition-all border ${metodePembayaran === 'Cash' ? 'bg-emerald-600 text-white border-emerald-500 shadow-md' : 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700 hover:text-emerald-400'}`}>CASH</button>
+                            
+                            {/* Tombol TRANSFER - ORANYE */}
+                            <button type="button" onClick={() => setMetodePembayaran('Transfer')} className={`p-3 rounded-xl font-bold text-sm transition-all border ${metodePembayaran === 'Transfer' ? 'bg-orange-600 text-white border-orange-500 shadow-md' : 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700 hover:text-orange-400'}`}>TRANSFER</button>
+                        </div>
+                    </div>
+
+                    {/* 3. TOMBOL EKSEKUSI UTAMA */}
+                    <div className="mt-auto space-y-3">
+                        {isSaveDisabled && <div className="text-xs text-yellow-500 mb-3 text-center bg-yellow-500/10 p-2 rounded-lg">⚠️ Lengkapi: {missingRequirements.join(', ')}</div>}
+                        <button 
+                            onClick={handleSimpanPembayaran} 
+                            disabled={isSaveDisabled || isSubmitting} 
+                            className="w-full py-5 bg-teal-600 hover:bg-teal-500 text-white rounded-2xl font-black text-lg tracking-wide uppercase shadow-lg disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-80 transition-all duration-300 transform active:scale-[0.98]"
+                        >
+                            {isSubmitting ? 'MEMPROSES...' : 'SIMPAN SEWA'}
+                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => router.push('/')} className="py-3 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-xl transition-colors">Batal</button>
+                            <button onClick={() => { if(typeof window !== 'undefined') window.localStorage.removeItem('nuevanesia-checkout-data'); router.push('/'); }} className="py-3 bg-red-900/50 hover:bg-red-800 border border-red-800 text-red-200 text-sm font-bold rounded-xl transition-colors">Hapus Data</button>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
-                    <h2 className="text-2xl font-semibold text-teal-400 mb-4">Ringkasan Sewa</h2>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4 text-gray-300">
-                            <div>Tanggal Ambil</div>
-                            <div className="font-semibold text-gray-100">{formatDateFull(tanggalMulai)}</div>
-                            <div>Tanggal Kembali</div>
-                            <div className="font-semibold text-gray-100">{formatDateFull(tanggalSelesai)}</div>
-                            <div>Subtotal / malam</div>
-                            <div className="font-semibold text-gray-100">Rp{hitungSubtotalPerMalam().toLocaleString('id-ID')}</div>
-                            <div>Durasi</div>
-                            <div className="font-semibold text-gray-100">{hitungDurasiHari()} malam</div>
-                            <div>Total (subtotal x durasi)</div>
-                            <div className="font-semibold text-gray-100">Rp{(hitungSubtotalPerMalam() * hitungDurasiHari()).toLocaleString('id-ID')}</div>
-                            <div>Diskon</div>
-                            <div className="font-semibold text-red-300">
-                                -Rp{(() => {
-                                    const subtotal = hitungSubtotalPerMalam() * hitungDurasiHari();
-                                    const manual = jenisDiskonManual === 'persentase' ? ((diskonManual / 100) * (subtotal - (diskonOtomatisAktif ? diskon : 0))) : diskonManual;
-                                    const totalDiskon = (diskonOtomatisAktif ? diskon : 0) + (manual || 0);
-                                    return totalDiskon.toLocaleString('id-ID');
-                                })()}
-                            </div>
-                            <div>Grand Total</div>
-                            <div className="font-semibold text-gray-100">Rp{hitungTotalAkhir().toLocaleString('id-ID')}</div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 bg-gray-900 p-4 rounded-2xl border border-gray-700">
-                        <div className="flex flex-col gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setMetodePembayaran('QRIS')}
-                                className={`w-full p-3 rounded-xl text-left font-semibold ${metodePembayaran === 'QRIS' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-                            >
-                                QRIS
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMetodePembayaran('Transfer')}
-                                className={`w-full p-3 rounded-xl text-left font-semibold ${metodePembayaran === 'Transfer' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-                            >
-                                TRANSFER
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMetodePembayaran('Cash')}
-                                className={`w-full p-3 rounded-xl text-left font-semibold ${metodePembayaran === 'Cash' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-                            >
-                                CASH
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-inner">
-                        <h2 className="text-2xl font-semibold text-teal-400 mb-4">Status Pembayaran</h2>
-                        <div className="flex gap-3 mb-4">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setStatusPembayaran('Lunas');
-                                    setJumlahTerbayar(hitungTotalAkhir()); 
-                                }}
-                                className={`flex-1 p-3 rounded-xl font-semibold transition-colors ${statusPembayaran === 'Lunas' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                            >
-                                LUNAS LANGSUNG
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setStatusPembayaran('DP');
-                                    setJumlahTerbayar(''); 
-                                }}
-                                className={`flex-1 p-3 rounded-xl font-semibold transition-colors ${statusPembayaran === 'DP' ? 'bg-teal-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                            >
-                                DOWN PAYMENT (DP)
-                            </button>
-                        </div>
-
-                        {statusPembayaran === 'DP' && (
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-400 mb-2">
-                                    Nominal DP yang Dibayarkan (Rp)
-                                </label>
-                                <input 
-                                    type="number" 
-                                    value={jumlahTerbayar}
-                                    onChange={(e) => setJumlahTerbayar(Number(e.target.value))}
-                                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                    placeholder="Masukkan nominal DP..."
-                                />
-                                {jumlahTerbayar > 0 && jumlahTerbayar < hitungTotalAkhir() && (
-                                    <p className="text-sm text-yellow-400 mt-2 font-medium">Sisa Tagihan: Rp{(hitungTotalAkhir() - jumlahTerbayar).toLocaleString('id-ID')}</p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {isSaveDisabled && (
-                        <div className="col-span-full text-sm text-yellow-300">
-                            Lengkapi dahulu: {missingRequirements.join(' · ')}
-                        </div>
-                    )}
-                    <button
-                        onClick={handleSimpanPembayaran}
-                        disabled={isSaveDisabled}
-                        className={`${isSaveDisabled ? 'bg-gray-700 text-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'} py-4 rounded-3xl font-bold transition-colors`}
-                    >
-                        SIMPAN TRANSAKSI
-                    </button>
-                    <button
-                        onClick={() => router.push('/')}
-                        className="bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-3xl font-bold transition-colors"
-                    >
-                        BATAL
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (typeof window !== 'undefined') {
-                                window.localStorage.removeItem('nuevanesia-checkout-data');
-                            }
-                            router.push('/');
-                        }}
-                        className="bg-yellow-600 hover:bg-yellow-500 text-white py-4 rounded-3xl font-bold transition-colors"
-                    >
-                        HAPUS DATA & KEMBALI
-                    </button>
-                </div>
             </div>
         </div>
     );

@@ -21,6 +21,20 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   const formatRupiah = (angka) => `Rp${angka?.toLocaleString('id-ID')}`;
   const isBukanSewa = transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry';
 
+  // Fungsi untuk handle klik nomor WA
+  const handleWaClick = (noWa) => {
+    if (!noWa || noWa === '-') return;
+
+    const confirmChat = window.confirm('Apakah anda akan chat ke nomor ini?');
+    if (confirmChat) {
+      let formattedNo = noWa.replace(/\D/g, '');
+      if (formattedNo.startsWith('0')) {
+        formattedNo = '62' + formattedNo.substring(1);
+      }
+      window.open(`https://wa.me/${formattedNo}`, '_blank');
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
       <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto border border-gray-700">
@@ -45,7 +59,17 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
           </div>
           <div className="border-b border-gray-700 pb-2">
             <p className="text-sm text-gray-400">Nomor WhatsApp:</p>
-            <p className="font-semibold text-gray-200">{transaction.pelanggan?.no_whatsapp || '-'}</p>
+            {transaction.pelanggan?.no_whatsapp ? (
+              <p 
+                className="font-semibold text-teal-400 cursor-pointer hover:underline hover:text-teal-300 transition-colors"
+                onClick={() => handleWaClick(transaction.pelanggan.no_whatsapp)}
+                title="Klik untuk chat WhatsApp"
+              >
+                {transaction.pelanggan.no_whatsapp}
+              </p>
+            ) : (
+              <p className="font-semibold text-gray-200">-</p>
+            )}
           </div>
           
           <div className="border-b border-gray-700 pb-2">
