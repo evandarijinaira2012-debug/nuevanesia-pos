@@ -240,7 +240,7 @@ const ManajemenProduk = () => {
                     produk_id: produkIdTerproses,
                     nama_variasi: v.nama_variasi,
                     harga: Number(v.harga),
-                    stok: jenis_layanan === 'Laundry' ? null : Number(v.stok)
+                    stok: Number(v.stok)
                 };
                 if (v.id) {
                     payload.id = v.id; 
