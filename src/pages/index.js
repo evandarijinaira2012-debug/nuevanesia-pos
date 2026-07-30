@@ -118,7 +118,7 @@ export default function Home() {
         }
     }, []);
 
-    // PERUBAHAN UTAMA: Fungsi ini sekarang menerima argumen ke-2 yaitu variasi
+// FUNGSI 1: Untuk menambah produk ke keranjang dari daftar produk
     const tambahKeKeranjang = (item, variasi = null) => {
         const itemLayanan = item.jenis_layanan || 'Sewa';
         
@@ -133,7 +133,6 @@ export default function Home() {
         // Membuat Unique ID untuk keranjang agar variasi yang berbeda tidak menumpuk
         const cartItemId = variasi ? `${item.id}-${variasi.id}` : item.id;
         
-        // Override nama dan harga jika ada variasi yang dipilih
         // Override nama dan harga jika ada variasi atau diskon produk
         const namaTampil = variasi ? `${item.nama} - ${variasi.nama_variasi}` : item.nama;
         
@@ -147,10 +146,11 @@ export default function Home() {
         const itemToSave = { 
             ...item, 
             cartItemId: cartItemId, 
-            nama: namaTampil, 
+            nama: item.nama, // <--- UBAH INI: Kembali gunakan nama asli agar tidak dobel di struk
             harga: hargaTampil,
             jenis_layanan: itemLayanan,
-            produk_variasi_id: variasi ? variasi.id : null 
+            produk_variasi_id: variasi ? variasi.id : null,
+            variasi_terpilih: variasi ? variasi.nama_variasi : null // <--- TAMBAHAN INI
         };
 
         const itemSudahAda = keranjang.find((i) => i.cartItemId === cartItemId);
@@ -172,7 +172,16 @@ export default function Home() {
         setTimeout(() => setJustAddedProductId(null), 1000);
     };
 
-    // PERUBAHAN: menggunakan cartItemId, bukan item.id
+    // FUNGSI 2: Khusus untuk tombol (+) di sidebar keranjang
+    const tambahQty = (cartItemId) => {
+        const newKeranjang = keranjang.map((i) =>
+            i.cartItemId === cartItemId ? { ...i, qty: i.qty + 1 } : i
+        );
+        setKeranjang(newKeranjang);
+        updateLocalStorage(newKeranjang);
+    };
+
+    // FUNGSI 3: Khusus untuk tombol (-) di sidebar keranjang
     const kurangDariKeranjang = (cartItemId) => {
         const item = keranjang.find((i) => i.cartItemId === cartItemId);
         if (item.qty === 1) {
@@ -186,7 +195,7 @@ export default function Home() {
         }
     };
 
-    // PERUBAHAN: menggunakan cartItemId, bukan item.id
+    // FUNGSI 4: Khusus untuk menghapus item
     const hapusItem = (cartItemId) => {
         const newKeranjang = keranjang.filter((i) => i.cartItemId !== cartItemId);
         setKeranjang(newKeranjang);
@@ -343,7 +352,9 @@ export default function Home() {
                                         justAddedProductId === item.id ? 'ring-2 ring-offset-2 ring-offset-gray-900 ring-teal-400' : ''
                                     }`}
                                 >
-                                    <img src={item.url_gambar || '/images/placeholder.png'} alt={item.nama} className="w-full h-44 object-cover" />
+                                <div className="w-full h-44 bg-white flex items-center justify-center">
+                                        <img src={item.url_gambar || '/images/placeholder.png'} alt={item.nama} className="w-full h-full object-cover" />
+                                    </div>
                                     <div className="p-4 flex flex-col flex-grow">
                                         <p className="text-xs font-semibold text-gray-500 mb-1 uppercase">{item.kategori}</p>
                                         <h3 className="font-bold text-lg text-white mb-1 leading-tight">{item.nama}</h3>
@@ -444,7 +455,7 @@ export default function Home() {
                                         {/* PERUBAHAN: passing cartItemId untuk tombol kurang & hapus */}
                                         <button onClick={() => kurangDariKeranjang(item.cartItemId)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 flex items-center justify-center">-</button>
                                         <span className="font-bold text-gray-200 text-sm w-5 text-center">{item.qty}</span>
-                                        <button onClick={() => tambahKeKeranjang(item)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 flex items-center justify-center">+</button>
+                                        <button onClick={() => tambahQty(item.cartItemId)} className="bg-gray-700 text-white w-7 h-7 rounded-md text-lg hover:bg-gray-600 flex items-center justify-center">+</button>
                                         <button onClick={() => hapusItem(item.cartItemId)} className="text-gray-500 hover:text-red-500 ml-1 p-1">
                                             <IconTrash />
                                         </button>

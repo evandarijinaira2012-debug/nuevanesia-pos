@@ -22,23 +22,19 @@ const ProductPopup = ({ product, onClose, onAddToCart, jenisLayananTerpilih }) =
 
           {/* Kolom 2: Konten Deskripsi & Variasi */}
           <div className={styles['popup-details-container']}>
-            <h2>{product.nama}</h2>
+            {/* Judul Produk */}
+            <h2 style={{ marginBottom: '16px' }}>{product.nama}</h2>
             
             {/* Div yang bisa di-scroll */}
             <div className={styles['scrollable-content']}>
-              <p>
-                <strong className={styles['details-label']}>Deskripsi: </strong>
-                <span>{renderTextWithBreaks(product.description)}</span>
-              </p>
               
-              {/* --- AREA VARIASI PRODUK BARU --- */}
-              <div style={{ marginTop: '24px', marginBottom: '24px' }}>
+              {/* 1. AREA VARIASI PRODUK (Pindah ke paling atas) */}
+              <div style={{ marginBottom: '20px' }}>
                 <strong className={styles['details-label']}>Pilih Variasi:</strong>
                 
                 {product.produk_variasi && product.produk_variasi.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
                     {product.produk_variasi.map((variasi) => {
-                      // Jika bukan laundry dan stoknya 0 atau kurang, maka statusnya habis
                       const isOutOfStock = !isLaundry && variasi.stok <= 0;
                       
                       return (
@@ -46,23 +42,25 @@ const ProductPopup = ({ product, onClose, onAddToCart, jenisLayananTerpilih }) =
                           key={variasi.id} 
                           style={{ 
                             border: '1px solid #374151', 
-                            padding: '12px', 
+                            padding: '16px', // Padding sedikit dilebarkan agar lebih lega 
                             borderRadius: '8px', 
                             display: 'flex', 
                             justifyContent: 'space-between', 
                             alignItems: 'center',
-                            backgroundColor: '#1F2937'
+                            backgroundColor: '#1F2937',
+                            transition: 'border-color 0.2s', // Efek transisi halus
                           }}
                         >
                           <div>
-                            <p style={{ margin: 0, fontWeight: 'bold', color: '#F3F4F6' }}>{variasi.nama_variasi}</p>
-                            <p style={{ margin: 0, color: '#2DD4BF', fontSize: '0.9rem', fontWeight: '600' }}>
+                            <p style={{ margin: 0, fontWeight: '600', color: '#F3F4F6', fontSize: '1.05rem', letterSpacing: '0.01em' }}>
+                              {variasi.nama_variasi}
+                            </p>
+                            <p style={{ margin: '4px 0 0 0', color: '#2DD4BF', fontSize: '0.95rem', fontWeight: '700' }}>
                               Rp{variasi.harga.toLocaleString('id-ID')}
                             </p>
                             
-                            {/* Hanya tampilkan stok jika bukan layanan Laundry */}
                             {!isLaundry && (
-                              <p style={{ margin: 0, fontSize: '0.8rem', marginTop: '4px', color: isOutOfStock ? '#EF4444' : '#9CA3AF' }}>
+                              <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem', color: isOutOfStock ? '#EF4444' : '#9CA3AF', fontWeight: '500' }}>
                                 {isOutOfStock ? 'Stok Habis' : `Stok: ${variasi.stok}`}
                               </p>
                             )}
@@ -74,13 +72,17 @@ const ProductPopup = ({ product, onClose, onAddToCart, jenisLayananTerpilih }) =
                             style={{ 
                               backgroundColor: isOutOfStock ? '#374151' : '#0D9488', 
                               color: isOutOfStock ? '#9CA3AF' : 'white',
-                              padding: '8px 16px',
+                              padding: '10px 20px', // Tombol sedikit diperbesar
                               borderRadius: '6px',
                               border: 'none',
                               cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                              fontWeight: 'bold',
-                              transition: 'background-color 0.2s'
+                              fontWeight: '600',
+                              fontSize: '0.9rem',
+                              letterSpacing: '0.02em',
+                              transition: 'all 0.2s ease-in-out'
                             }}
+                            onMouseOver={(e) => { if(!isOutOfStock) e.target.style.backgroundColor = '#0F766E' }}
+                            onMouseOut={(e) => { if(!isOutOfStock) e.target.style.backgroundColor = '#0D9488' }}
                           >
                             + Tambah
                           </button>
@@ -94,12 +96,23 @@ const ProductPopup = ({ product, onClose, onAddToCart, jenisLayananTerpilih }) =
                   </p>
                 )}
               </div>
-              {/* --- AKHIR AREA VARIASI --- */}
-
-              <p>
+              
+              {/* 2. CATATAN PENANGANAN (Berada tepat setelah Variasi) */}
+              <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #374151' }}>
                 <strong className={styles['details-label']}>Catatan Penanganan: </strong>
-                <span className={styles['handling-notes-content']}>{renderTextWithBreaks(product.handling_notes)}</span>
-              </p>
+                <div style={{ marginTop: '8px' }} className={styles['handling-notes-content']}>
+                  {renderTextWithBreaks(product.handling_notes)}
+                </div>
+              </div>
+
+              {/* 3. DESKRIPSI (Pindah ke paling bawah) */}
+              <div>
+                <strong className={styles['details-label']}>Deskripsi: </strong>
+                <div style={{ marginTop: '8px', color: '#D1D5DB', lineHeight: '1.6' }}>
+                  {renderTextWithBreaks(product.description)}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

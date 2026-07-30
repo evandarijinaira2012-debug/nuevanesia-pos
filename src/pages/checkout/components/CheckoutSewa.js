@@ -541,7 +541,8 @@ export default function CheckoutSewa() {
                     transaksi_id: transaksiId,
                     nominal: finalJumlahTerbayar,
                     jenis_pembayaran: metodePembayaran,
-                    tipe: tipeLog
+                    tipe: tipeLog,
+                    tanggal_bayar: new Date().toISOString() // <--- TAMBAHAN INI
                 }]);
         }
 

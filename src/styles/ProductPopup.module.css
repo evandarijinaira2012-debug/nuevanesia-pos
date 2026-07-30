@@ -15,15 +15,21 @@
 .popup-container {
   background-color: #24252A;
   color: #e2e8f0;
-  padding: 30px;
+  padding: 20px; /* Diperkecil menjadi 20px untuk HP dan Tablet */
   border-radius: 12px;
   max-width: 900px;
   width: 100%;
   position: relative;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
   border: 1px solid #333;
-  /* Perubahan animasi di sini */
   animation: pop-in-and-fade 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+/* Mengembalikan padding menjadi lebih lega saat di layar PC */
+@media (min-width: 768px) {
+    .popup-container {
+        padding: 30px;
+    }
 }
 
 .close-button {
@@ -42,11 +48,20 @@
   color: #ffffff;
 }
 
+/* Tampilan default untuk HP dan Tablet (konten ditumpuk atas-bawah) */
 .popup-content-grid {
     display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 30px;
+    grid-template-columns: 1fr; /* Berubah menjadi 1 kolom penuh */
+    gap: 20px; /* Jarak diperkecil agar tidak terlalu kosong di layar kecil */
     align-items: flex-start;
+}
+
+/* Tampilan untuk PC / Layar Lebar (konten dibagi kiri-kanan 1:2) */
+@media (min-width: 768px) {
+    .popup-content-grid {
+        grid-template-columns: 1fr 2fr;
+        gap: 30px; /* Jarak kembali dilebarkan untuk PC */
+    }
 }
 
 .popup-image-container {
@@ -64,18 +79,34 @@
     flex-direction: column;
 }
 
+/* Ukuran font disesuaikan menjadi 1.25rem atau 1.5rem untuk layar kecil */
 .popup-details-container h2 {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     font-weight: bold;
     margin-bottom: 10px;
     color: #4AD39D;
 }
 
+/* Ukuran font kembali membesar menjadi 1.75rem untuk PC */
+@media (min-width: 768px) {
+    .popup-details-container h2 {
+        font-size: 1.75rem;
+    }
+}
+
+/* Tinggi maksimal yang lebih bersahabat untuk layar HP dan Tablet */
 .scrollable-content {
-    max-height: 400px;
+    max-height: 250px;
     overflow-y: auto;
     padding-right: 15px;
     line-height: 1.6;
+}
+
+/* Mengembalikan tinggi maksimal untuk layar PC */
+@media (min-width: 768px) {
+    .scrollable-content {
+        max-height: 400px;
+    }
 }
 
 .scrollable-content p {

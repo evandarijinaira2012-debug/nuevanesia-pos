@@ -226,20 +226,27 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
             <div className="border-b border-gray-700 pb-4 mt-2">
               <h4 className="text-sm font-bold text-gray-400 mb-2">Item Transaksi:</h4>
               <ul className="space-y-1">
-                {transaction.transaksi_detail.map((item, index) => (
-                  <li key={item.id || index} className="flex justify-between items-start gap-4 text-sm text-gray-300">
-                    <div className="flex-1">
-                      <span className="block font-medium">
-                        {item.nama_barang} 
-                        {item.variasi_terpilih && <span className="text-gray-500 text-xs ml-1 font-normal">({item.variasi_terpilih})</span>}
+                {transaction.transaksi_detail.map((item, index) => {
+                  // Variabel untuk memastikan harga tidak pernah 0 jika data tersedia
+                  const hargaFix = item.harga_satuan || item.produk?.harga || 0;
+                  
+                  return (
+                    <li key={item.id || index} className="flex justify-between items-start gap-4 text-sm text-gray-300">
+                      <div className="flex-1">
+                        <span className="block font-medium">
+                          {item.nama_barang} 
+                          {item.variasi_terpilih && <span className="text-gray-500 text-xs ml-1 font-normal">({item.variasi_terpilih})</span>}
+                        </span>
+                        <span className="text-teal-500/80 text-xs mt-0.5 inline-block">
+                          Jumlah: {item.jumlah}x @ {formatRupiah(hargaFix)}
+                        </span>
+                      </div>
+                      <span className="font-semibold whitespace-nowrap text-gray-200">
+                        {formatRupiah(item.jumlah * hargaFix)}
                       </span>
-                      <span className="text-teal-500/80 text-xs mt-0.5 inline-block">Jumlah: {item.jumlah}x @ {formatRupiah(item.harga_satuan || 0)}</span>
-                    </div>
-                    <span className="font-semibold whitespace-nowrap text-gray-200">
-                      {formatRupiah(item.jumlah * (item.harga_satuan || 0))}
-                    </span>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -367,7 +374,8 @@ export default function Laporan() {
         logData.forEach(log => {
             const nom = Number(log.nominal);
             if (log.jenis_pembayaran === 'Cash') tCash += nom;
-            if (log.jenis_pembayaran === 'Transfer') tTransfer += nom;
+            // PERUBAHAN: Membaca baik 'Transfer' maupun 'Transfer Bank'
+            if (log.jenis_pembayaran === 'Transfer' || log.jenis_pembayaran === 'Transfer Bank') tTransfer += nom;
             if (log.jenis_pembayaran === 'QRIS') tQris += nom;
         });
         setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
