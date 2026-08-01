@@ -31,6 +31,8 @@ const ManajemenProduk = () => {
   const [handling_notes, setHandlingNotes] = useState('');
   const [jenis_layanan, setJenisLayanan] = useState('Sewa');
   const [harga_diskon, setHargaDiskon] = useState('');
+  const [meta_title, setMetaTitle] = useState('');
+  const [meta_description, setMetaDescription] = useState('');
   const [isKategoriBaru, setIsKategoriBaru] = useState(false);
   const [produkUntukDiedit, setProdukUntukDiedit] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +58,7 @@ const ManajemenProduk = () => {
     if (currentProdukId) {
       query = query.neq('id', currentProdukId);
     }
-    const { data } = await query.single();
+    const { data } = await query.maybeSingle()
     return !data; 
   };
 
@@ -78,7 +80,7 @@ const ManajemenProduk = () => {
     }
   }
 
-  const resetForm = () => {
+const resetForm = () => {
     setNama('');
     setSlug('');
     setHarga('');
@@ -89,7 +91,9 @@ const ManajemenProduk = () => {
     setHandlingNotes('');
     setJenisLayanan('Sewa');
     setHargaDiskon('');
-    setVariasiList([]); // Reset daftar variasi
+    setMetaTitle('');
+    setMetaDescription('');
+    setVariasiList([]); 
     setGambarList([]);
     setIsKategoriBaru(false);
     setProdukUntukDiedit(null);
@@ -173,20 +177,21 @@ const ManajemenProduk = () => {
         if (spesifikasiArray.length === 0) spesifikasiArray = null;
     }
 
-    const dataToSave = {
-      nama,
-      slug, 
-      harga: Number(harga),
-      stok: Number(stok),
-      url_gambar,
-      kategori: kategori.trim(),
-      description,
-      handling_notes,
-      jenis_layanan,
-      harga_diskon: harga_diskon ? Number(harga_diskon) : null,
-      seo_title: slug,
-      spesifikasi: spesifikasiArray
-    };
+        const dataToSave = {
+              nama,
+              slug, 
+              harga: Number(harga),
+              stok: Number(stok),
+              url_gambar,
+              kategori: kategori.trim(),
+              description,
+              handling_notes,
+              jenis_layanan,
+              harga_diskon: harga_diskon ? Number(harga_diskon) : null,
+              meta_title,            // <-- TAMBAHAN BARU
+              meta_description,      // <-- TAMBAHAN BARU
+              spesifikasi: spesifikasiArray
+            };
 
     let produkIdTerproses = null;
 
@@ -306,13 +311,14 @@ const ManajemenProduk = () => {
     setHarga(produk.harga);
     setStok(produk.stok);
     setUrlGambar(produk.url_gambar || '');
-    setVariasiList(produk.produk_variasi || []);
     setGambarList(produk.produk_gambar || []);
     setKategori(produk.kategori);
     setDescription(produk.description || '');
     setHandlingNotes(produk.handling_notes || '');
     setJenisLayanan(produk.jenis_layanan || 'Sewa');
     setHargaDiskon(produk.harga_diskon || '');
+    setMetaTitle(produk.meta_title || '');
+    setMetaDescription(produk.meta_description || '');
     setIsKategoriBaru(false);
     
     setVariasiList(produk.produk_variasi || []);
@@ -443,6 +449,29 @@ const ManajemenProduk = () => {
                                     {slugStatus}
                                   </p>
                                 )}
+                            </div>
+                            
+                            {/* META TITLE */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Meta Title (SEO)</label>
+                                <input
+                                  type="text"
+                                  value={meta_title}
+                                  onChange={(e) => setMetaTitle(e.target.value)}
+                                  placeholder="Judul SEO untuk Google..."
+                                  className="w-full p-3 bg-gray-900 border border-gray-700 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none rounded-sm transition-all text-gray-100 placeholder-gray-600"
+                                />
+                            </div>
+
+                            {/* META DESCRIPTION */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Meta Description (SEO)</label>
+                                <textarea
+                                  value={meta_description}
+                                  onChange={(e) => setMetaDescription(e.target.value)}
+                                  placeholder="Ringkasan singkat untuk hasil pencarian Google..."
+                                  className="w-full p-3 bg-gray-900 border border-gray-700 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none rounded-sm transition-all text-gray-100 min-h-[80px] placeholder-gray-600"
+                                ></textarea>
                             </div>
 
                             {/* HARGA */}
