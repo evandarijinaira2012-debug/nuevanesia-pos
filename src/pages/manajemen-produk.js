@@ -32,6 +32,7 @@ const ManajemenProduk = () => {
   const [jenis_layanan, setJenisLayanan] = useState('Sewa');
   const [harga_diskon, setHargaDiskon] = useState('');
   const [meta_title, setMetaTitle] = useState('');
+  const [tag_produk, setTagProduk] = useState('');
   const [meta_description, setMetaDescription] = useState('');
   const [isKategoriBaru, setIsKategoriBaru] = useState(false);
   const [produkUntukDiedit, setProdukUntukDiedit] = useState(null);
@@ -93,6 +94,7 @@ const resetForm = () => {
     setHargaDiskon('');
     setMetaTitle('');
     setMetaDescription('');
+    setTagProduk('');
     setVariasiList([]); 
     setGambarList([]);
     setIsKategoriBaru(false);
@@ -188,11 +190,11 @@ const resetForm = () => {
               handling_notes,
               jenis_layanan,
               harga_diskon: harga_diskon ? Number(harga_diskon) : null,
-              meta_title,            // <-- TAMBAHAN BARU
-              meta_description,      // <-- TAMBAHAN BARU
+              meta_title,            
+              meta_description,  
+              tag_produk: tag_produk ? tag_produk.trim() : null, // <-- INI YANG BARU
               spesifikasi: spesifikasiArray
             };
-
     let produkIdTerproses = null;
 
     try {
@@ -320,7 +322,7 @@ const resetForm = () => {
     setMetaTitle(produk.meta_title || '');
     setMetaDescription(produk.meta_description || '');
     setIsKategoriBaru(false);
-    
+    setTagProduk(produk.tag_produk || '');
     setVariasiList(produk.produk_variasi || []);
       if (produk.spesifikasi) {
           if (Array.isArray(produk.spesifikasi)) {
@@ -549,6 +551,18 @@ const resetForm = () => {
                                     />
                                 </div>
                             )}
+
+                            {/* FORM INPUT TAG PRODUK KUSTOM */}
+                            <div className="mt-2">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 text-red-400">Tag Custom (Pita Merah)</label>
+                                <input
+                                  type="text"
+                                  value={tag_produk}
+                                  onChange={(e) => setTagProduk(e.target.value)}
+                                  placeholder="Opsional (Contoh: PROMO, TERLARIS...)"
+                                  className="w-full p-3 bg-gray-900 border border-gray-700 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none rounded-sm transition-all text-gray-100 placeholder-gray-600 uppercase"
+                                />
+                            </div>
 
                             {/* DYNAMIC LISTS: VARIASI */}
                             <div className="mt-6 border-t border-gray-700 pt-5">
@@ -816,6 +830,13 @@ const resetForm = () => {
                                         {item.nama}
                                         <div className="flex gap-2 mt-2">
                                           <span className="text-[9px] bg-gray-900 border border-gray-600 px-2 py-1 rounded-sm text-gray-400 uppercase tracking-wider font-bold">{item.kategori}</span>
+                                          
+                                          {/* INDIKATOR TAG DI TABEL */}
+                                          {item.tag_produk && (
+                                            <span className="text-[9px] bg-red-900/30 border border-red-500/50 px-2 py-1 rounded-sm text-red-400 uppercase tracking-wider font-bold">
+                                              {item.tag_produk}
+                                            </span>
+                                          )}
                                         </div>
                                       </td>
                                       <td className="px-5 py-4 whitespace-nowrap text-sm">
