@@ -26,41 +26,45 @@ const PelunasanModal = ({ isOpen, onClose, transaction, onSuccess }) => {
 
     useEffect(() => {
         if (transaction) {
-            setNominal(transaction.total_biaya - transaction.jumlah_terbayar);
+            const sudahDibayar = Number(transaction.jumlah_terbayar || 0);
+            setNominal(transaction.total_biaya - sudahDibayar);
         }
     }, [transaction]);
 
     if (!isOpen || !transaction) return null;
 
-    const sisaTagihan = transaction.total_biaya - transaction.jumlah_terbayar;
+    const sudahDibayar = Number(transaction.jumlah_terbayar || 0);
+    const sisaTagihan = transaction.total_biaya - sudahDibayar;
 
     const handleSimpan = async () => {
-    if (nominal <= 0) {
-        toast.error("Nominal pelunasan tidak valid!");
-        return;
-    }
-    
-    if (nominal > sisaTagihan) {
-        toast.error(`Nominal tidak boleh melebihi sisa tagihan (${sisaTagihan.toLocaleString('id-ID')})`);
-        return;
-    }
-    
-    setIsSubmitting(true);
-    // ... sisa kode aman
+        if (nominal <= 0) {
+            toast.error("Nominal pelunasan tidak valid!");
+            return;
+        }
+        
+        if (nominal > sisaTagihan) {
+            toast.error(`Nominal tidak boleh melebihi sisa tagihan (${sisaTagihan.toLocaleString('id-ID')})`);
+            return;
+        }
+        
+        setIsSubmitting(true);
         const toastId = toast.loading('Memproses pelunasan...');
 
         try {
+            // 1. Catat ke log pembayaran lengkap dengan tanggal_bayar agar masuk ke widget kasir
             const { error: logError } = await supabase.from('log_pembayaran').insert({
                 transaksi_id: transaction.id,
                 nominal: nominal,
                 jenis_pembayaran: metode,
-                tipe: 'Pelunasan'
+                tipe: 'Pelunasan',
+                tanggal_bayar: new Date().toISOString() // <-- PENTING: Agar tercatat di tanggal hari ini
             });
             if (logError) throw logError;
 
-            const newJumlahTerbayar = transaction.jumlah_terbayar + nominal;
+            const newJumlahTerbayar = sudahDibayar + nominal;
             const newStatus = newJumlahTerbayar >= transaction.total_biaya ? 'Lunas' : 'DP';
 
+            // 2. Update status pembayaran dan total uang masuk di tabel transaksi
             const { error: trxError } = await supabase.from('transaksi').update({
                 jumlah_terbayar: newJumlahTerbayar,
                 status_pembayaran: newStatus
@@ -91,7 +95,7 @@ const PelunasanModal = ({ isOpen, onClose, transaction, onSuccess }) => {
                         <p className="text-sm text-gray-400">Total Biaya</p>
                         <p className="text-lg font-semibold text-gray-200">Rp{transaction.total_biaya.toLocaleString('id-ID')}</p>
                         <p className="text-sm text-gray-400 mt-2">Sudah Dibayar (DP)</p>
-                        <p className="text-lg font-semibold text-green-400">Rp{transaction.jumlah_terbayar.toLocaleString('id-ID')}</p>
+                        <p className="text-lg font-semibold text-green-400">Rp{sudahDibayar.toLocaleString('id-ID')}</p>
                         <div className="border-t border-gray-700 my-2 pt-2">
                             <p className="text-sm text-gray-400">Sisa Tagihan</p>
                             <p className="text-xl font-bold text-red-400">Rp{sisaTagihan.toLocaleString('id-ID')}</p>

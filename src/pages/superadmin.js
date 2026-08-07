@@ -209,7 +209,6 @@ const Superadmin = () => {
   };
 
   const handleSimpanItem = async () => {
-    // Tambahkan konfirmasi pop-up sebelum menyimpan
     const konfirmasi = window.confirm('Apakah Anda yakin ingin menyimpan perubahan pada transaksi ini?');
     if (!konfirmasi) {
         return;
@@ -273,7 +272,6 @@ const Superadmin = () => {
         perubahanStok[newItem.produk_id] = (perubahanStok[newItem.produk_id] || 0) - newItem.jumlah;
       }
 
-
       const stokUpdates = Object.keys(perubahanStok).map(produkId => {
           const jumlahPerubahan = perubahanStok[produkId];
           const produkSaatIni = produkLengkap[produkId];
@@ -282,6 +280,7 @@ const Superadmin = () => {
       });
       await Promise.all(stokUpdates);
 
+      // Hitung Total Biaya Baru
       const subtotalHarianBaru = detailTransaksi.reduce((sum, item) => sum + ((item.produk?.harga || 0) * item.jumlah), 0);
       const durasi = hitungDurasiHari(tanggalMulaiBaru, tanggalSelesaiBaru);
       
@@ -295,12 +294,30 @@ const Superadmin = () => {
         totalBiayaBaru = subtotalHarianBaru * durasi;
       }
       
-      totalBiayaBaru = Math.max(0, totalBiayaBaru - transaksiUntukDiedit.diskon_manual);
+      totalBiayaBaru = Math.max(0, totalBiayaBaru - (transaksiUntukDiedit.diskon_manual || 0));
 
+      // --- PERBAIKAN UTAMA: CEK SELISIH PENAMBAHAN BIAYA ---
+      const totalBiayaLama = Number(transaksiUntukDiedit.total_biaya || 0);
+      let jumlahTerbayarBaru = Number(transaksiUntukDiedit.jumlah_terbayar || 0);
+      let statusPembayaranBaru = transaksiUntukDiedit.status_pembayaran;
+
+      // Jika total biaya bertambah (misal dari 210rb jadi 315rb)
+      if (totalBiayaBaru > totalBiayaLama) {
+          const selisihKurang = totalBiayaBaru - totalBiayaLama;
+          
+          // Asumsi jika tadinya sudah lunas, penambahan ini menjadi piutang/sisa tagihan baru
+          // Status berubah jadi belum lunas / DP, kecuali nanti dilunasi lewat tombol Lunasi
+          statusPembayaranBaru = jumlahTerbayarBaru >= totalBiayaBaru ? 'Lunas' : 'DP';
+      } else if (totalBiayaBaru <= jumlahTerbayarBaru) {
+          statusPembayaranBaru = 'Lunas';
+      }
+
+      // Update tabel transaksi dengan data terbaru
       await supabase
         .from('transaksi')
         .update({
           total_biaya: totalBiayaBaru,
+          status_pembayaran: statusPembayaranBaru,
           tanggal_mulai: tanggalMulaiBaru,
           tanggal_selesai: tanggalSelesaiBaru
         })
