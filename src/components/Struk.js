@@ -59,10 +59,12 @@ const Struk = ({ transaksiData }) => {
         <div className="alamat-toko">
           <p>Jl Sarirasa V Blok 4 No 114 Bandung</p>
           <p>Tlp. 08180.208.9909</p>
-          <p style={{ marginTop: '5px', fontSize: '14px' }}><strong>---SEWA---</strong></p>
+          <p style={{ marginTop: '5px', fontSize: '14px' }}>
+            <strong>{transaksiData.isReprint ? '--- CETAK ULANG ARSIP SEWA ---' : '---SEWA---'}</strong>
+          </p>
         </div>
-        <hr className="divider" />
-      </div>
+        <hr className="divider" /> {/* <-- INI KEMBALI DITAMBAHKAN */}
+      </div> {/* <-- INI PENUTUP HEADER YANG HILANG */}
 
       <div className="details-with-center-date">
         <p>Tgl Order: {formatDateTime()}</p>
@@ -126,11 +128,11 @@ const Struk = ({ transaksiData }) => {
         </div>
 
         {/* --- BLOK PENAMBAHAN INFORMASI DP --- */}
-        {statusPembayaran === 'DP' && (
+        {(statusPembayaran === 'DP' || (statusPembayaran !== 'Lunas' && (jumlahTerbayar || 0) < total)) && (
           <div className="dp-section">
             <div className="summary-row dp-row">
-              <span>DP:</span>
-              <span>Rp{Number(jumlahTerbayar).toLocaleString('id-ID')}</span>
+              <span>Sudah Dibayar (DP):</span>
+              <span>Rp{Number(jumlahTerbayar || 0).toLocaleString('id-ID')}</span>
             </div>
             <div className="summary-row date-row">
               <span>Tgl DP:</span>
@@ -138,7 +140,7 @@ const Struk = ({ transaksiData }) => {
             </div>
             <div className="summary-row total-row">
               <span>SISA TAGIHAN:</span>
-              <span>Rp{(total - jumlahTerbayar).toLocaleString('id-ID')}</span>
+              <span>Rp{(total - (jumlahTerbayar || 0)).toLocaleString('id-ID')}</span>
             </div>
           </div>
         )}

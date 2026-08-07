@@ -30,7 +30,9 @@ const StrukPenjualan = ({ data }) => {
           <p></p>
           <p>Jl Sarirasa V Blok 4 No 114 Bandung</p>
           <p>Tlp. 08180.208.9909</p>
-          <p style={{ marginTop: '5px', fontSize: '14px' }}><strong>---PENJUALAN---</strong></p>
+          <p style={{ marginTop: '5px', fontSize: '14px' }}>
+             <strong>{data.isReprint ? '--- CETAK ULANG ARSIP PENJUALAN ---' : '---PENJUALAN---'}</strong>
+          </p>
         </div>
         <hr className="divider" />
       </div>

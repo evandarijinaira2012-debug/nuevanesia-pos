@@ -142,31 +142,76 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   const isBukanSewa = transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry';
 
   const handlePrint = () => {
-    const dataUntukStruk = {
-      pelanggan: {
-        nama: transaction.pelanggan?.nama || '-',
-        noWhatsapp: transaction.pelanggan?.no_whatsapp || '-',
-        jaminan: transaction.pelanggan?.jaminan || '-'
-      },
-      keranjang: transaction.transaksi_detail ? transaction.transaksi_detail.map(item => ({
-        id: item.id,
-        nama: item.variasi_terpilih ? `${item.nama_barang} (${item.variasi_terpilih})` : item.nama_barang,
-        harga: item.harga_satuan || item.produk?.harga || 0, // Mengambil harga statis yang tersimpan
-        qty: item.jumlah
-      })) : [],
-      tanggalMulai: transaction.tanggal_mulai,
-      tanggalSelesai: transaction.tanggal_selesai,
-      durasi: transaction.durasi_hari,
-      total: transaction.total_biaya,
-      metodePembayaran: transaction.jenis_pembayaran,
-      catatan: transaction.catatan || '',
-      diskonOtomatis: transaction.diskon_otomatis || 0,
-      diskonManual: transaction.diskon_manual || 0,
-      statusPembayaran: transaction.status_pembayaran,
-      jumlahTerbayar: transaction.jumlah_terbayar,
-      logPembayaran: transaction.log_pembayaran || []
-    };
+    // 1. Standarisasi Keranjang (Berlaku untuk semua jenis transaksi)
+    const baseKeranjang = transaction.transaksi_detail ? transaction.transaksi_detail.map(item => ({
+      id: item.id,
+      nama: item.variasi_terpilih ? `${item.nama_barang} (${item.variasi_terpilih})` : item.nama_barang,
+      harga: item.harga_satuan || item.produk?.harga || 0,
+      qty: item.jumlah
+    })) : [];
 
+    let dataUntukStruk;
+
+    // 2. Pemisahan Logika Berdasarkan Jenis Transaksi
+    if (transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry') {
+        
+        // FORMAT UNTUK LAUNDRY & PENJUALAN
+        dataUntukStruk = {
+            jenis_transaksi: transaction.jenis_transaksi,
+            isReprint: true,
+            transaksiData: transaction, 
+            pelangganData: {
+                nama: transaction.pelanggan?.nama || '-',
+                noWhatsapp: transaction.pelanggan?.no_whatsapp || '-'
+            },
+            keranjang: baseKeranjang
+        };
+
+    } else {
+        
+        // FORMAT UNTUK SEWA
+        // -----------------------------------------------------------------
+        // PERBAIKAN UTAMA: Hitung murni berdasarkan matematika, jangan percaya teks database
+        // -----------------------------------------------------------------
+        const totalBiaya = Number(transaction.total_biaya || 0);
+        const jumlahTerbayar = Number(transaction.jumlah_terbayar || 0);
+        
+        // Benar-benar lunas HANYA JIKA uang yang dibayar >= total biaya
+        const isMurniLunas = jumlahTerbayar >= totalBiaya;
+        
+        let printStatus = isMurniLunas ? 'Lunas' : 'DP';
+
+        let printCatatan = transaction.catatan || '';
+        if (isMurniLunas) {
+            if (!printCatatan.includes('[STATUS: LUNAS]')) {
+                printCatatan = `[STATUS: LUNAS] ${printCatatan}`;
+            }
+        }
+
+        dataUntukStruk = {
+            jenis_transaksi: 'Sewa',
+            isReprint: true,
+            pelanggan: {
+                nama: transaction.pelanggan?.nama || '-',
+                noWhatsapp: transaction.pelanggan?.no_whatsapp || '-',
+                jaminan: transaction.pelanggan?.jaminan || '-'
+            },
+            keranjang: baseKeranjang,
+            tanggalMulai: transaction.tanggal_mulai,
+            tanggalSelesai: transaction.tanggal_selesai,
+            durasi: transaction.durasi_hari,
+            total: totalBiaya,
+            metodePembayaran: transaction.jenis_pembayaran,
+            catatan: printCatatan,
+            diskonOtomatis: transaction.diskon_otomatis || 0,
+            diskonManual: transaction.diskon_manual || 0,
+            statusPembayaran: printStatus, // Otomatis jadi 'DP' jika uangnya belum nutup
+            jumlahTerbayar: jumlahTerbayar,
+            logPembayaran: transaction.log_pembayaran || []
+        };
+    }
+
+    // 3. Simpan dan Buka Halaman Cetak
     localStorage.setItem('transaksiDataUntukStruk', JSON.stringify(dataUntukStruk));
     window.open('/cetak-struk', '_blank');
   };
