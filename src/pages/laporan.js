@@ -403,27 +403,38 @@ export default function Laporan() {
       setTransaksiData(data);
     }
 
-    // UBAH: Optimasi query log_pembayaran langsung difilter berdasarkan hari ini di database
+    // --- PERBAIKAN AKURASI RENTANG WAKTU HARIAN ---
     const todayStart = moment().startOf('day').toISOString();
     const todayEnd = moment().endOf('day').toISOString();
 
     const { data: logData, error: logError } = await supabase
         .from('log_pembayaran')
-        .select('nominal, jenis_pembayaran, created_at')
-        .gte('created_at', todayStart)
-        .lte('created_at', todayEnd);
+        .select('nominal, jenis_pembayaran, tanggal_bayar')
+        .gte('tanggal_bayar', todayStart)
+        .lte('tanggal_bayar', todayEnd);
     
     if (!logError && logData) {
         let tCash = 0, tTransfer = 0, tQris = 0;
 
         logData.forEach(log => {
-            const nom = Number(log.nominal);
-            if (log.jenis_pembayaran === 'Cash') tCash += nom;
-            // PERUBAHAN: Membaca baik 'Transfer' maupun 'Transfer Bank'
-            if (log.jenis_pembayaran === 'Transfer' || log.jenis_pembayaran === 'Transfer Bank') tTransfer += nom;
-            if (log.jenis_pembayaran === 'QRIS') tQris += nom;
+            const nom = Number(log.nominal || 0);
+            const metode = log.jenis_pembayaran;
+            
+            if (metode === 'Cash') {
+                tCash += nom;
+            } else if (metode === 'Transfer' || metode === 'Transfer Bank' || metode === 'Transfer') {
+                tTransfer += nom;
+            } else if (metode === 'QRIS') {
+                tQris += nom;
+            }
         });
-        setRekapKas({ cash: tCash, transfer: tTransfer, qris: tQris, total: tCash + tTransfer + tQris });
+        
+        setRekapKas({ 
+            cash: tCash, 
+            transfer: tTransfer, 
+            qris: tQris, 
+            total: tCash + tTransfer + tQris 
+        });
     }
 
     // Menghitung jumlah transaksi yang dibuat hari ini
