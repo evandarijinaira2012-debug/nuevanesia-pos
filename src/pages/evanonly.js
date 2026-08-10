@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+// Nama File: dashboard.js (atau page evan only)
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -15,7 +16,7 @@ import {
     Legend,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import { Download, Search, RefreshCcw, ArrowRight, TrendingUp, TrendingDown, Users, DollarSign, Calendar, Settings, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Search, RefreshCcw, TrendingUp, TrendingDown, Users, DollarSign, Settings, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react';
 
 ChartJS.register(
     CategoryScale,
@@ -26,13 +27,12 @@ ChartJS.register(
     Legend
 );
 
-// Komponen Ikon Modern
+// --- KOMPONEN IKON ---
 const IconIncome = () => <DollarSign className="w-8 h-8 text-green-400" />;
 const IconExpense = () => <TrendingDown className="w-8 h-8 text-red-400" />;
 const IconProfit = () => <TrendingUp className="w-8 h-8 text-teal-400" />;
-const IconCustomers = () => <Users className="w-8 h-8 text-blue-400" />;
 
-// TransactionModal Component
+// --- MODAL RINCIAN TRANSAKSI ---
 const TransactionModal = ({ isOpen, onClose, transaction }) => {
     if (!isOpen || !transaction) return null;
     const formatRupiah = (angka) => `Rp${(angka || 0).toLocaleString('id-ID')}`;
@@ -159,43 +159,62 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
     );
 };
 
-// Main Laporan Component
-export default function Laporan() {
+// --- HALAMAN UTAMA DASHBOARD ---
+export default function Dashboard() {
     const [transaksiData, setTransaksiData] = useState([]);
+    const [logPembayaranData, setLogPembayaranData] = useState([]); // TAMBAHAN: Data aliran dana real
+    const [pengeluaranData, setPengeluaranData] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [session, setSession] = useState(null);
-    // FIX: default sorting diganti ke 'created_at' agar riwayat terbawah adalah orderan paling baru dibuat
     const [sortConfig, setSortConfig] = useState({ field: 'created_at', direction: 'desc' });
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    
     const [startDate, setStartDate] = useState(moment().startOf('month').format('YYYY-MM-DD'));
     const [endDate, setEndDate] = useState(moment().format('YYYY-MM-DD'));
+    
     const [searchQuery, setSearchQuery] = useState('');
-    const router = useRouter();
-    const [initialLoading, setInitialLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('Semua');
-    const [pengeluaranData, setPengeluaranData] = useState([]);
     const [pengeluaranSearchQuery, setPengeluaranSearchQuery] = useState('');
+    
     const [timeframe, setTimeframe] = useState('bulanan');
     const [showDailyIncome, setShowDailyIncome] = useState(false);
     const [showDailyExpenses, setShowDailyExpenses] = useState(false);
     const [showChart, setShowChart] = useState(true);
+    const [initialLoading, setInitialLoading] = useState(true);
+    
+    const router = useRouter();
 
     const fetchLaporan = async (start, end) => {
         setLoading(true);
-        // FIX: Ubah order penyaringan query Supabase dari 'tanggal_mulai' ke 'created_at'
-        let transaksiQuery = supabase.from('transaksi').select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian, created_at`).order('created_at', { ascending: false });
-        let pengeluaranQuery = supabase.from('pengeluaran').select(`*`).order('tanggal', { ascending: false });
+        
+        // 1. Tarik Data Transaksi (Untuk tabel riwayat dan rincian struk)
+        let transaksiQuery = supabase.from('transaksi')
+            .select(`*, pelanggan(nama, alamat, no_whatsapp, jaminan), transaksi_detail(id, nama_barang, jumlah, produk(harga, nama)), status_pengembalian, created_at`)
+            .order('created_at', { ascending: false });
 
-        // FIX: Tambahkan timestamp penuh pada batasan filter tanggal transaksi agar pembacaan 'created_at' akurat
+        // 2. Tarik Data LOG PEMBAYARAN (Untuk perhitungan Uang Real/Cashflow)
+        let logQuery = supabase.from('log_pembayaran')
+            .select('id, nominal, tanggal_bayar, transaksi_id, jenis_pembayaran')
+            .order('tanggal_bayar', { ascending: false });
+
+        // 3. Tarik Data Pengeluaran
+        let pengeluaranQuery = supabase.from('pengeluaran')
+            .select(`*`)
+            .order('tanggal', { ascending: false });
+
         if (start) {
             transaksiQuery = transaksiQuery.gte('created_at', `${start} 00:00:00`);
+            logQuery = logQuery.gte('tanggal_bayar', `${start} 00:00:00`);
             pengeluaranQuery = pengeluaranQuery.gte('tanggal', start);
         }
         if (end) {
             transaksiQuery = transaksiQuery.lte('created_at', `${end} 23:59:59`);
+            logQuery = logQuery.lte('tanggal_bayar', `${end} 23:59:59`);
             pengeluaranQuery = pengeluaranQuery.lte('tanggal', end);
         }
+        
         if (statusFilter !== 'Semua') {
             if (statusFilter === 'Terlambat') {
                 transaksiQuery = transaksiQuery.lte('tanggal_selesai', moment().format('YYYY-MM-DD')).eq('status_pengembalian', 'Belum Kembali');
@@ -205,13 +224,17 @@ export default function Laporan() {
         }
         
         const { data: transaksi, error: transaksiError } = await transaksiQuery;
+        const { data: logData, error: logError } = await logQuery;
         const { data: pengeluaran, error: pengeluaranError } = await pengeluaranQuery;
 
         if (transaksiError) console.error('Error fetching transaksi:', transaksiError);
+        if (logError) console.error('Error fetching log:', logError);
         if (pengeluaranError) console.error('Error fetching pengeluaran:', pengeluaranError);
 
         setTransaksiData(transaksi || []);
+        setLogPembayaranData(logData || []);
         setPengeluaranData(pengeluaran || []);
+        
         setLoading(false);
         setInitialLoading(false);
     };
@@ -275,6 +298,17 @@ export default function Laporan() {
         setSortConfig({ field, direction });
     };
 
+    const updateStatusPengembalian = async (transactionId, status) => {
+        setLoading(true);
+        const { error } = await supabase.from('transaksi').update({ status_pengembalian: status }).eq('id', transactionId);
+        if (error) {
+            console.error('Error updating status:', error);
+            alert('Gagal memperbarui status!');
+        } else {
+            fetchLaporan(startDate, endDate);
+        }
+    };
+
     const filteredTransaksi = useMemo(() => {
         if (!transaksiData) return [];
         return transaksiData.filter(t => t.pelanggan?.nama?.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -285,11 +319,9 @@ export default function Laporan() {
         sortableItems.sort((a, b) => {
             let aValue, bValue;
             switch (sortConfig.field) {
-                // FIX: Ubah target logika sorting frontend dari 'tanggal_mulai' ke 'created_at'
                 case 'created_at': aValue = new Date(a.created_at); bValue = new Date(b.created_at); break;
                 case 'pelanggan.nama': aValue = a.pelanggan?.nama || ''; bValue = b.pelanggan?.nama || ''; break;
                 case 'total_biaya': aValue = a.total_biaya; bValue = b.total_biaya; break;
-                case 'jenis_pembayaran': aValue = a.jenis_pembayaran; bValue = b.jenis_pembayaran; break;
                 default: return 0;
             }
             const isAsc = sortConfig.direction === 'asc';
@@ -325,26 +357,14 @@ export default function Laporan() {
     const getSortIcon = (field) => sortConfig.field === field ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
     const handleRowClick = (transaction) => { setSelectedTransaction(transaction); setModalOpen(true); };
 
-    const updateStatusPengembalian = async (transactionId, status) => {
-        setLoading(true);
-        const { error } = await supabase.from('transaksi').update({ status_pengembalian: status }).eq('id', transactionId);
-        if (error) {
-            console.error('Error updating status:', error);
-            alert('Gagal memperbarui status!');
-        } else {
-            fetchLaporan(startDate, endDate);
-        }
-    };
-
     const handleExportCSV = () => {
         if (sortedTransaksi.length === 0) { alert('Tidak ada data untuk diekspor!'); return; }
-        // FIX: Header & data CSV disesuaikan menggunakan tanggal order dibuat (created_at)
-        const headers = ['ID Transaksi', 'Tanggal Order', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)', 'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pengembalian', 'Total Biaya'];
+        const headers = ['ID Transaksi', 'Tanggal Order', 'Tanggal Mulai', 'Tanggal Selesai', 'Durasi (malam)', 'Nama Pelanggan', 'Alamat Pelanggan', 'No WhatsApp', 'Metode Pembayaran', 'Status Pengembalian', 'Total Biaya', 'Sudah Dibayar'];
         const csvRows = [headers.join(';')];
         sortedTransaksi.forEach(t => {
             const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
             const statusText = isLate ? 'Terlambat' : t.status_pengembalian;
-            const row = [`"${t.id}"`, `"${moment(t.created_at).format('YYYY-MM-DD HH:mm')}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`, `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari, `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`, `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`, `"${statusText}"`, t.total_biaya].join(';');
+            const row = [`"${t.id}"`, `"${moment(t.created_at).format('YYYY-MM-DD HH:mm')}"`, `"${moment(t.tanggal_mulai).format('YYYY-MM-DD')}"`, `"${moment(t.tanggal_selesai).format('YYYY-MM-DD')}"`, t.durasi_hari, `"${t.pelanggan?.nama || 'N/A'}"`, `"${t.pelanggan?.alamat || 'N/A'}"`, `"${t.pelanggan?.no_whatsapp || 'N/A'}"`, `"${t.jenis_pembayaran}"`, `"${statusText}"`, t.total_biaya, (t.jumlah_terbayar || 0)].join(';');
             csvRows.push(row);
         });
         const csvString = csvRows.join('\n');
@@ -396,32 +416,35 @@ export default function Laporan() {
         fetchLaporan(startDate, endDate);
     };
 
-    const totalIncome = useMemo(() => filteredTransaksi.reduce((sum, t) => sum + t.total_biaya, 0), [filteredTransaksi]);
+    // --- PERHITUNGAN UANG REAL / CASHFLOW ---
+    const totalIncome = useMemo(() => logPembayaranData.reduce((sum, log) => sum + (Number(log.nominal) || 0), 0), [logPembayaranData]);
     const totalTransactions = useMemo(() => filteredTransaksi.length, [filteredTransaksi]);
-    const totalExpenses = useMemo(() => pengeluaranData.reduce((sum, e) => sum + e.jumlah, 0), [pengeluaranData]);
+    const totalExpenses = useMemo(() => pengeluaranData.reduce((sum, e) => sum + (Number(e.jumlah) || 0), 0), [pengeluaranData]);
     const pendapatanBersih = useMemo(() => totalIncome - totalExpenses, [totalIncome, totalExpenses]);
 
+    // --- AGREGASI GRAFIK ---
     const aggregatedData = useMemo(() => {
         const dataMap = new Map();
         const format = 'YYYY-MM-DD';
 
-        // FIX: Agregasi grafik pemasukan disesuaikan berdasarkan 'created_at'
-        transaksiData.forEach(t => {
-            const dateKey = moment(t.created_at).format(format);
+        // Pemasukan didasarkan pada tanggal LOG PEMBAYARAN masuk
+        logPembayaranData.forEach(log => {
+            const dateKey = moment(log.tanggal_bayar).format(format);
             const entry = dataMap.get(dateKey) || { date: dateKey, pemasukan: 0, pengeluaran: 0 };
-            entry.pemasukan += t.total_biaya;
+            entry.pemasukan += Number(log.nominal) || 0;
             dataMap.set(dateKey, entry);
         });
 
+        // Pengeluaran
         pengeluaranData.forEach(e => {
             const dateKey = moment(e.tanggal).format(format);
             const entry = dataMap.get(dateKey) || { date: dateKey, pemasukan: 0, pengeluaran: 0 };
-            entry.pengeluaran += e.jumlah;
+            entry.pengeluaran += Number(e.jumlah) || 0;
             dataMap.set(dateKey, entry);
         });
 
         return Array.from(dataMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
-    }, [transaksiData, pengeluaranData]);
+    }, [logPembayaranData, pengeluaranData]);
 
     const chartData = useMemo(() => {
         const labels = aggregatedData.map(d => moment(d.date).format('DD MMM'));
@@ -432,7 +455,7 @@ export default function Laporan() {
             labels,
             datasets: [
                 {
-                    label: 'Pemasukan',
+                    label: 'Pemasukan Real',
                     data: incomeData,
                     backgroundColor: 'rgba(52, 211, 153, 0.7)',
                     borderColor: 'rgba(52, 211, 153, 1)',
@@ -455,10 +478,7 @@ export default function Laporan() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                position: 'top',
-                labels: { color: '#e2e8f0' },
-            },
+            legend: { position: 'top', labels: { color: '#e2e8f0' } },
             title: { display: false },
             tooltip: {
                 callbacks: {
@@ -469,48 +489,43 @@ export default function Laporan() {
                         return label;
                     }
                 },
-                backgroundColor: '#1f2937',
-                titleColor: '#e2e8f0',
-                bodyColor: '#cbd5e0',
-                borderColor: '#4a5568',
-                borderWidth: 1,
-                cornerRadius: 8,
+                backgroundColor: '#1f2937', titleColor: '#e2e8f0', bodyColor: '#cbd5e0',
+                borderColor: '#4a5568', borderWidth: 1, cornerRadius: 8,
             }
         },
         scales: {
-            x: {
-                grid: { color: '#334155' },
-                ticks: { color: '#e2e8f0' },
-            },
-            y: {
-                grid: { color: '#334155' },
-                ticks: {
-                    color: '#e2e8f0',
-                    callback: function(value) { return formatRupiah(value); }
-                }
-            }
+            x: { grid: { color: '#334155' }, ticks: { color: '#e2e8f0' } },
+            y: { grid: { color: '#334155' }, ticks: { color: '#e2e8f0', callback: function(value) { return formatRupiah(value); } } }
         }
     };
 
+    // --- TABEL HARIAN PEMASUKAN ---
     const sortedDailyIncome = useMemo(() => {
         const incomeMap = {};
-        // FIX: Perhitungan total kumulatif pemasukan harian diarahkan ke 'created_at'
-        transaksiData.forEach(t => {
-            const date = moment(t.created_at).format('YYYY-MM-DD');
+        
+        logPembayaranData.forEach(log => {
+            const date = moment(log.tanggal_bayar).format('YYYY-MM-DD');
             if (!incomeMap[date]) {
-                incomeMap[date] = { count: 0, amount: 0 };
+                // Gunakan Set untuk menghitung jumlah transaksi unik (jika ada cicilan di hari yang sama)
+                incomeMap[date] = { count: 0, amount: 0, trxSet: new Set() };
             }
-            incomeMap[date].count += 1;
-            incomeMap[date].amount += t.total_biaya;
+            if(log.transaksi_id) incomeMap[date].trxSet.add(log.transaksi_id);
+            incomeMap[date].amount += Number(log.nominal) || 0;
         });
-        return Object.entries(incomeMap).map(([date, data]) => ({ date, ...data })).sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [transaksiData]);
 
+        return Object.entries(incomeMap).map(([date, data]) => ({ 
+            date, 
+            count: data.trxSet.size, 
+            amount: data.amount 
+        })).sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [logPembayaranData]);
+
+    // --- TABEL HARIAN PENGELUARAN ---
     const sortedDailyExpenses = useMemo(() => {
         const expenseMap = {};
         pengeluaranData.forEach(e => {
             const date = moment(e.tanggal).format('YYYY-MM-DD');
-            expenseMap[date] = (expenseMap[date] || 0) + e.jumlah;
+            expenseMap[date] = (expenseMap[date] || 0) + (Number(e.jumlah) || 0);
         });
         return Object.entries(expenseMap).sort(([dateA], [dateB]) => new Date(dateB) - new Date(dateA));
     }, [pengeluaranData]);
@@ -528,12 +543,12 @@ export default function Laporan() {
     
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8 md:p-12 font-sans antialiased">
-            <Head><title>Dashboard Keuangan</title></Head>
+            <Head><title>Dashboard Keuangan (Cashflow)</title></Head>
     
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 print:hidden">
                 <div>
                     <h1 className="text-4xl font-extrabold text-teal-400 drop-shadow-lg">Dashboard Keuangan</h1>
-                    <p className="text-gray-400 mt-2 text-lg">Ringkasan analitik bisnis Anda</p>
+                    <p className="text-gray-400 mt-2 text-lg">Laporan Cashflow Real-time Uang Masuk</p>
                 </div>
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-4 md:mt-0">
                     <Link href="/superadmin" className="flex items-center gap-2 bg-gray-700 text-gray-300 p-3 rounded-xl hover:bg-gray-600 transition-colors duration-300 shadow-md text-sm font-semibold">
@@ -553,7 +568,7 @@ export default function Laporan() {
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 flex items-center gap-6 transform transition-all hover:scale-105 duration-300">
                     <div className="p-3 bg-green-500/20 rounded-full"><IconIncome /></div>
                     <div>
-                        <p className="text-gray-400 text-sm">Total Pemasukan</p>
+                        <p className="text-gray-400 text-sm">Uang Masuk Real</p>
                         <h3 className="text-3xl font-bold text-green-400">{formatRupiah(totalIncome)}</h3>
                     </div>
                 </div>
@@ -567,7 +582,7 @@ export default function Laporan() {
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 flex items-center gap-6 transform transition-all hover:scale-105 duration-300">
                     <div className="p-3 bg-teal-500/20 rounded-full"><IconProfit /></div>
                     <div>
-                        <p className="text-gray-400 text-sm">Laba Bersih</p>
+                        <p className="text-gray-400 text-sm">Cash Flow Bersih</p>
                         <h3 className="text-3xl font-bold text-teal-400">{formatRupiah(pendapatanBersih)}</h3>
                     </div>
                 </div>
@@ -576,7 +591,7 @@ export default function Laporan() {
             {/* Grafik Keuangan */}
             <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8 print:hidden">
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-                    <h2 className="text-2xl font-semibold text-gray-200 mb-2 sm:mb-0">Perbandingan Pemasukan & Pengeluaran</h2>
+                    <h2 className="text-2xl font-semibold text-gray-200 mb-2 sm:mb-0">Perbandingan Cashflow (Masuk vs Keluar)</h2>
                     <button onClick={() => setShowChart(!showChart)} className="bg-gray-700 text-gray-300 py-2 px-4 rounded-xl font-bold hover:bg-gray-600 transition-colors text-sm flex items-center gap-2">
                         {showChart ? <><ChevronUp className="w-4 h-4" /> Sembunyikan Grafik</> : <><ChevronDown className="w-4 h-4" /> Tampilkan Grafik</>}
                     </button>
@@ -594,7 +609,7 @@ export default function Laporan() {
 
             {/* Filter Waktu */}
             <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 print:hidden">
-                <h2 className="text-lg font-bold text-gray-200">Filter Berdasarkan Tanggal:</h2>
+                <h2 className="text-lg font-bold text-gray-200">Filter Tanggal Masuknya Dana:</h2>
                 <div className="flex flex-wrap justify-center md:justify-end gap-2">
                     <button onClick={() => handleTimeframeChange('harian')} className={`py-2 px-4 rounded-lg font-bold transition-colors text-sm ${timeframe === 'harian' ? 'bg-teal-600 text-white shadow-lg' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>Hari Ini</button>
                     <button onClick={() => handleTimeframeChange('bulanan')} className={`py-2 px-4 rounded-lg font-bold transition-colors text-sm ${timeframe === 'bulanan' ? 'bg-teal-600 text-white shadow-lg' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>Bulan Ini</button>
@@ -623,24 +638,25 @@ export default function Laporan() {
                 </div>
             </div>
     
-            {/* Laporan Harian */}
+            {/* Laporan Harian Cashflow */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 <div className="bg-gray-800/50 rounded-2xl border border-gray-700">
                     <button onClick={() => setShowDailyIncome(!showDailyIncome)} className="w-full text-left p-6 flex justify-between items-center text-xl font-semibold text-white hover:bg-gray-800 transition-colors rounded-t-2xl">
-                        Laporan Pemasukan Harian (Real-time Order)
+                        Log Harian Uang Masuk
                         {showDailyIncome ? <ChevronUp /> : <ChevronDown />}
                     </button>
                     {showDailyIncome && (
                         <div className="p-6 pt-0 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                            <div className="mb-4 text-center">
-                                <span className="text-lg font-bold text-yellow-400">Total Transaksi Bulan Ini: {totalTransactions}</span>
+                            <div className="mb-4 text-center border-b border-gray-700 pb-4">
+                                <span className="text-sm text-gray-400 block mb-1">Total Transaksi Aktif Pada Periode Ini:</span>
+                                <span className="text-lg font-bold text-yellow-400">{totalTransactions} Transaksi</span>
                             </div>
                             <table className="w-full text-left table-auto">
                                 <thead className="sticky top-0 bg-gray-800/80 backdrop-blur-sm text-xs uppercase text-gray-400">
                                     <tr>
-                                        <th className="p-2">Tanggal Order</th>
-                                        <th className="p-2">Jumlah Transaksi</th>
-                                        <th className="p-2 text-right">Jumlah Pemasukan</th>
+                                        <th className="p-2">Tanggal Terima Uang</th>
+                                        <th className="p-2 text-center">Jml Transaksi/DP</th>
+                                        <th className="p-2 text-right">Nominal Masuk</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -648,13 +664,13 @@ export default function Laporan() {
                                         sortedDailyIncome.map((item) => (
                                             <tr key={item.date} className="border-b border-gray-700 hover:bg-gray-700/50">
                                                 <td className="p-2 text-sm text-gray-300">{moment(item.date).format('DD MMM YYYY')}</td>
-                                                <td className="p-2 text-sm text-center text-teal-400">{item.count}</td>
+                                                <td className="p-2 text-sm text-center text-teal-400 font-bold">{item.count}</td>
                                                 <td className="p-2 text-sm font-semibold text-green-400 text-right">{formatRupiah(item.amount)}</td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="3" className="p-4 text-center text-gray-400">Tidak ada data pemasukan harian.</td>
+                                            <td colSpan="3" className="p-4 text-center text-gray-400">Tidak ada uang masuk harian di periode ini.</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -665,7 +681,7 @@ export default function Laporan() {
     
                 <div className="bg-gray-800/50 rounded-2xl border border-gray-700">
                     <button onClick={() => setShowDailyExpenses(!showDailyExpenses)} className="w-full text-left p-6 flex justify-between items-center text-xl font-semibold text-white hover:bg-gray-800 transition-colors rounded-t-2xl">
-                        Laporan Pengeluaran Harian
+                        Log Harian Pengeluaran
                         {showDailyExpenses ? <ChevronUp /> : <ChevronDown />}
                     </button>
                     {showDailyExpenses && (
@@ -673,8 +689,8 @@ export default function Laporan() {
                             <table className="w-full text-left table-auto">
                                 <thead className="sticky top-0 bg-gray-800/80 backdrop-blur-sm text-xs uppercase text-gray-400">
                                     <tr>
-                                        <th className="p-2">Tanggal</th>
-                                        <th className="p-2 text-right">Jumlah</th>
+                                        <th className="p-2">Tanggal Keluar Uang</th>
+                                        <th className="p-2 text-right">Nominal Keluar</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -701,13 +717,15 @@ export default function Laporan() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 print:hidden">
                 <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-semibold text-white">Riwayat Pemasukan</h3>
+                        <h3 className="text-xl font-semibold text-white">Daftar Transaksi</h3>
                         <button onClick={handleExportCSV} className="bg-green-700 text-white py-2 px-4 rounded-xl hover:bg-green-600 transition-colors text-sm flex items-center gap-2 font-semibold">
                             <Download className="w-4 h-4" /> Ekspor
                         </button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
-                        <div className="lg:col-span-1">
+                    
+                    {/* AREA FILTER TRANSAKSI */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-4">
+                        <div className="md:col-span-1">
                             <label htmlFor="search" className="block text-sm font-medium text-gray-400 mb-1">Cari Pelanggan</label>
                             <input
                                 type="text"
@@ -719,40 +737,72 @@ export default function Laporan() {
                                 className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
                             />
                         </div>
+                        <div className="md:col-span-1">
+                            <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-400 mb-1">Filter Status</label>
+                            <select
+                                id="statusFilter"
+                                value={statusFilter}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    setTimeout(() => fetchLaporan(startDate, endDate), 0); 
+                                }}
+                                className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl py-2 px-3 focus:ring-teal-500 focus:border-teal-500 cursor-pointer"
+                            >
+                                <option value="Semua">Semua Status</option>
+                                <option value="Belum Kembali">Belum Kembali / Disewa</option>
+                                <option value="Sudah Kembali">Sudah Kembali</option>
+                                <option value="Terlambat">Terlambat</option>
+                            </select>
+                        </div>
                         <div className="flex gap-2 w-full">
-                            <button onClick={() => fetchLaporan(startDate, endDate)} className="w-full bg-teal-600 text-white py-2 px-4 rounded-xl hover:bg-teal-700 transition-colors font-semibold">Terapkan</button>
+                            <button onClick={() => fetchLaporan(startDate, endDate)} className="w-full bg-teal-600 text-white py-2 px-4 rounded-xl hover:bg-teal-700 transition-colors font-semibold">Cari</button>
                             <button onClick={handleResetFilters} className="bg-gray-600 text-white p-2 rounded-xl hover:bg-gray-500 transition-colors" title="Reset Filter">
                                 <RefreshCcw className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
+
                     {loading ? <p>Memuat data...</p> : sortedTransaksi.length > 0 ? (
                         <div className="max-h-[60vh] overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 rounded-lg">
                             <table className="w-full text-left table-auto">
                                 <thead className="bg-gray-700/50 text-xs uppercase text-gray-400 sticky top-0">
                                     <tr>
-                                        {/* FIX: Header Th kolom diubah dari 'tanggal_mulai' ke 'created_at' */}
-                                        <th className="p-4 cursor-pointer" onClick={() => handleSort('created_at')}>Tanggal Order {getSortIcon('created_at')}</th>
+                                        <th className="p-4 cursor-pointer" onClick={() => handleSort('created_at')}>Tgl Order {getSortIcon('created_at')}</th>
                                         <th className="p-4 cursor-pointer" onClick={() => handleSort('pelanggan.nama')}>Pelanggan {getSortIcon('pelanggan.nama')}</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4 cursor-pointer text-right" onClick={() => handleSort('total_biaya')}>Total {getSortIcon('total_biaya')}</th>
+                                        <th className="p-4 text-right cursor-pointer" onClick={() => handleSort('total_biaya')}>Total Nota {getSortIcon('total_biaya')}</th>
+                                        <th className="p-4 text-center">Status</th>
+                                        <th className="p-4 text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
                                     {sortedTransaksi.map(t => {
-                                        const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian === 'Belum Kembali';
+                                        const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && (t.status_pengembalian === 'Belum Kembali' || t.status_pengembalian === null);
                                         return (
                                             <tr key={t.id} className="hover:bg-gray-700/50 transition-colors duration-200">
-                                                {/* FIX: Sel data tabel menampilkan tanggal order riil (created_at) */}
-                                                <td className="p-4 align-middle text-sm text-gray-300">{moment(t.created_at).format('DD MMM YYYY HH:mm')}</td>
+                                                <td className="p-4 align-middle text-sm text-gray-300">{moment(t.created_at).format('DD/MM/YY HH:mm')}</td>
                                                 <td className="p-4 align-middle font-semibold text-teal-400 cursor-pointer hover:underline" onClick={() => handleRowClick(t)}>{t.pelanggan?.nama || 'N/A'}</td>
-                                                <td className="p-4 align-middle">
+                                                <td className="p-4 align-middle font-semibold text-gray-200 text-right text-sm">{formatRupiah(t.total_biaya)}</td>
+                                                <td className="p-4 align-middle text-center">
                                                     {t.status_pengembalian === 'Sudah Kembali' ?
-                                                        <span className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1 rounded-full">Selesai</span> :
-                                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${isLate ? 'bg-red-500/20 text-red-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{isLate ? 'Terlambat' : 'Disewa'}</span>
+                                                        <span className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Selesai</span> :
+                                                        <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${isLate ? 'bg-red-500/20 text-red-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{isLate ? 'Terlambat' : 'Disewa'}</span>
                                                     }
                                                 </td>
-                                                <td className="p-4 align-middle font-semibold text-green-400 text-right text-sm">{formatRupiah(t.total_biaya)}</td>
+                                                <td className="p-4 align-middle text-center">
+                                                    {t.status_pengembalian !== 'Sudah Kembali' ? (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                updateStatusPengembalian(t.id, 'Sudah Kembali');
+                                                            }}
+                                                            className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-500 transition-colors text-xs font-semibold whitespace-nowrap"
+                                                        >
+                                                            Tandai Kembali
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-gray-500 text-xs">-</span>
+                                                    )}
+                                                </td>
                                             </tr>
                                         );
                                     })}
@@ -771,7 +821,7 @@ export default function Laporan() {
                         </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-2">
                             <label htmlFor="pengeluaranSearch" className="block text-sm font-medium text-gray-400 mb-1">Cari Pengeluaran</label>
                             <input
                                 type="text"
@@ -783,12 +833,12 @@ export default function Laporan() {
                                 className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl py-2 px-3 focus:ring-teal-500 focus:border-teal-500"
                             />
                         </div>
-                        <div className="flex gap-2 w-full">
+                        <div className="flex gap-2 w-full lg:col-span-2">
                             <button
                                 onClick={() => fetchLaporan(startDate, endDate)}
                                 className="w-full bg-teal-600 text-white py-2 px-4 rounded-xl hover:bg-teal-700 transition-colors font-semibold"
                             >
-                                Terapkan
+                                Cari
                             </button>
                             <button onClick={handleResetPengeluaranFilters} className="bg-gray-600 text-white p-2 rounded-xl hover:bg-gray-500 transition-colors" title="Reset Filter">
                                 <RefreshCcw className="w-5 h-5" />
