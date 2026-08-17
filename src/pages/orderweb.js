@@ -252,7 +252,7 @@ export default function OrderWeb() {
           pelanggan (nama, no_whatsapp),
           transaksi_detail (id, nama_barang, jumlah, variasi_terpilih, harga_satuan, produk(harga, nama))
         `)
-        .in('status_validasi', ['Menunggu', 'Dibatalkan'])
+        .in('status_validasi', ['Menunggu', 'Request Batal', 'Dibatalkan'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -294,7 +294,6 @@ export default function OrderWeb() {
 
   const formatRupiah = (angka) => `Rp${angka?.toLocaleString('id-ID')}`;
   const activeOrders = orders.filter(o => o.status_validasi === 'Menunggu');
-  const canceledOrders = orders.filter(o => o.status_validasi === 'Dibatalkan');
   const totalPotensiPendapatan = activeOrders.reduce((sum, order) => sum + (order.total_biaya || 0), 0);
 
   return (
@@ -307,9 +306,33 @@ export default function OrderWeb() {
         <p className="text-gray-400 mt-2">Data ini belum masuk ke Laporan Harian sebelum divalidasi.</p>
       </div>
       
-      <tbody className="text-sm">
+      <div className="bg-gradient-to-br from-teal-600 to-teal-800 p-5 rounded-2xl border border-teal-500 shadow-lg relative overflow-hidden flex items-center justify-between mb-8">
+        <div>
+            <p className="text-teal-100 text-sm font-medium mb-1">Potensi Pendapatan</p>
+            <h3 className="text-2xl font-bold text-white">{formatRupiah(totalPotensiPendapatan)}</h3>
+        </div>
+        <div className="bg-teal-900/50 p-4 rounded-full"><IconCheck /></div>
+      </div>
+
+      <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
+        {loading ? (
+            <div className="flex justify-center py-8"><svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
+        ) : orders.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left table-auto whitespace-nowrap">
+              <thead className="bg-gray-900/50 text-sm">
+                <tr>
+                  <th className="p-4">Tgl Order</th>
+                  <th className="p-4">Pelanggan (Klik detail)</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Total Biaya</th>
+                  <th className="p-4 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
                 {orders.map((order) => {
-                  const isCanceled = order.status_validasi === 'Dibatalkan';
+                  const isCanceled = order.status_validasi === 'Request Batal' || order.status_validasi === 'Dibatalkan';
+                  
                   return (
                     <tr key={order.id} className={`border-b border-gray-700/50 transition-colors ${isCanceled ? 'bg-red-900/10' : 'hover:bg-gray-700/30'}`}>
                       <td className="p-4 text-gray-400 font-medium">{moment(order.created_at).format('DD/MM/YY HH:mm')}</td>
@@ -322,8 +345,8 @@ export default function OrderWeb() {
                       
                       <td className="p-4">
                           {isCanceled ? (
-                              <span className="bg-red-900/50 text-red-300 px-3 py-1 rounded-full text-xs font-bold border border-red-700 flex w-max items-center gap-1">
-                                  Batal Customer
+                              <span className="bg-orange-900/50 text-orange-300 px-3 py-1 rounded-full text-xs font-bold border border-orange-700 flex w-max items-center gap-1">
+                                  Request Batal
                               </span>
                           ) : (
                               <span className="bg-yellow-900/50 text-yellow-300 px-3 py-1 rounded-full text-xs font-bold border border-yellow-700">
@@ -347,79 +370,14 @@ export default function OrderWeb() {
                           )}
                           <button 
                               onClick={() => handleHapusPermanen(order.id, isCanceled)} 
-                              className={`${isCanceled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-500'} text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg`}>
-                              {isCanceled ? 'Bersihkan / Hapus' : 'Tolak'}
+                              className={`${isCanceled ? 'bg-orange-700 hover:bg-orange-600' : 'bg-red-600 hover:bg-red-500'} text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg`}>
+                              {isCanceled ? 'Konfirmasi Batal & Hapus' : 'Tolak'}
                           </button>
                         </div>
                       </td>
                     </tr>
                   )
                 })}
-              </tbody>
-        
-        <div className="bg-gradient-to-br from-teal-600 to-teal-800 p-5 rounded-2xl border border-teal-500 shadow-lg relative overflow-hidden flex items-center justify-between">
-            <div>
-                <p className="text-teal-100 text-sm font-medium mb-1">Potensi Pendapatan</p>
-                <h3 className="text-2xl font-bold text-white">{formatRupiah(totalPotensiPendapatan)}</h3>
-            </div>
-            <div className="bg-teal-900/50 p-4 rounded-full"><IconCheck /></div>
-        </div>
-      </div>
-
-      {/* --- TABEL DATA --- */}
-      <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
-        {loading ? (
-            <div className="flex justify-center py-8"><svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
-        ) : orders.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left table-auto whitespace-nowrap">
-              <thead className="bg-gray-900/50 text-sm">
-                <tr>
-                  <th className="p-4">Tgl Order</th>
-                  <th className="p-4">Pelanggan (Klik untuk detail)</th>
-                  <th className="p-4">Jenis Layanan</th>
-                  <th className="p-4">Total Biaya</th>
-                  <th className="p-4 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {orders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                    <td className="p-4 text-gray-400 font-medium">{moment(order.created_at).format('DD/MM/YY HH:mm')}</td>
-                    
-                    {/* KLIK NAMA UNTUK MUNCULKAN RINCIAN */}
-                    <td className="p-4 cursor-pointer hover:underline text-teal-400 font-medium" 
-                        onClick={() => { setSelectedTransaction(order); setRincianModalOpen(true); }}>
-                      {order.pelanggan?.nama || 'Anonim'}
-                      <p className="text-xs text-gray-500 mt-0.5">{order.pelanggan?.no_whatsapp}</p>
-                    </td>
-                    
-                    <td className="p-4">
-                        <span className="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs font-bold border border-blue-700">
-                            {order.jenis_transaksi}
-                        </span>
-                    </td>
-                    
-                    <td className="p-4 font-semibold text-red-400">
-                      {formatRupiah(order.total_biaya)}
-                    </td>
-                    
-                    <td className="p-4 text-center">
-                      <div className="flex gap-2 justify-center">
-                        <button 
-                            onClick={() => { setSelectedForValidasi(order); setValidasiModalOpen(true); }} 
-                            className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-teal-900/50">
-                            Validasi
-                        </button>
-                        <button 
-                            onClick={() => handleBatalOrder(order.id)} 
-                            className="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-red-900/50">
-                            Batalkan
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
               </tbody>
             </table>
           </div>
