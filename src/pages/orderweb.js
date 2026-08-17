@@ -6,6 +6,14 @@ import moment from 'moment';
 import 'moment/locale/id';
 import toast, { Toaster } from 'react-hot-toast';
 
+// --- HELPER WARNA LAYANAN ---
+const getStripColor = (layanan) => {
+  const layananLower = (layanan || "").toLowerCase();
+  if (layananLower.includes("sewa")) return "bg-[#FF4501] text-white";
+  if (layananLower.includes("laundry")) return "bg-[#007AFF] text-white";
+  if (layananLower.includes("penjualan") || layananLower.includes("jual") || layananLower.includes("pembelian")) return "bg-[#1D1D1F] text-white";
+  return "bg-[#FF4501] text-white"; 
+};
 // --- KOMPONEN IKON ---
 const IconCheck = () => (
     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
@@ -22,7 +30,7 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
 
   const formatRupiah = (angka) => `Rp${angka?.toLocaleString('id-ID')}`;
-  const isBukanSewa = transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry';
+  const isBukanSewa = transaction.jenis_layanan === 'Penjualan' || transaction.jenis_layanan === 'Laundry';
 
   // Fungsi untuk handle klik nomor WA
   const handleWaClick = (noWa) => {
@@ -325,6 +333,7 @@ export default function OrderWeb() {
                   <th className="p-4">Tgl Order</th>
                   <th className="p-4">Pelanggan (Klik detail)</th>
                   <th className="p-4">Status</th>
+                  <th className="p-4">Jenis Layanan</th>
                   <th className="p-4">Total Biaya</th>
                   <th className="p-4 text-center">Aksi</th>
                 </tr>
@@ -353,6 +362,12 @@ export default function OrderWeb() {
                                   Menunggu
                               </span>
                           )}
+                      </td>
+
+                      <td className="p-4">
+                          <span className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase tracking-wider shadow-sm ${getStripColor(order.jenis_layanan || order.jenis_transaksi)}`}>
+                              {order.jenis_layanan || order.jenis_transaksi || 'UMUM'}
+                          </span>
                       </td>
                       
                       <td className={`p-4 font-semibold ${isCanceled ? 'text-gray-500 line-through' : 'text-red-400'}`}>
