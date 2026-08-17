@@ -13,6 +13,9 @@ const IconCheck = () => (
 const IconClock = () => (
     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
 );
+const IconX = () => (
+    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+);
 
 // --- MODAL RINCIAN TRANSAKSI (Diambil dari laporan.js) ---
 const TransactionModal = ({ isOpen, onClose, transaction }) => {
@@ -249,7 +252,7 @@ export default function OrderWeb() {
           pelanggan (nama, no_whatsapp),
           transaksi_detail (id, nama_barang, jumlah, variasi_terpilih, harga_satuan, produk(harga, nama))
         `)
-        .eq('status_validasi', 'Menunggu')
+        .in('status_validasi', ['Menunggu', 'Dibatalkan'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -266,27 +269,33 @@ export default function OrderWeb() {
     fetchWaitingOrders();
   }, []);
 
-  const handleBatalOrder = async (orderId) => {
-    const confirmDelete = window.confirm('Yakin ingin membatalkan dan menghapus orderan ini permanen?');
+  const handleHapusPermanen = async (orderId, isAlreadyCanceled) => {
+    const pesanKonfirmasi = isAlreadyCanceled 
+      ? 'Orderan ini sudah dibatalkan customer. Yakin ingin menghapusnya permanen dari sistem?' 
+      : 'Yakin ingin menolak dan menghapus orderan ini permanen?';
+      
+    const confirmDelete = window.confirm(pesanKonfirmasi);
     if (!confirmDelete) return;
 
-    const toastId = toast.loading('Membatalkan pesanan...');
+    const toastId = toast.loading('Menghapus pesanan...');
     try {
       await supabase.from('transaksi_detail').delete().eq('transaksi_id', orderId);
       const { error } = await supabase.from('transaksi').delete().eq('id', orderId);
 
       if (error) throw error;
 
-      toast.success('Orderan batal dihapus permanen.', { id: toastId });
+      toast.success('Orderan berhasil dihapus permanen.', { id: toastId });
       fetchWaitingOrders(); 
     } catch (error) {
       console.error('Error deleting order:', error.message);
-      toast.error('Gagal membatalkan orderan.', { id: toastId });
+      toast.error('Gagal menghapus orderan.', { id: toastId });
     }
   };
 
   const formatRupiah = (angka) => `Rp${angka?.toLocaleString('id-ID')}`;
-  const totalPotensiPendapatan = orders.reduce((sum, order) => sum + (order.total_biaya || 0), 0);
+  const activeOrders = orders.filter(o => o.status_validasi === 'Menunggu');
+  const canceledOrders = orders.filter(o => o.status_validasi === 'Dibatalkan');
+  const totalPotensiPendapatan = activeOrders.reduce((sum, order) => sum + (order.total_biaya || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
@@ -298,15 +307,55 @@ export default function OrderWeb() {
         <p className="text-gray-400 mt-2">Data ini belum masuk ke Laporan Harian sebelum divalidasi.</p>
       </div>
       
-      {/* --- WIDGET STATISTIK --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden flex items-center justify-between">
-            <div>
-                <p className="text-gray-400 text-sm font-medium mb-1">Total Order Menunggu</p>
-                <h3 className="text-3xl font-bold text-yellow-400">{orders.length} <span className="text-sm font-normal text-gray-500">Transaksi</span></h3>
-            </div>
-            <div className="bg-yellow-900/50 p-4 rounded-full"><IconClock /></div>
-        </div>
+      <tbody className="text-sm">
+                {orders.map((order) => {
+                  const isCanceled = order.status_validasi === 'Dibatalkan';
+                  return (
+                    <tr key={order.id} className={`border-b border-gray-700/50 transition-colors ${isCanceled ? 'bg-red-900/10' : 'hover:bg-gray-700/30'}`}>
+                      <td className="p-4 text-gray-400 font-medium">{moment(order.created_at).format('DD/MM/YY HH:mm')}</td>
+                      
+                      <td className="p-4 cursor-pointer hover:underline text-teal-400 font-medium" 
+                          onClick={() => { setSelectedTransaction(order); setRincianModalOpen(true); }}>
+                        {order.pelanggan?.nama || 'Anonim'}
+                        <p className="text-xs text-gray-500 mt-0.5">{order.pelanggan?.no_whatsapp}</p>
+                      </td>
+                      
+                      <td className="p-4">
+                          {isCanceled ? (
+                              <span className="bg-red-900/50 text-red-300 px-3 py-1 rounded-full text-xs font-bold border border-red-700 flex w-max items-center gap-1">
+                                  Batal Customer
+                              </span>
+                          ) : (
+                              <span className="bg-yellow-900/50 text-yellow-300 px-3 py-1 rounded-full text-xs font-bold border border-yellow-700">
+                                  Menunggu
+                              </span>
+                          )}
+                      </td>
+                      
+                      <td className={`p-4 font-semibold ${isCanceled ? 'text-gray-500 line-through' : 'text-red-400'}`}>
+                        {formatRupiah(order.total_biaya)}
+                      </td>
+                      
+                      <td className="p-4 text-center">
+                        <div className="flex gap-2 justify-center">
+                          {!isCanceled && (
+                              <button 
+                                  onClick={() => { setSelectedForValidasi(order); setValidasiModalOpen(true); }} 
+                                  className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-teal-900/50">
+                                  Validasi
+                              </button>
+                          )}
+                          <button 
+                              onClick={() => handleHapusPermanen(order.id, isCanceled)} 
+                              className={`${isCanceled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-500'} text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg`}>
+                              {isCanceled ? 'Bersihkan / Hapus' : 'Tolak'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
         
         <div className="bg-gradient-to-br from-teal-600 to-teal-800 p-5 rounded-2xl border border-teal-500 shadow-lg relative overflow-hidden flex items-center justify-between">
             <div>
