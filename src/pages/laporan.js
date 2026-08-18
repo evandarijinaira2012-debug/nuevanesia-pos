@@ -343,6 +343,147 @@ const TransactionModal = ({ isOpen, onClose, transaction }) => {
   );
 };
 
+// --- MODAL VERIFIKASI AKUN VIP (ANTI-IDOR) ---
+const VerifikasiPelangganModal = ({ isOpen, onClose }) => {
+    const [searchWa, setSearchWa] = useState('');
+    const [pelanggan, setPelanggan] = useState(null);
+    const [newEmail, setNewEmail] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleSearch = async () => {
+        if (!searchWa) return toast.error("Masukkan nomor WhatsApp pelanggan!");
+        
+        setIsLoading(true);
+        try {
+            // Hapus karakter selain angka, pastikan diawali 08 atau 62
+            const cleanWa = searchWa.replace(/[^0-9]/g, '');
+            const { data, error } = await supabase
+                .from('pelanggan')
+                .select('*')
+                .eq('no_whatsapp', cleanWa)
+                .maybeSingle();
+
+            if (error) throw error;
+            if (!data) {
+                toast.error("Data pelanggan dengan No WA ini tidak ditemukan!");
+                setPelanggan(null);
+            } else {
+                setPelanggan(data);
+                setNewEmail(data.email || '');
+                toast.success("Data ditemukan!");
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error("Terjadi kesalahan saat mencari data.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!newEmail) return toast.error("Email tidak boleh kosong!");
+        
+        setIsSaving(true);
+        try {
+            const { error } = await supabase
+                .from('pelanggan')
+                .update({ email: newEmail })
+                .eq('id', pelanggan.id);
+
+            if (error) throw error;
+            
+            toast.success("Email berhasil ditautkan! Pelanggan kini bisa checkout.");
+            handleClose(); // Reset dan tutup modal
+        } catch (e) {
+            console.error(e);
+            toast.error("Gagal menyimpan email.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleClose = () => {
+        setSearchWa('');
+        setPelanggan(null);
+        setNewEmail('');
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
+            <div className="bg-gray-800 rounded-3xl shadow-[0_0_40px_rgba(255,50,3,0.15)] p-6 w-full max-w-md border border-[#FF3203]/30">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#FF3203]/10 rounded-full flex items-center justify-center text-[#FF3203]">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Verifikasi Akun VIP</h3>
+                    </div>
+                    <button onClick={handleClose} className="text-gray-400 hover:text-white text-3xl font-bold">&times;</button>
+                </div>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">1. Cari Nomor WhatsApp Pelanggan</label>
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={searchWa}
+                                onChange={(e) => setSearchWa(e.target.value)}
+                                placeholder="Contoh: 08123456789"
+                                className="w-full bg-gray-900 text-white border border-gray-700 rounded-xl py-3 px-4 focus:outline-none focus:border-[#FF3203] transition-colors"
+                            />
+                            <button 
+                                onClick={handleSearch}
+                                disabled={isLoading}
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-5 rounded-xl font-bold transition-colors"
+                            >
+                                {isLoading ? '...' : 'Cari'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {pelanggan && (
+                        <div className="bg-gray-900 p-5 rounded-2xl border border-gray-700 mt-4 animate-fadeIn">
+                            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-800">
+                                <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-xl font-bold text-gray-300">
+                                    {pelanggan.nama.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-white">{pelanggan.nama}</p>
+                                    <p className="text-xs text-gray-400">{pelanggan.no_whatsapp}</p>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-2">2. Masukkan Email Baru (Google Auth)</label>
+                                <input 
+                                    type="email" 
+                                    value={newEmail}
+                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    placeholder="emailpelanggan@gmail.com"
+                                    className="w-full bg-gray-800 text-white border border-gray-600 rounded-xl py-3 px-4 focus:outline-none focus:border-teal-500 transition-colors"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="w-full bg-[#FF3203] hover:bg-[#E02902] text-white p-3.5 rounded-xl font-bold mt-5 shadow-[0_4px_14px_0_rgba(255,50,3,0.39)] transition-all disabled:opacity-50"
+                            >
+                                {isSaving ? 'Menyimpan...' : 'Tautkan Akun & Selesai'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- HALAMAN UTAMA LAPORAN ---
 export default function Laporan() {
   const [transaksiData, setTransaksiData] = useState([]);
@@ -359,10 +500,9 @@ export default function Laporan() {
 
   const [rekapKas, setRekapKas] = useState({ cash: 0, transfer: 0, qris: 0, total: 0 });
   const [jumlahTransaksiHariIni, setJumlahTransaksiHariIni] = useState(0);
-
   const [pelunasanModalOpen, setPelunasanModalOpen] = useState(false);
   const [selectedForPelunasan, setSelectedForPelunasan] = useState(null);
-  
+  const [verifikasiModalOpen, setVerifikasiModalOpen] = useState(false); // State Modal VIP
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50; 
   
@@ -584,9 +724,18 @@ export default function Laporan() {
       
       <div className="flex justify-between items-center mb-8 print:hidden">
         <h1 className="text-3xl font-bold text-teal-400">Laporan & Kasir</h1>
-        <button onClick={() => router.push('/')} className="bg-gray-700 text-white px-5 py-2.5 rounded-lg hover:bg-gray-600 transition-colors font-medium">
-          Kembali ke POS
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setVerifikasiModalOpen(true)} 
+            className="bg-[#1B1C1B] border border-[#FF3203] text-white px-5 py-2.5 rounded-lg hover:bg-[#FF3203] transition-colors font-medium shadow-[0_0_15px_rgba(255,50,3,0.2)] flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            Verifikasi VIP
+          </button>
+          <button onClick={() => router.push('/')} className="bg-gray-700 text-white px-5 py-2.5 rounded-lg hover:bg-gray-600 transition-colors font-medium">
+            Kembali ke POS
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 print:hidden">
@@ -804,6 +953,7 @@ export default function Laporan() {
 
       <TransactionModal isOpen={modalOpen} onClose={() => setModalOpen(false)} transaction={selectedTransaction} />
       <PelunasanModal isOpen={pelunasanModalOpen} onClose={() => setPelunasanModalOpen(false)} transaction={selectedForPelunasan} onSuccess={fetchLaporan} />
+      <VerifikasiPelangganModal isOpen={verifikasiModalOpen} onClose={() => setVerifikasiModalOpen(false)} />
     </div>
   );
 }
