@@ -528,8 +528,12 @@ export default function Laporan() {
     const akhirHariIni = moment().endOf('day').toISOString();
 
     // Logika untuk masing-masing tombol filter
-    if (activeTab === 'Belum Kembali') {
-      query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null');
+    if (activeTab === 'Menunggu Pengecekan 🔔') {
+      query = query.eq('status_pengembalian', 'Request Kembali'); // Transaksi yang memicu timer jeda
+    } else if (activeTab === 'Diambil') {
+      query = query.eq('status_pengembalian', 'Diambil'); // Transaksi yang sedang dibawa pelanggan
+    } else if (activeTab === 'Belum Kembali') {
+      query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null,status_pengembalian.eq.Diambil,status_pengembalian.eq.Request Kembali');
     } else if (activeTab === 'Terlambat') {
       query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null').lt('tanggal_selesai', hariIni);
     } else if (activeTab === 'Belum Lunas') {
@@ -767,8 +771,9 @@ export default function Laporan() {
         <h2 className="text-xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
         
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            {['Semua', 'Belum Kembali', 'Terlambat', 'Belum Lunas', 'Lunas', 'Closing Hari Ini'].map(tab => (
-                <button 
+            {/* TAMBAHAN TAB: Menunggu Pengecekan & Diambil */}
+            {['Semua', 'Menunggu Pengecekan 🔔', 'Diambil', 'Belum Kembali', 'Terlambat', 'Belum Lunas', 'Lunas', 'Closing Hari Ini'].map(tab => (
+                <button
                     key={tab} 
                     onClick={() => setActiveTab(tab)} 
                     className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/50' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
@@ -879,10 +884,20 @@ export default function Laporan() {
                             )
                         ) : isReturned ? (
                           <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium border border-green-500/30">Sudah Kembali</span>
+                        ) : t.status_pengembalian === 'Request Kembali' ? (
+                          /* HIGHLIGHT KUNING MENYALA SAAT PELANGGAN SCAN QR DI KASIR */
+                          <div className="flex items-center gap-2">
+                            <span className="bg-yellow-500 text-yellow-950 px-3 py-1.5 rounded-full text-xs font-extrabold border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                              Siap Dicek
+                            </span>
+                          </div>
+                        ) : t.status_pengembalian === 'Diambil' ? (
+                          <span className="bg-teal-900/50 text-teal-300 px-3 py-1 rounded-full text-xs font-medium border border-teal-700">Sedang Disewa</span>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isLate ? 'bg-red-700 text-white border-red-800' : 'bg-red-500 text-white border-red-600'}`}>
-                              {isLate ? 'Terlambat' : 'Belum Kembali'}
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isLate ? 'bg-red-700 text-white border-red-800' : 'bg-gray-600 text-gray-300 border-gray-500'}`}>
+                              {isLate ? 'Terlambat' : 'Belum Diambil'}
                             </span>
                           </div>
                         )}
@@ -896,10 +911,27 @@ export default function Laporan() {
                       
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
-                          {/* PERUBAHAN: Tombol muncul untuk Sewa DAN Laundry */}
+                          {/* PERUBAHAN: Tombol Cerdas berdasarkan Source of Truth */}
                           {(!isReturned && t.jenis_transaksi !== 'Penjualan') && (
-                            <button onClick={(e) => { e.stopPropagation(); updateStatusPengembalian(t.id, 'Sudah Kembali'); }} className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-gray-600">
-                                {t.jenis_transaksi === 'Laundry' ? 'Tandai Diambil' : 'Tandai Kembali'}
+                            <button 
+                                onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    const confirmSelesai = window.confirm(
+                                        t.status_pengembalian === 'Request Kembali' 
+                                            ? "Apakah Anda yakin barang sudah dicek lengkap dan sesuai?" 
+                                            : "Paksa tandai barang sudah dikembalikan?"
+                                    );
+                                    if(confirmSelesai) updateStatusPengembalian(t.id, 'Sudah Kembali'); 
+                                }} 
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                                    t.status_pengembalian === 'Request Kembali'
+                                        ? 'bg-[#FF3203] hover:bg-[#E72029] text-white border-[#C92500] shadow-[#FF3203]/40'
+                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'
+                                }`}
+                            >
+                                {t.jenis_transaksi === 'Laundry' 
+                                    ? 'Tandai Diambil' 
+                                    : (t.status_pengembalian === 'Request Kembali' ? 'SELESAIKAN PESANAN ✓' : 'Tandai Kembali')}
                             </button>
                           )}
                           {!isLunas && (
