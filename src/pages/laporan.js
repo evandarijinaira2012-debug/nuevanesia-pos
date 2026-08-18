@@ -782,7 +782,7 @@ export default function Laporan() {
       <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 mb-8 print:hidden">
         <h2 className="text-xl font-semibold mb-4 text-gray-200">Filter & Pencarian</h2>
         
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 pt-3 px-2">
             {/* TAMBAHAN TAB: Menunggu Pengecekan & Diambil */}
             {['Semua', 'Menunggu Pengecekan 🔔', 'Diambil', 'Belum Kembali', 'Terlambat', 'Belum Lunas', 'Lunas', 'Closing Hari Ini'].map(tab => (
                 <button
