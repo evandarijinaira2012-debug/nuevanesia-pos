@@ -500,6 +500,7 @@ export default function Laporan() {
 
   const [rekapKas, setRekapKas] = useState({ cash: 0, transfer: 0, qris: 0, total: 0 });
   const [jumlahTransaksiHariIni, setJumlahTransaksiHariIni] = useState(0);
+  const [countPengecekan, setCountPengecekan] = useState(0)
   const [pelunasanModalOpen, setPelunasanModalOpen] = useState(false);
   const [selectedForPelunasan, setSelectedForPelunasan] = useState(null);
   const [verifikasiModalOpen, setVerifikasiModalOpen] = useState(false); // State Modal VIP
@@ -595,6 +596,17 @@ export default function Laporan() {
     if (!errorCount) {
         setJumlahTransaksiHariIni(countTransaksi || 0);
     }
+
+    // --- TAMBAHAN: MENGHITUNG JUMLAH REQUEST KEMBALI (BADGE MERAH) ---
+    const { count: countPengecekanDb, error: errorPengecekan } = await supabase
+        .from('transaksi')
+        .select('*', { count: 'exact', head: true })
+        .eq('status_pengembalian', 'Request Kembali');
+
+    if (!errorPengecekan) {
+        setCountPengecekan(countPengecekanDb || 0);
+    }
+    // -----------------------------------------------------------------
 
     setLoading(false);
     setInitialLoading(false);
@@ -776,9 +788,15 @@ export default function Laporan() {
                 <button
                     key={tab} 
                     onClick={() => setActiveTab(tab)} 
-                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/50' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                    className={`relative px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/50' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                 >
                     {tab}
+                    {/* NOTIFIKASI BADGE MERAH KHAS EIGER */}
+                    {(tab === 'Menunggu Pengecekan 🔔' && countPengecekan > 0) && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-[#FF3203] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-md animate-bounce border border-white/20">
+                            {countPengecekan}
+                        </span>
+                    )}
                 </button>
             ))}
         </div>
