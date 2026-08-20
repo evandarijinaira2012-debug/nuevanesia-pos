@@ -669,7 +669,41 @@ export default function Laporan() {
   const itemsPerPage = 50; 
   
   const [initialLoading, setInitialLoading] = useState(true);
+  // STATE BARU UNTUK STATUS TOKO
+  const [statusToko, setStatusToko] = useState('OPEN');
+  const [isTokoLoading, setIsTokoLoading] = useState(false);
+  
   const router = useRouter();
+
+  // FUNGSI UNTUK MENGUBAH STATUS TOKO
+  const handleToggleToko = async () => {
+    const newStatus = statusToko === 'OPEN' ? 'CLOSED' : 'OPEN';
+    const confirmMsg = newStatus === 'CLOSED' 
+        ? 'Tutup toko sekarang? (Akan menghentikan waktu toleransi denda pelanggan)' 
+        : 'Buka toko kembali?';
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsTokoLoading(true);
+    const toastId = toast.loading(`Mengubah status menjadi ${newStatus}...`);
+    try {
+        // Asumsi data pengaturan toko berada di row id = 1
+        const { error } = await supabase
+            .from('pengaturan_toko')
+            .update({ status_toko: newStatus })
+            .eq('id', 1); 
+
+        if (error) throw error;
+        
+        setStatusToko(newStatus);
+        toast.success(`Toko berhasil ${newStatus === 'CLOSED' ? 'DITUTUP' : 'DIBUKA'}!`, { id: toastId });
+    } catch (e) {
+        console.error(e);
+        toast.error('Gagal mengubah status toko.', { id: toastId });
+    } finally {
+        setIsTokoLoading(false);
+    }
+  };
 
   const fetchLaporan = async () => {
     setLoading(true);
@@ -770,14 +804,15 @@ export default function Laporan() {
     }
     // -----------------------------------------------------------------
 
-    // --- AMBIL PIN OTORISASI DARI PENGATURAN TOKO ---
+    // --- AMBIL PIN OTORISASI & STATUS TOKO DARI PENGATURAN TOKO ---
     const { data: dataToko } = await supabase
         .from('pengaturan_toko')
-        .select('pin_otorisasi')
+        .select('pin_otorisasi, status_toko')
         .limit(1)
         .maybeSingle();
-    if (dataToko && dataToko.pin_otorisasi) {
-        setPinOtorisasi(dataToko.pin_otorisasi);
+    if (dataToko) {
+        if (dataToko.pin_otorisasi) setPinOtorisasi(dataToko.pin_otorisasi);
+        if (dataToko.status_toko) setStatusToko(dataToko.status_toko);
     }
     // -----------------------------------------------------------------
 
@@ -980,6 +1015,21 @@ export default function Laporan() {
       <div className="flex justify-between items-center mb-8 print:hidden">
         <h1 className="text-3xl font-bold text-teal-400">Laporan & Kasir</h1>
         <div className="flex items-center gap-3">
+          
+          {/* TOMBOL BUKA/TUTUP TOKO */}
+          <button 
+            onClick={handleToggleToko} 
+            disabled={isTokoLoading}
+            className={`px-5 py-2.5 rounded-lg font-bold transition-all shadow-lg flex items-center gap-2 ${
+                statusToko === 'OPEN' 
+                    ? 'bg-teal-600 hover:bg-teal-500 text-white shadow-teal-900/50' 
+                    : 'bg-[#FF3203] hover:bg-[#E02902] text-white shadow-[0_0_15px_rgba(255,50,3,0.3)]'
+            } disabled:opacity-50`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            {isTokoLoading ? 'Memproses...' : (statusToko === 'OPEN' ? 'Toko Buka' : 'Toko Tutup')}
+          </button>
+
           <button 
             onClick={() => setVerifikasiModalOpen(true)} 
             className="bg-[#1B1C1B] border border-[#FF3203] text-white px-5 py-2.5 rounded-lg hover:bg-[#FF3203] transition-colors font-medium shadow-[0_0_15px_rgba(255,50,3,0.2)] flex items-center gap-2"
