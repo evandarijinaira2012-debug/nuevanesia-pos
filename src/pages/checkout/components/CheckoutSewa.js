@@ -521,7 +521,8 @@ export default function CheckoutSewa() {
                 catatan: catatan,
                 diskon_manual: nilaiDiskonManual,
                 status_pembayaran: finalStatus,
-                jumlah_terbayar: finalJumlahTerbayar
+                jumlah_terbayar: finalJumlahTerbayar,
+                jenis_transaksi: 'Sewa'
             }])
             .select();
 
