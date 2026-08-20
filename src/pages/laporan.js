@@ -7,6 +7,16 @@ import moment from 'moment';
 import 'moment/locale/id';
 import toast, { Toaster } from 'react-hot-toast';
 
+// --- MESIN HARGA & DENDA (Disinkronkan dengan Web Utama) ---
+const hitungTotalItemSewa = (hargaSatuan, kuantitas, durasiMalam) => {
+  if (durasiMalam <= 0) return 0;
+  if (durasiMalam <= 2) return hargaSatuan * kuantitas * durasiMalam;
+  const hargaNormal = hargaSatuan * kuantitas * 2;
+  const sisaMalam = durasiMalam - 2;
+  const hargaDiskon = (hargaSatuan * 0.5) * kuantitas * sisaMalam;
+  return hargaNormal + hargaDiskon;
+};
+
 // --- KOMPONEN IKON ---
 const IconExport = () => (
     <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -484,6 +494,152 @@ const VerifikasiPelangganModal = ({ isOpen, onClose }) => {
     );
 };
 
+// --- MODAL DENDA KETERLAMBATAN (EXTEND) ---
+const ExtendModal = ({ isOpen, onClose, data, pinOtorisasi, onSuccess }) => {
+    const [showPinInput, setShowPinInput] = useState(false);
+    const [pinInput, setPinInput] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    if (!isOpen || !data) return null;
+
+    const handleTerapkanDenda = async () => {
+        setIsSubmitting(true);
+        const toastId = toast.loading('Menerapkan denda...');
+        try {
+            // 1. Update total biaya di database menjadi harga aktual (dengan denda)
+            // 2. Ubah status menjadi 'Sudah Kembali'
+            const { error } = await supabase.from('transaksi').update({
+                total_biaya: data.biayaAktual,
+                status_pengembalian: 'Sudah Kembali'
+            }).eq('id', data.transaction.id);
+
+            if (error) throw error;
+            toast.success('Denda berhasil diterapkan & pesanan selesai!', { id: toastId });
+            onSuccess();
+            onClose();
+        } catch (e) {
+            console.error(e);
+            toast.error('Gagal menerapkan denda.', { id: toastId });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleHapusDenda = async () => {
+        if (!pinInput) return toast.error("Masukkan PIN Otorisasi!");
+        if (pinInput !== pinOtorisasi) return toast.error("PIN Otorisasi Salah!");
+
+        setIsSubmitting(true);
+        const toastId = toast.loading('Menghapus denda & otorisasi...');
+        try {
+            // Beri jejak digital (Audit Trail) di catatan transaksi
+            const catatanLama = data.transaction.catatan || '';
+            const catatanBaru = catatanLama 
+                ? catatanLama + `\n[SISTEM: Denda Keterlambatan Rp${data.biayaExtend.toLocaleString('id-ID')} DIHAPUS (Otorisasi PIN)]`
+                : `[SISTEM: Denda Keterlambatan Rp${data.biayaExtend.toLocaleString('id-ID')} DIHAPUS (Otorisasi PIN)]`;
+
+            // Status selesai, denda tidak ditambahkan, tapi catatan direkam
+            const { error } = await supabase.from('transaksi').update({
+                catatan: catatanBaru,
+                status_pengembalian: 'Sudah Kembali'
+            }).eq('id', data.transaction.id);
+
+            if (error) throw error;
+            toast.success('Denda dihapus & pesanan selesai!', { id: toastId });
+            onSuccess();
+            onClose();
+        } catch (e) {
+            console.error(e);
+            toast.error('Gagal memproses otorisasi.', { id: toastId });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-[80]">
+            <div className="bg-gray-800 rounded-2xl shadow-[0_0_30px_rgba(255,50,3,0.2)] p-6 w-full max-w-md border border-red-500/50">
+                <div className="flex justify-between items-start mb-4 border-b border-gray-700 pb-4">
+                    <div className="flex gap-3 items-center">
+                        <div className="w-12 h-12 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-red-400">Terdeteksi Keterlambatan</h3>
+                            <p className="text-xs text-gray-400 mt-1">Sistem otomatis menghitung biaya extend.</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+                </div>
+
+                <div className="bg-gray-900 rounded-xl p-4 mb-5 border border-gray-700">
+                    <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-400">Total Durasi Tambahan:</span>
+                        <span className="font-bold text-white">{data.malamExtend} Malam</span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-400">Total Sewa Awal:</span>
+                        <span className="font-bold text-gray-300">Rp {data.biayaAwal.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-2 border-b border-gray-700 pb-2">
+                        <span className="text-red-400 font-bold">Biaya Denda Extend:</span>
+                        <span className="font-bold text-red-400">+ Rp {data.biayaExtend.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="flex justify-between text-lg mt-2">
+                        <span className="font-bold text-gray-200">Total Tagihan Baru:</span>
+                        <span className="font-extrabold text-white">Rp {data.biayaAktual.toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+
+                {!showPinInput ? (
+                    <div className="space-y-3">
+                        <button 
+                            onClick={handleTerapkanDenda}
+                            disabled={isSubmitting}
+                            className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-red-900/50"
+                        >
+                            Terapkan Denda & Selesaikan
+                        </button>
+                        <button 
+                            onClick={() => setShowPinInput(true)}
+                            className="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 rounded-xl transition-colors"
+                        >
+                            Hapus Denda (Butuh PIN Khusus)
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-3 animate-fadeIn">
+                        <label className="block text-sm font-medium text-gray-400">Masukkan PIN Otorisasi Admin</label>
+                        <input 
+                            type="password" 
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value)}
+                            placeholder="• • • • • •"
+                            className="w-full bg-gray-900 text-center text-xl tracking-[1em] text-white border border-gray-700 rounded-xl py-3 px-4 focus:outline-none focus:border-red-500"
+                            maxLength={10}
+                        />
+                        <div className="flex gap-2 mt-4">
+                            <button 
+                                onClick={() => { setShowPinInput(false); setPinInput(''); }}
+                                className="w-1/3 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl font-bold"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                onClick={handleHapusDenda}
+                                disabled={isSubmitting || !pinInput}
+                                className="w-2/3 bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-teal-900/50 transition-colors disabled:opacity-50"
+                            >
+                                Otorisasi & Hapus Denda
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- HALAMAN UTAMA LAPORAN ---
 export default function Laporan() {
   const [transaksiData, setTransaksiData] = useState([]);
@@ -504,6 +660,11 @@ export default function Laporan() {
   const [pelunasanModalOpen, setPelunasanModalOpen] = useState(false);
   const [selectedForPelunasan, setSelectedForPelunasan] = useState(null);
   const [verifikasiModalOpen, setVerifikasiModalOpen] = useState(false); // State Modal VIP
+  
+  // STATE BARU UNTUK FITUR DENDA & PIN OTORISASI
+  const [pinOtorisasi, setPinOtorisasi] = useState('');
+  const [extendModalOpen, setExtendModalOpen] = useState(false);
+  const [extendData, setExtendData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50; 
   
@@ -536,7 +697,8 @@ export default function Laporan() {
     } else if (activeTab === 'Belum Kembali') {
       query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null,status_pengembalian.eq.Diambil,status_pengembalian.eq.Request Kembali');
     } else if (activeTab === 'Terlambat') {
-      query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null').lt('tanggal_selesai', hariIni);
+      // PERBAIKAN: Masukkan juga status Diambil dan Request Kembali
+      query = query.or('status_pengembalian.eq.Belum_Kembali,status_pengembalian.is.null,status_pengembalian.eq.Diambil,status_pengembalian.eq.Request Kembali').lt('tanggal_selesai', hariIni);
     } else if (activeTab === 'Belum Lunas') {
       query = query.neq('status_pembayaran', 'Lunas');
     } else if (activeTab === 'Lunas') {
@@ -605,6 +767,17 @@ export default function Laporan() {
 
     if (!errorPengecekan) {
         setCountPengecekan(countPengecekanDb || 0);
+    }
+    // -----------------------------------------------------------------
+
+    // --- AMBIL PIN OTORISASI DARI PENGATURAN TOKO ---
+    const { data: dataToko } = await supabase
+        .from('pengaturan_toko')
+        .select('pin_otorisasi')
+        .limit(1)
+        .maybeSingle();
+    if (dataToko && dataToko.pin_otorisasi) {
+        setPinOtorisasi(dataToko.pin_otorisasi);
     }
     // -----------------------------------------------------------------
 
@@ -679,6 +852,72 @@ export default function Laporan() {
   const currentItems = sortedTransaksi.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(sortedTransaksi.length / itemsPerPage);
   // -------------------------------------------------------
+
+  // --- FUNGSI PENGECEKAN DENDA (DIPANGGIL SAAT KLIK SELESAI) ---
+  const handleSelesaikanPesanan = (transaction) => {
+    if (transaction.jenis_transaksi === 'Penjualan' || transaction.jenis_transaksi === 'Laundry') {
+      const confirmSelesai = window.confirm("Tandai pesanan selesai?");
+      if (confirmSelesai) updateStatusPengembalian(transaction.id, 'Sudah Kembali');
+      return;
+    }
+
+    const sekarang = new Date().getTime();
+    const tglSelesaiBersih = transaction.tanggal_selesai ? transaction.tanggal_selesai.split('T')[0] : null;
+    
+    if (!tglSelesaiBersih) {
+       const confirm = window.confirm("Tandai pesanan selesai?");
+       if (confirm) updateStatusPengembalian(transaction.id, 'Sudah Kembali');
+       return;
+    }
+
+    const endWaktuAwal = new Date(`${tglSelesaiBersih}T21:00:00`).getTime();
+    let malamExtend = 0;
+    
+    if (sekarang > endWaktuAwal) {
+      const selisihMilis = sekarang - endWaktuAwal;
+      const hariTerlewat = Math.floor(selisihMilis / 86400000);
+      const deadlineHariIni = endWaktuAwal + (hariTerlewat * 86400000);
+      const closingLimit = deadlineHariIni + (30 * 60000); // Toleransi sampai 21:30
+
+      if (sekarang >= deadlineHariIni && sekarang < closingLimit) {
+        malamExtend = hariTerlewat; 
+      } else {
+        malamExtend = hariTerlewat + 1; 
+      }
+    }
+
+    if (malamExtend > 0) {
+      let grandTotalAwal = 0;
+      let grandTotalAktual = 0;
+      
+      transaction.transaksi_detail?.forEach((det) => {
+        const qty = det.jumlah || 1;
+        const hrg = det.harga_satuan || det.produk?.harga || 0;
+        let d_awal = transaction.durasi_hari || 1;
+        let d_aktual = d_awal + malamExtend;
+        
+        grandTotalAwal += hitungTotalItemSewa(hrg, qty, d_awal);
+        grandTotalAktual += hitungTotalItemSewa(hrg, qty, d_aktual);
+      });
+
+      const totalBiayaExtend = grandTotalAktual - grandTotalAwal;
+
+      if (totalBiayaExtend > 0) {
+        setExtendData({
+           transaction, malamExtend,
+           biayaAwal: transaction.total_biaya,
+           biayaExtend: totalBiayaExtend,
+           biayaAktual: grandTotalAktual
+        });
+        setExtendModalOpen(true); // Buka Modal Denda!
+        return;
+      }
+    }
+
+    // Jika tepat waktu
+    const confirmSelesai = window.confirm("Apakah Anda yakin barang sudah dicek lengkap dan sesuai?");
+    if (confirmSelesai) updateStatusPengembalian(transaction.id, 'Sudah Kembali');
+  };
 
   const updateStatusPengembalian = async (transactionId, status) => {
     setLoading(true);
@@ -851,7 +1090,8 @@ export default function Laporan() {
               <tbody className="text-sm">
                 {/* UBAH: dari sortedTransaksi menjadi currentItems */}
                 {currentItems.map(t => {
-                  const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && (t.status_pengembalian === 'Belum_Kembali' || t.status_pengembalian === null);
+                  // PERBAIKAN: Pokoknya kalau tanggal lewat dan belum "Sudah Kembali", berarti dia Terlambat!
+                  const isLate = moment().isAfter(moment(t.tanggal_selesai), 'day') && t.status_pengembalian !== 'Sudah Kembali';
                   const isReturned = t.status_pengembalian === 'Sudah Kembali';
                   const isLunas = t.status_pembayaran === 'Lunas';
                   
@@ -903,7 +1143,6 @@ export default function Laporan() {
                         ) : isReturned ? (
                           <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium border border-green-500/30">Sudah Kembali</span>
                         ) : t.status_pengembalian === 'Request Kembali' ? (
-                          /* HIGHLIGHT KUNING MENYALA SAAT PELANGGAN SCAN QR DI KASIR */
                           <div className="flex items-center gap-2">
                             <span className="bg-yellow-500 text-yellow-950 px-3 py-1.5 rounded-full text-xs font-extrabold border border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse flex items-center gap-1">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
@@ -911,11 +1150,15 @@ export default function Laporan() {
                             </span>
                           </div>
                         ) : t.status_pengembalian === 'Diambil' ? (
-                          <span className="bg-teal-900/50 text-teal-300 px-3 py-1 rounded-full text-xs font-medium border border-teal-700">Sedang Disewa</span>
+                          isLate ? (
+                              <span className="bg-red-700/80 text-white px-3 py-1 rounded-full text-xs font-bold border border-red-800 shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse">Terlambat (Disewa)</span>
+                          ) : (
+                              <span className="bg-teal-900/50 text-teal-300 px-3 py-1 rounded-full text-xs font-medium border border-teal-700">Sedang Disewa</span>
+                          )
                         ) : (
                           <div className="flex items-center gap-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${isLate ? 'bg-red-700 text-white border-red-800' : 'bg-gray-600 text-gray-300 border-gray-500'}`}>
-                              {isLate ? 'Terlambat' : 'Belum Diambil'}
+                              {isLate ? 'Terlambat (Belum Diambil)' : 'Belum Diambil'}
                             </span>
                           </div>
                         )}
@@ -929,28 +1172,37 @@ export default function Laporan() {
                       
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
-                          {/* PERUBAHAN: Tombol Cerdas berdasarkan Source of Truth */}
                           {(!isReturned && t.jenis_transaksi !== 'Penjualan') && (
-                            <button 
-                                onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    const confirmSelesai = window.confirm(
-                                        t.status_pengembalian === 'Request Kembali' 
-                                            ? "Apakah Anda yakin barang sudah dicek lengkap dan sesuai?" 
-                                            : "Paksa tandai barang sudah dikembalikan?"
-                                    );
-                                    if(confirmSelesai) updateStatusPengembalian(t.id, 'Sudah Kembali'); 
-                                }} 
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
-                                    t.status_pengembalian === 'Request Kembali'
-                                        ? 'bg-[#FF3203] hover:bg-[#E72029] text-white border-[#C92500] shadow-[#FF3203]/40'
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'
-                                }`}
-                            >
-                                {t.jenis_transaksi === 'Laundry' 
-                                    ? 'Tandai Diambil' 
-                                    : (t.status_pengembalian === 'Request Kembali' ? 'SELESAIKAN PESANAN ✓' : 'Tandai Kembali')}
-                            </button>
+                            (!t.status_pengembalian || t.status_pengembalian === 'Belum_Kembali' || t.status_pengembalian === 'Belum') ? (
+                                // TOMBOL 1: JIKA BARANG BELUM DIAMBIL FISIKNYA
+                                <button 
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        const confirmAmbil = window.confirm("Tandai barang sudah diambil oleh pelanggan?");
+                                        if(confirmAmbil) updateStatusPengembalian(t.id, 'Diambil'); 
+                                    }} 
+                                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm bg-teal-700 hover:bg-teal-600 text-white border-teal-800"
+                                >
+                                    Tandai Diambil
+                                </button>
+                            ) : (
+                                // TOMBOL 2: JIKA BARANG SUDAH DIAMBIL (Sedang Disewa/Request Kembali)
+                                <button 
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        handleSelesaikanPesanan(t); // Memicu fungsi deteksi denda otomatis
+                                    }} 
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                                        t.status_pengembalian === 'Request Kembali'
+                                            ? 'bg-[#FF3203] hover:bg-[#E72029] text-white border-[#C92500] shadow-[#FF3203]/40'
+                                            : 'bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600'
+                                    }`}
+                                >
+                                    {t.jenis_transaksi === 'Laundry' 
+                                        ? 'Tandai Selesai' 
+                                        : (t.status_pengembalian === 'Request Kembali' ? 'SELESAIKAN PESANAN ✓' : 'Tandai Kembali')}
+                                </button>
+                            )
                           )}
                           {!isLunas && (
                             <button onClick={(e) => { e.stopPropagation(); setSelectedForPelunasan(t); setPelunasanModalOpen(true); }} className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-lg shadow-teal-900/50">
@@ -1004,6 +1256,15 @@ export default function Laporan() {
       <TransactionModal isOpen={modalOpen} onClose={() => setModalOpen(false)} transaction={selectedTransaction} />
       <PelunasanModal isOpen={pelunasanModalOpen} onClose={() => setPelunasanModalOpen(false)} transaction={selectedForPelunasan} onSuccess={fetchLaporan} />
       <VerifikasiPelangganModal isOpen={verifikasiModalOpen} onClose={() => setVerifikasiModalOpen(false)} />
+      
+      {/* MODAL DENDA BARU */}
+      <ExtendModal 
+        isOpen={extendModalOpen} 
+        onClose={() => { setExtendModalOpen(false); setExtendData(null); }} 
+        data={extendData} 
+        pinOtorisasi={pinOtorisasi} 
+        onSuccess={fetchLaporan} 
+      />
     </div>
   );
 }
