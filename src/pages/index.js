@@ -64,15 +64,14 @@ export default function Home() {
     };
 
     useEffect(() => {
-        // 1. DAFTAR EMAIL ADMIN (Tambahkan email admin kasir lainnya di sini)
         const ADMIN_EMAILS = [
             'evandarijinaira2012@gmail.com',
-            'xzibit@nuevanesia.com'
+            'xzibit@nuevanesia.com',
             'nuevanesia@gmail.com'
         ];
 
         // 2. FUNGSI SATPAM PENGECEK EMAIL
-        const verifikasiAdmin = async (sesiAwal: any) => {
+        const verifikasiAdmin = async (sesiAwal) => {
             if (!sesiAwal) {
                 router.push('/login');
                 return;
