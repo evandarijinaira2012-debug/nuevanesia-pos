@@ -64,17 +64,42 @@ export default function Home() {
     };
 
     useEffect(() => {
+        // 1. DAFTAR EMAIL ADMIN (Tambahkan email admin kasir lainnya di sini)
+        const ADMIN_EMAILS = [
+            'evandarijinaira2012@gmail.com',
+            'xzibit@nuevanesia.com'
+            'nuevanesia@gmail.com'
+        ];
+
+        // 2. FUNGSI SATPAM PENGECEK EMAIL
+        const verifikasiAdmin = async (sesiAwal: any) => {
+            if (!sesiAwal) {
+                router.push('/login');
+                return;
+            }
+
+            // Jika email yang login TIDAK ADA di daftar admin
+            if (!ADMIN_EMAILS.includes(sesiAwal.user.email)) {
+                toast.error("Akses Ditolak! Anda bukan Admin.");
+                await supabase.auth.signOut(); // Tendang keluar (Logout paksa)
+                router.push('/login');         // Kembalikan ke halaman login POS
+            } else {
+                setSession(sesiAwal);          // Jika valid, izinkan masuk
+            }
+        };
+
+        // Eksekusi fungsi satpam saat pertama kali halaman dimuat
         supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (!session) router.push('/login');
+            verifikasiAdmin(session);
         });
 
+        // Eksekusi fungsi satpam jika ada perubahan status login
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (event, session) => {
-                setSession(session);
-                if (!session) router.push('/login');
+            (_event, session) => {
+                verifikasiAdmin(session);
             }
         );
+
         return () => subscription?.unsubscribe();
     }, [router]);
 
