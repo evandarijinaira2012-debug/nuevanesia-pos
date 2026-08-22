@@ -139,6 +139,8 @@ export default function CheckoutLaundry() {
                     tanggal_selesai: tanggalSelesai,
                     total_biaya: totalBiayaAkhir,
                     jenis_pembayaran: metodePembayaran,
+                    jenis_transaksi: 'Laundry',
+                    total_biaya: totalBiayaAkhir,
                     catatan: catatan,
                     diskon_manual: diskonManual,
                     jenis_diskon_manual: jenisDiskonManual,

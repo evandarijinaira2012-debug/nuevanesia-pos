@@ -135,6 +135,7 @@ export default function CheckoutPenjualan() {
                     jenis_transaksi: 'Penjualan', 
                     total_biaya: totalBiayaAkhir,
                     jenis_pembayaran: metodePembayaran,
+                    jenis_transaksi: 'Penjualan',
                     catatan: catatan,
                     diskon_manual: diskonManual,
                     jenis_diskon_manual: jenisDiskonManual,
